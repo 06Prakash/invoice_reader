@@ -1,6 +1,6 @@
-# Invoice Extractor
+# Invoice Reader
 
-Invoice Extractor is a web application that allows users to upload invoice PDFs, specify fields to extract, and download the extracted data in various formats (JSON, CSV, or plain text). The backend is powered by Flask, and the frontend is a simple HTML/JavaScript interface. The application uses Tesseract OCR and pdf2image for PDF processing.
+Invoice Reader is a web application that allows users to upload invoice PDFs, specify fields to extract, and download the extracted data in various formats (JSON, CSV, or plain text). The backend is powered by Flask, and the frontend is a simple HTML/JavaScript interface. The application uses Tesseract OCR and pdf2image for PDF processing.
 
 ## Features
 
