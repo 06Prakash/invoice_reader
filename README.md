@@ -21,18 +21,18 @@ Invoice Reader is a web application that allows users to upload invoice PDFs, sp
 
 1. **Clone the repository**:
     ```sh
-    git clone <repository-url>
-    cd <repository-directory>
+    git clone https://github.com/06Prakash/invoice_reader.git
+    cd /path/to/invoice_reader/directory
     ```
 
 2. **Build the Docker image**:
     ```sh
-    docker build -t invoice-extractor .
+    docker build -t invoice-reader .
     ```
 
 3. **Run the Docker container**:
     ```sh
-    docker run -p 5001:5000 invoice-extractor
+    docker run -p 5001:5000 invoice-reader
     ```
 
 4. **Access the application**:
@@ -42,8 +42,8 @@ Invoice Reader is a web application that allows users to upload invoice PDFs, sp
 
 1. **Clone the repository**:
     ```sh
-    git clone <repository-url>
-    cd <repository-directory>
+    git clone https://github.com/06Prakash/invoice_reader.git
+    cd /path/to/invoice_reader/directory
     ```
 
 2. **Install dependencies**:
