@@ -30,7 +30,7 @@ const App = () => {
     };
 
     const handleTemplateGenerated = (generatedTemplate) => {
-        setSelectedTemplate(generatedTemplate);
+        setSelectedTemplate(generatedTemplate.name);
         fetchTemplates();
         setMessage('Template generated and saved successfully.');
     };
@@ -49,7 +49,7 @@ const App = () => {
         setMessage('');
         const data = {
             filename: uploadedFile,
-            template: selectedTemplate.name,
+            template: selectedTemplate,
             output_format: outputFormat
         };
 
@@ -69,14 +69,15 @@ const App = () => {
     };
 
     const handleTemplateSelect = (templateName) => {
-        const template = templates.find(t => t.name === templateName);
-        setSelectedTemplate(template);
+        setSelectedTemplate(templateName);
     };
 
     const handleOutputFormatChange = (event) => {
         setOutputFormat(event.target.value);
     };
 
+    const isExtractButtonDisabled = !uploadedFile || !selectedTemplate || loading;
+    console.log("Is extract button disabled?" + isExtractButtonDisabled)
     return (
         <div className="App">
             <h1>Invoice Extractor</h1>
@@ -92,7 +93,7 @@ const App = () => {
                 </select>
             </div>
             <div>
-                <button onClick={handleExtractData} disabled={loading || !uploadedFile || !selectedTemplate}>
+                <button onClick={handleExtractData} disabled={isExtractButtonDisabled}>
                     {loading ? 'Extracting...' : 'Extract Data'}
                 </button>
                 {message && <p>{message}</p>}
