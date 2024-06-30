@@ -1,0 +1,48 @@
+.App {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  padding: 20px;
+}
+
+h1 {
+  color: #333;
+}
+
+form, .template-management, .extraction-criteria, .review-extracted-data {
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+input, button, select, textarea {
+  margin: 10px 0;
+  padding: 10px;
+  font-size: 1em;
+  width: 100%;
+}
+
+button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+textarea {
+  height: 150px;
+}
+
+pre {
+  text-align: left;
+  background: #f9f9f9;
+  padding: 10px;
+  border-radius: 5px;
+  overflow: auto;
+}
