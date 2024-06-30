@@ -61,6 +61,15 @@ def get_template(name):
         return jsonify(template), 200
     return jsonify({'message': 'Template not found'}), 404
 
+def extract_value(text, keyword, separator, index):
+    lines = text.split('\n')
+    for line in lines:
+        if keyword in line:
+            parts = line.split(separator)
+            if len(parts) > index:
+                return parts[index].strip()
+    return ''
+
 @app.route('/extract', methods=['POST'])
 def extract_data():
     data = request.json
@@ -116,15 +125,6 @@ def extract_data():
         return output, 200, {'Content-Type': 'text/plain'}
     else:
         return jsonify({'message': 'Unsupported output format'}), 400
-
-def extract_value(text, keyword, separator, index):
-    lines = text.split('\n')
-    for line in lines:
-        if keyword in line:
-            parts = line.split(separator)
-            if len(parts) > index:
-                return parts[index].strip()
-    return ''
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')

@@ -1,38 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const TemplateManager = ({ templates, onTemplateSelect }) => {
+const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchTemplates }) => {
     const [templateName, setTemplateName] = useState('');
     const [templateFields, setTemplateFields] = useState('');
 
     useEffect(() => {
-        if (templates.length > 0) {
-            const initialTemplate = templates[0];
-            setTemplateName(initialTemplate);
-            loadTemplate(initialTemplate);
+        if (selectedTemplate) {
+            fetchTemplateFields(selectedTemplate);
         }
-    }, [templates]);
+    }, [selectedTemplate]);
 
     const handleSaveTemplate = async () => {
-        const template = {
-            name: templateName,
-            fields: JSON.parse(templateFields)
-        };
-
         try {
-            const response = await axios.post('/templates', template);
-            alert(response.data.message);
+            const fields = JSON.parse(templateFields); // Parse the JSON string to an object
+            const template = {
+                name: templateName,
+                fields
+            };
+
+            await axios.post('http://localhost:5001/templates', template);
+            setTemplateName('');
+            setTemplateFields('');
+            fetchTemplates(); // Fetch the updated list of templates
             onTemplateSelect(template.name);
         } catch (error) {
             console.error('Error saving template:', error);
         }
     };
 
-    const loadTemplate = async (name) => {
-        const response = await axios.get(`/templates/${name}`);
-        setTemplateFields(JSON.stringify(response.data.fields, null, 2));
-        setTemplateName(name);
-        onTemplateSelect(name);
+    const fetchTemplateFields = async (templateName) => {
+        try {
+            const response = await axios.get(`http://localhost:5001/templates/${templateName}`);
+            const fields = JSON.stringify(response.data.fields, null, 2); // Convert to pretty JSON
+            setTemplateFields(fields);
+            setTemplateName(templateName);
+        } catch (error) {
+            console.error('Error fetching template fields:', error);
+        }
     };
 
     return (
@@ -50,7 +55,11 @@ const TemplateManager = ({ templates, onTemplateSelect }) => {
                 onChange={(e) => setTemplateFields(e.target.value)}
             ></textarea>
             <button onClick={handleSaveTemplate}>Save Template</button>
-            <select value={templateName} onChange={(e) => loadTemplate(e.target.value)}>
+            <select
+                onChange={(e) => onTemplateSelect(e.target.value)}
+                value={selectedTemplate}
+            >
+                <option value="">Select Template</option>
                 {templates.map((template) => (
                     <option key={template} value={template}>
                         {template}
