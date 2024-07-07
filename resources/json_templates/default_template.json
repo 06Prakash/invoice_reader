@@ -1,0 +1,72 @@
+{
+    "name": "default",
+    "fields": [
+      {
+        "name": "VAT REG NO",
+        "keyword": "VAT REG NO",
+        "separator": ":",
+        "index": "1"
+      },
+      {
+        "name": "Sales Invoice No",
+        "keyword": "Sales Invoice No",
+        "separator": ":",
+        "index": "1"
+      },
+      {
+        "name": "Invoice Time",
+        "keyword": "Invoice Time",
+        "separator": ":",
+        "index": "1"
+      },
+      {
+        "name": "Date of Invoice",
+        "keyword": "Date of Invoice",
+        "separator": ":",
+        "index": "1"
+      },
+      {
+        "name": "Sales Person",
+        "keyword": "Sales Person",
+        "separator": ":",
+        "index": "1"
+      },
+      {
+        "name": "Sales Type",
+        "keyword": "Sales Type",
+        "separator": ":",
+        "index": "1"
+      },
+      {
+        "name": "Comptroller",
+        "keyword": "Comptroller",
+        "separator": ":",
+        "index": "1"
+      },
+      {
+        "name": "Billed To",
+        "keyword": "Billed To",
+        "separator": ":",
+        "index": "1"
+      },
+      {
+        "name": "Telephone",
+        "keyword": "Telephone",
+        "separator": ":",
+        "index": "1"
+      },
+      {
+        "name": "TRN",
+        "keyword": "TRN",
+        "separator": ":",
+        "index": "1"
+      },
+      {
+        "name": "Total",
+        "keyword": "Total",
+        "separator": ":",
+        "index": "1"
+      }
+    ]
+  }
+  

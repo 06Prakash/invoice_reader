@@ -2,48 +2,45 @@ import React, { useState } from 'react';
 import axios from 'axios';
 
 const UploadComponent = ({ onUploadSuccess }) => {
-    const [file, setFile] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState('');
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [uploading, setUploading] = useState(false);
 
     const handleFileChange = (e) => {
-        setFile(e.target.files[0]);
-        setMessage('');
+        setSelectedFile(e.target.files[0]);
     };
 
-    const handleUpload = () => {
-        if (!file) {
-            setMessage('Please select a file to upload.');
+    const handleUpload = async () => {
+        if (!selectedFile) {
+            alert('Please select a file first');
             return;
         }
-        setLoading(true);
-        setMessage('');
-        const formData = new FormData();
-        formData.append('file', file);
 
-        axios.post('http://localhost:5001/upload', formData)
-            .then(response => {
-                console.log('File uploaded successfully:', response.data);
-                onUploadSuccess(response.data.filename);
-                setMessage('File uploaded successfully.');
-            })
-            .catch(error => {
-                console.error('Error uploading file:', error);
-                setMessage('Failed to upload the file.');
-            })
-            .finally(() => {
-                setLoading(false);
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        setUploading(true);
+
+        try {
+            const response = await axios.post('http://localhost:5001/upload', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
             });
+
+            onUploadSuccess(response.data.filename, response.data.extracted_data, response.data.lines_data, response.data.default_template);
+        } catch (error) {
+            console.error('Error uploading file:', error);
+        } finally {
+            setUploading(false);
+        }
     };
 
     return (
         <div>
-            <h3>Upload PDF</h3>
             <input type="file" onChange={handleFileChange} />
-            <button onClick={handleUpload} disabled={loading}>
-                {loading ? 'Uploading...' : 'Upload'}
+            <button onClick={handleUpload} disabled={uploading}>
+                {uploading ? 'Uploading...' : 'Upload'}
             </button>
-            {message && <p>{message}</p>}
         </div>
     );
 };

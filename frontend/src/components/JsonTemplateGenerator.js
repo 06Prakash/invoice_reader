@@ -1,28 +1,33 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const JsonTemplateGenerator = ({ onTemplateGenerated }) => {
+const JsonTemplateGenerator = ({ onTemplateGenerated, fetchTemplates }) => {
     const [templateName, setTemplateName] = useState('');
     const [headings, setHeadings] = useState('');
 
     const handleGenerateTemplate = async () => {
-        const headingsArray = headings.split(',').map(h => h.trim());
-        const fields = headingsArray.map(heading => ({
-            name: heading,
-            keyword: heading,
+        if (!templateName || !headings && templateName.trim() !== "" && headings.trim() !== "") {
+            alert('Please enter both template name and headings.');
+            return;
+        }
+
+        const fields = headings.split(',').map((heading, index) => ({
+            name: heading.trim(),
+            keyword: heading.trim(),
             separator: ':',
             index: 1
         }));
 
         const template = {
             name: templateName,
-            fields
+            fields: fields
         };
 
         try {
-            const response = await axios.post('/templates', template);
-            alert(response.data.message);
-            onTemplateGenerated(template); // Notify parent component about the new template
+            await axios.post('http://localhost:5001/templates', template);
+            alert('Template generated and saved successfully.');
+            fetchTemplates(); // Fetch the updated list of templates
+            onTemplateGenerated(template.name);
         } catch (error) {
             console.error('Error generating template:', error);
         }
@@ -37,12 +42,11 @@ const JsonTemplateGenerator = ({ onTemplateGenerated }) => {
                 value={templateName}
                 onChange={(e) => setTemplateName(e.target.value)}
             />
-            <input
-                type="text"
+            <textarea
                 placeholder="Enter headings, separated by commas"
                 value={headings}
                 onChange={(e) => setHeadings(e.target.value)}
-            />
+            ></textarea>
             <button onClick={handleGenerateTemplate}>Generate Template</button>
         </div>
     );

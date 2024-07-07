@@ -32,6 +32,9 @@ COPY backend /app
 # Copy the frontend build artifacts from the previous stage
 COPY --from=build-frontend /frontend/build /app/static
 
+# Copy the default template to the appropriate location
+COPY resources /app/resources
+
 # Expose the port the app runs on
 EXPOSE 5000
 

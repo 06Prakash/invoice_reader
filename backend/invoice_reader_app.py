@@ -7,12 +7,13 @@ import pytesseract
 import json
 import csv
 import io
+import sys
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
 
 UPLOAD_FOLDER = 'uploads'
-TEMPLATE_FOLDER = 'templates'
+TEMPLATE_FOLDER = 'resources/json_templates'
 ALLOWED_EXTENSIONS = {'pdf'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['TEMPLATE_FOLDER'] = TEMPLATE_FOLDER
@@ -52,23 +53,30 @@ def get_templates():
     templates = [f.split('.')[0] for f in os.listdir(app.config['TEMPLATE_FOLDER']) if f.endswith('.json')]
     return jsonify(templates), 200
 
+@app.route('/default_template', methods=['GET'])
+def get_default_template():
+    template_path = 'resources/json_templates/default_template.json'
+    print(f"Default template path: {template_path}")
+    if os.path.exists(template_path):
+        with open(template_path, 'r') as f:
+            template = json.load(f)
+        return jsonify(template), 200
+    return jsonify({'message': 'Default template not found'}), 404
+
+
 @app.route('/templates/<name>', methods=['GET'])
 def get_template(name):
-    template_path = os.path.join(app.config['TEMPLATE_FOLDER'], f'{name}.json')
+    if name == "default":
+        template_path = 'resources/json_templates/default_template.json'
+    else:
+        template_path = os.path.join(app.config['TEMPLATE_FOLDER'], f'{name}.json')
+    
     if os.path.exists(template_path):
         with open(template_path, 'r') as f:
             template = json.load(f)
         return jsonify(template), 200
     return jsonify({'message': 'Template not found'}), 404
 
-def extract_value(text, keyword, separator, index):
-    lines = text.split('\n')
-    for line in lines:
-        if keyword in line:
-            parts = line.split(separator)
-            if len(parts) > index:
-                return parts[index].strip()
-    return ''
 
 @app.route('/extract', methods=['POST'])
 def extract_data():
@@ -81,7 +89,13 @@ def extract_data():
     output_format = data.get('output_format', 'json')
 
     pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    template_path = os.path.join(app.config['TEMPLATE_FOLDER'], f'{template_name}.json')
+    if template_name == "Default Template":
+        template_path = 'resources/json_templates/default_template.json'
+    else:
+        template_path = os.path.join(app.config['TEMPLATE_FOLDER'], f'{template_name}.json')
+
+    print(f"Using template path: {template_path}")
+    sys.stdout.flush()
 
     if not os.path.exists(pdf_path):
         return jsonify({'message': 'File not found'}), 404
@@ -108,8 +122,9 @@ def extract_data():
             name = field['name']
             keyword = field['keyword']
             separator = field.get('separator', ':')
-            index = field.get('index', 1)
-            value = extract_value(page_text, keyword, separator, index)
+            index = field.get('index', '1')
+            indices = [int(i) for i in index.split(',')]
+            value = extract_value(page_text, keyword, separator, indices)
             extracted_data[name] = value
 
     if output_format == 'json':
@@ -119,12 +134,23 @@ def extract_data():
         writer = csv.writer(output)
         writer.writerow(extracted_data.keys())
         writer.writerow(extracted_data.values())
-        return output.getvalue(), 200, {'Content-Type': 'text/csv'}
+        csv_data = output.getvalue()
+        return jsonify({'extracted_data': extracted_data, 'csv_data': csv_data, 'lines_data': original_lines}), 200
     elif output_format == 'text':
-        output = "\n".join([f"{key}: {value}" for key, value in extracted_data.items()])
-        return output, 200, {'Content-Type': 'text/plain'}
+        text_data = "\n".join([f"{key}: {value}" for key, value in extracted_data.items()])
+        return jsonify({'extracted_data': extracted_data, 'text_data': text_data, 'lines_data': original_lines}), 200
     else:
         return jsonify({'message': 'Unsupported output format'}), 400
+
+
+def extract_value(text, keyword, separator, indices):
+    lines = text.split('\n')
+    for line in lines:
+        if keyword in line:
+            parts = line.split(separator)
+            if len(parts) > max(indices):
+                return " ".join([parts[i].strip() for i in indices])
+    return ''
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
