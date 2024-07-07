@@ -43,6 +43,8 @@ def upload_file():
 def save_template():
     data = request.json
     template_name = data['name']
+    if template_name == "Default Template":
+        template_name = 'default_template'
     template_path = os.path.join(app.config['TEMPLATE_FOLDER'], f'{template_name}.json')
     with open(template_path, 'w') as f:
         json.dump(data, f)

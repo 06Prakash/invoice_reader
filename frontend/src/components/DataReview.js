@@ -14,11 +14,11 @@ const DataReview = ({ extractedData, originalLines, outputFormat }) => {
             const rows = [Object.keys(extractedData), Object.values(extractedData)];
             console.log('CSV Data:', rows);
             return (
-                <table>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr>
                             {rows[0].map((header, index) => (
-                                <th key={index}>{header}</th>
+                                <th key={index} style={{ border: '1px solid black', padding: '8px', backgroundColor: '#f2f2f2' }}>{header}</th>
                             ))}
                         </tr>
                     </thead>
@@ -26,7 +26,7 @@ const DataReview = ({ extractedData, originalLines, outputFormat }) => {
                         {rows.slice(1).map((row, index) => (
                             <tr key={index}>
                                 {row.map((value, idx) => (
-                                    <td key={idx}>{value}</td>
+                                    <td key={idx} style={{ border: '1px solid black', padding: '8px' }}>{value}</td>
                                 ))}
                             </tr>
                         ))}

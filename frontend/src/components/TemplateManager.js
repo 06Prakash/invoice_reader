@@ -48,6 +48,9 @@ const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchT
 
     const fetchTemplateFields = async (templateName) => {
         try {
+            if (templateName == 'Default Template') {
+                templateName = 'default_template'
+            }
             const response = await axios.get(`http://localhost:5001/templates/${templateName}`);
             const fields = JSON.stringify(response.data.fields, null, 2);
             setTemplateFields(fields);
