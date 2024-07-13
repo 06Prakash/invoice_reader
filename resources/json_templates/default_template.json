@@ -1,72 +1,148 @@
 {
-    "name": "default",
-    "fields": [
-      {
-        "name": "VAT REG NO",
-        "keyword": "VAT REG NO",
-        "separator": ":",
-        "index": "1"
+  "name": "default",
+  "fields": [
+    {
+      "boundaries": {
+        "down": "",
+        "left": "",
+        "right": "|",
+        "up": ""
       },
-      {
-        "name": "Sales Invoice No",
-        "keyword": "Sales Invoice No",
-        "separator": ":",
-        "index": "1"
+      "data_type": "number",
+      "index": "1",
+      "keyword": "VAT REG NO",
+      "name": "VAT REG NO",
+      "separator": ":"
+    },
+    {
+      "boundaries": {
+        "down": "",
+        "left": "Sales Invoice No",
+        "right": "Invoice Time",
+        "up": ""
       },
-      {
-        "name": "Invoice Time",
-        "keyword": "Invoice Time",
-        "separator": ":",
-        "index": "1"
+      "data_type": "text",
+      "index": "0,1",
+      "keyword": "Sales Invoice No",
+      "name": "Sales Invoice No",
+      "separator": ":"
+    },
+    {
+      "boundaries": {
+        "down": "",
+        "left": "Sales Invoice No",
+        "right": "",
+        "up": ""
       },
-      {
-        "name": "Date of Invoice",
-        "keyword": "Date of Invoice",
-        "separator": ":",
-        "index": "1"
+      "data_type": "time",
+      "index": "2",
+      "keyword": "Invoice Time",
+      "name": "Invoice Time",
+      "separator": " : "
+    },
+    {
+      "boundaries": {
+        "down": "",
+        "left": "Date of Invoice",
+        "right": "Sales Person",
+        "up": ""
       },
-      {
-        "name": "Sales Person",
-        "keyword": "Sales Person",
-        "separator": ":",
-        "index": "1"
+      "data_type": "date",
+      "index": "0,1",
+      "keyword": "Date of Invoice",
+      "name": "Date of Invoice",
+      "separator": ":"
+    },
+    {
+      "boundaries": {
+        "down": "",
+        "left": "Date of Invoice",
+        "right": "",
+        "up": ""
       },
-      {
-        "name": "Sales Type",
-        "keyword": "Sales Type",
-        "separator": ":",
-        "index": "1"
+      "data_type": "text",
+      "index": "2",
+      "keyword": "Sales Person",
+      "name": "Sales Person",
+      "separator": " : "
+    },
+    {
+      "boundaries": {
+        "down": "",
+        "left": "Sales Type",
+        "right": "Comptroller",
+        "up": ""
       },
-      {
-        "name": "Comptroller",
-        "keyword": "Comptroller",
-        "separator": ":",
-        "index": "1"
+      "data_type": "text",
+      "index": "0,1",
+      "keyword": "Sales Type",
+      "name": "Sales Type",
+      "separator": ":"
+    },
+    {
+      "boundaries": {
+        "down": "",
+        "left": "Comptroller",
+        "right": "",
+        "up": ""
       },
-      {
-        "name": "Billed To",
-        "keyword": "Billed To",
-        "separator": ":",
-        "index": "1"
+      "data_type": "text",
+      "index": "2",
+      "keyword": "Comptroller",
+      "name": "Comptroller",
+      "separator": " : "
+    },
+    {
+      "boundaries": {
+        "down": "Telephone-",
+        "left": "|",
+        "right": ":",
+        "up": ""
       },
-      {
-        "name": "Telephone",
-        "keyword": "Telephone",
-        "separator": ":",
-        "index": "1"
+      "data_type": "text",
+      "index": "0,1",
+      "keyword": "DC.NO",
+      "name": "Billed To",
+      "separator": "DC.NO"
+    },
+    {
+      "boundaries": {
+        "down": "",
+        "left": "Telephone",
+        "right": "TRN",
+        "up": ""
       },
-      {
-        "name": "TRN",
-        "keyword": "TRN",
-        "separator": ":",
-        "index": "1"
+      "data_type": "number",
+      "index": "0,1",
+      "keyword": "Telephone",
+      "name": "Telephone",
+      "separator": "-"
+    },
+    {
+      "boundaries": {
+        "down": "",
+        "left": "",
+        "right": "|",
+        "up": ""
       },
-      {
-        "name": "Total",
-        "keyword": "Total",
-        "separator": ":",
-        "index": "1"
-      }
-    ]
-  }
-  
+      "data_type": "number",
+      "index": "1",
+      "keyword": "TRN",
+      "name": "TRN",
+      "separator": "--"
+    },
+    {
+      "boundaries": {
+        "down": "",
+        "left": "",
+        "right": "",
+        "up": ""
+      },
+      "data_type": "text",
+      "index": "14",
+      "keyword": "Total",
+      "name": "Total",
+      "separator": " "
+    }
+  ]
+}

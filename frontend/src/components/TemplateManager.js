@@ -4,7 +4,7 @@ import axios from 'axios';
 const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchTemplates }) => {
     const [templateName, setTemplateName] = useState('');
     const [templateFields, setTemplateFields] = useState('');
-
+    
     useEffect(() => {
         fetchDefaultTemplate();
     }, []);
@@ -30,7 +30,9 @@ const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchT
                 name: field.name.trim(),
                 keyword: field.keyword.trim(),
                 separator: field.separator || ':',
-                index: field.index || "1"
+                boundaries: field.boundaries || { left: '', right: '' },
+                data_type: field.data_type || 'text',
+                index: field.index || '1'
             }))
         };
 
@@ -38,7 +40,7 @@ const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchT
             await axios.post('http://localhost:5001/templates', template);
             setTemplateName('');
             setTemplateFields('');
-            fetchTemplates(); // Fetch the updated list of templates
+            fetchTemplates();
             onTemplateSelect(template.name);
             fetchTemplateFields(template.name); // Fetch the updated template fields
         } catch (error) {
@@ -82,7 +84,7 @@ const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchT
                 onChange={(e) => setTemplateName(e.target.value)}
             />
             <textarea
-                placeholder='Enter fields in JSON format. Example: [{"name": "VAT REG NO", "keyword": "VAT REG NO", "separator": ":", "index": "1"}]'
+                placeholder='Enter fields in JSON format. Example: [{"name": "VAT REG NO", "keyword": "VAT REG NO", "separator": ":", "index": 1}]'
                 value={templateFields}
                 onChange={(e) => setTemplateFields(e.target.value)}
             ></textarea>

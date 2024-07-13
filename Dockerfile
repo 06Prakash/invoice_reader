@@ -20,11 +20,13 @@ WORKDIR /app
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install necessary packages for PDF processing
+# Install necessary packages for PDF processing and OpenCV dependencies
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libtesseract-dev \
-    poppler-utils
+    poppler-utils \
+    libgl1-mesa-glx
+    # libglib2.0-0
 
 # Copy the rest of the backend code into the container
 COPY backend /app
@@ -39,4 +41,4 @@ COPY resources /app/resources
 EXPOSE 5000
 
 # Run the application
-CMD ["python", "invoice_reader_app.py"]
+CMD ["python", "app.py"]
