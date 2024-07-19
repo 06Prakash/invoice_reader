@@ -1,22 +1,25 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { Button, CircularProgress } from '@mui/material';
 
 const UploadComponent = ({ onUploadSuccess }) => {
-    const [selectedFile, setSelectedFile] = useState(null);
+    const [selectedFiles, setSelectedFiles] = useState([]);
     const [uploading, setUploading] = useState(false);
 
     const handleFileChange = (e) => {
-        setSelectedFile(e.target.files[0]);
+        setSelectedFiles(e.target.files);
     };
 
     const handleUpload = async () => {
-        if (!selectedFile) {
-            alert('Please select a file first');
+        if (selectedFiles.length === 0) {
+            alert('Please select files first');
             return;
         }
 
         const formData = new FormData();
-        formData.append('file', selectedFile);
+        for (let i = 0; i < selectedFiles.length; i++) {
+            formData.append('files', selectedFiles[i]);
+        }
 
         setUploading(true);
 
@@ -27,9 +30,9 @@ const UploadComponent = ({ onUploadSuccess }) => {
                 }
             });
 
-            onUploadSuccess(response.data.filename, response.data.extracted_data, response.data.lines_data, response.data.default_template);
+            onUploadSuccess(response.data.filenames);
         } catch (error) {
-            console.error('Error uploading file:', error);
+            console.error('Error uploading files:', error);
         } finally {
             setUploading(false);
         }
@@ -37,10 +40,10 @@ const UploadComponent = ({ onUploadSuccess }) => {
 
     return (
         <div>
-            <input type="file" onChange={handleFileChange} />
-            <button onClick={handleUpload} disabled={uploading}>
-                {uploading ? 'Uploading...' : 'Upload'}
-            </button>
+            <input type="file" multiple onChange={handleFileChange} />
+            <Button variant="contained" color="primary" onClick={handleUpload} disabled={uploading}>
+                {uploading ? <CircularProgress size={24} /> : 'Upload'}
+            </Button>
         </div>
     );
 };

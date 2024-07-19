@@ -4,12 +4,13 @@ import UploadComponent from './components/UploadComponent';
 import DataReview from './components/DataReview';
 import TemplateManager from './components/TemplateManager';
 import JsonTemplateGenerator from './components/JsonTemplateGenerator';
+import LinearProgress from '@mui/material/LinearProgress';
 import './App.css';
 
 const App = () => {
     const [templates, setTemplates] = useState([]);
     const [selectedTemplate, setSelectedTemplate] = useState('Default Template');
-    const [uploadedFile, setUploadedFile] = useState(null);
+    const [uploadedFiles, setUploadedFiles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [extractedData, setExtractedData] = useState(null);
@@ -46,22 +47,22 @@ const App = () => {
             });
     };
 
-    const handleUploadSuccess = (filename, extractedData, linesData, defaultTemplate) => {
-        setUploadedFile(filename);
+    const handleUploadSuccess = (filenames, extractedData, linesData) => {
+        setUploadedFiles(filenames);
         setExtractedData(extractedData);
         setOriginalLines(linesData);
         setMessage('');
     };
 
     const handleExtractData = () => {
-        if (!uploadedFile || !selectedTemplate) {
-            setMessage('Please upload a file and select or generate a template first.');
+        if (uploadedFiles.length === 0 || !selectedTemplate) {
+            setMessage('Please upload files and select or generate a template first.');
             return;
         }
         setLoading(true);
         setMessage('');
         const data = {
-            filename: uploadedFile,
+            filenames: uploadedFiles,
             template: selectedTemplate,
             output_format: outputFormat
         };
@@ -70,7 +71,7 @@ const App = () => {
             .then(response => {
                 console.log('Data extracted successfully:', response.data);
                 setExtractedData(response.data.extracted_data || response.data);
-                setOriginalLines(response.data.lines_data || []);
+                setOriginalLines(response.data.lines_data || {});
                 setMessage('Data extracted successfully.');
             })
             .catch(error => {
@@ -88,6 +89,17 @@ const App = () => {
 
     const handleOutputFormatChange = (event) => {
         setOutputFormat(event.target.value);
+    };
+
+    const handleDownload = (format) => {
+        const fileData = extractedData;
+        const blob = new Blob([fileData], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `extracted_data.${format}`;
+        link.click();
+        URL.revokeObjectURL(url);
     };
 
     return (
@@ -116,12 +128,17 @@ const App = () => {
                 </button>
                 {message && <p>{message}</p>}
             </div>
+            {loading && <LinearProgress />}
             {extractedData && (
                 <DataReview extractedData={extractedData} outputFormat={outputFormat} originalLines={originalLines} />
+            )}
+            {extractedData && (
+                <div>
+                    <button onClick={() => handleDownload(outputFormat)}>Download Data</button>
+                </div>
             )}
         </div>
     );
 };
 
 export default App;
-

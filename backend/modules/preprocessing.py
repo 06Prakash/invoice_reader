@@ -1,9 +1,18 @@
 import cv2
 import numpy as np
+import os
 
 def preprocess_image(image_path):
+    # Check if the image file exists
+    if not os.path.exists(image_path):
+        raise FileNotFoundError(f"Image file not found: {image_path}")
+
     # Load the image
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    
+    # Check if the image is loaded correctly
+    if image is None:
+        raise ValueError(f"Failed to load image: {image_path}")
 
     # Increase resolution
     scale_percent = 200  # percent of original size

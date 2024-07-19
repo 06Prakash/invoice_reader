@@ -1,5 +1,5 @@
 # Step 1: Build the frontend
-FROM node:14 AS build-frontend
+FROM node:18 AS build-frontend
 WORKDIR /frontend
 
 # Copy package.json and package-lock.json for dependency resolution
@@ -25,8 +25,9 @@ RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libtesseract-dev \
     poppler-utils \
-    libgl1-mesa-glx
-    # libglib2.0-0
+    libgl1-mesa-glx \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy the rest of the backend code into the container
 COPY backend /app
