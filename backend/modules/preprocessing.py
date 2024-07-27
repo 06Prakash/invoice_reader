@@ -7,10 +7,8 @@ def preprocess_image(image_path):
     if not os.path.exists(image_path):
         raise FileNotFoundError(f"Image file not found: {image_path}")
 
-    # Load the image
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    
-    # Check if the image is loaded correctly
+    # Check if the image was loaded successfully
     if image is None:
         raise ValueError(f"Failed to load image: {image_path}")
 
@@ -43,6 +41,11 @@ def preprocess_image(image_path):
     M = cv2.getRotationMatrix2D(center, angle, 1.0)
     preprocessed_image = cv2.warpAffine(preprocessed_image, M, (w, h),
                                         flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+    # I added these gaussian blurs to remove noises and remove dots
+    # Adjusting these values to see if they improve clarity
+    preprocessed_image = cv2.GaussianBlur(preprocessed_image, (1, 1), 0)
+    preprocessed_image = cv2.medianBlur(preprocessed_image, 1)
 
     # Remove borders and lines
     kernel = np.ones((5, 5), np.uint8)

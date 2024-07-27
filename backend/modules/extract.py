@@ -1,4 +1,4 @@
-from flask import request, jsonify
+from flask import request, jsonify, current_app as app
 from pdf2image import convert_from_path
 import pytesseract
 import json
@@ -20,7 +20,11 @@ def register_extract_routes(app):
         output_format = data.get('output_format', 'json')
 
         results = []
-        for filename in filenames:
+        progress_file = os.path.join(app.config['UPLOAD_FOLDER'], 'progress.txt')
+        with open(progress_file, 'w') as f:
+            f.write('0')
+
+        for current_file_index, filename in enumerate(filenames):
             pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             if template_name == "Default Template":
                 template_path = 'resources/json_templates/default_template.json'
@@ -63,11 +67,14 @@ def register_extract_routes(app):
                     extracted_data[name] = value
 
             results.append((filename, extracted_data, original_lines))
+            progress = int((int(current_file_index) + 1) / len(filenames) * 100)
+            with open(progress_file, 'w') as f:
+                f.write(str(progress))
 
         if output_format == 'json':
             response_data = {filename: data for filename, data, _ in results}
             lines_data = {filename: lines for filename, _, lines in results}
-            return jsonify({'extracted_data': response_data, 'lines_data': lines_data}), 200
+            return jsonify({'extracted_data': response_data, 'lines_data': lines_data})
         elif output_format == 'csv':
             output = io.StringIO()
             writer = csv.writer(output)
@@ -79,13 +86,20 @@ def register_extract_routes(app):
                 row = [filename] + [data.get(header, '') for header in headers]
                 writer.writerow(row)
             csv_data = output.getvalue()
-            return jsonify({'csv_data': csv_data}), 200
+            return jsonify({'csv_data': csv_data})
         elif output_format == 'text':
             text_data = ""
             for filename, data, _ in results:
                 text_data += f"File: {filename}\n"
                 text_data += "\n".join([f"{key}: {value}" for key, value in data.items()])
                 text_data += "\n\n"
-            return jsonify({'text_data': text_data}), 200
+            return jsonify({'text_data': text_data})
         else:
             return jsonify({'message': 'Unsupported output format'}), 400
+
+    @app.route('/progress', methods=['GET'])
+    def get_progress():
+        progress_file = os.path.join(app.config['UPLOAD_FOLDER'], 'progress.txt')
+        with open(progress_file, 'r') as f:
+            progress = f.read()
+        return jsonify({'progress': int(progress)})

@@ -17,11 +17,30 @@ const App = () => {
     const [outputFormat, setOutputFormat] = useState('json');
     const [originalLines, setOriginalLines] = useState([]);
     const [defaultTemplateFields, setDefaultTemplateFields] = useState('');
+    const [progress, setProgress] = useState(0);
 
     useEffect(() => {
         fetchTemplates();
         fetchDefaultTemplate();
     }, []);
+
+    useEffect(() => {
+        if (loading) {
+            const interval = setInterval(() => {
+                axios.get('http://localhost:5001/progress')
+                    .then(response => {
+                        setProgress(response.data.progress);
+                        if (response.data.progress >= 100) {
+                            clearInterval(interval);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching progress:', error);
+                    });
+            }, 5000);
+            return () => clearInterval(interval);
+        }
+    }, [loading]);
 
     const fetchTemplates = () => {
         axios.get('http://localhost:5001/templates')
@@ -124,11 +143,11 @@ const App = () => {
             </div>
             <div>
                 <button onClick={handleExtractData} disabled={loading}>
-                    {loading ? 'Extracting...' : 'Extract Data'}
+                    {loading ? `Extracting... ${progress}% completed` : 'Extract Data'}
                 </button>
                 {message && <p>{message}</p>}
             </div>
-            {loading && <LinearProgress />}
+            {loading && <LinearProgress variant="determinate" value={progress} />}
             {extractedData && (
                 <DataReview extractedData={extractedData} outputFormat={outputFormat} originalLines={originalLines} />
             )}
