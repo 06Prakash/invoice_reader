@@ -89,7 +89,7 @@ const App = () => {
         axios.post('http://localhost:5001/extract', data)
             .then(response => {
                 console.log('Data extracted successfully:', response.data);
-                setExtractedData(response.data.extracted_data || response.data);
+                setExtractedData(response.data);
                 setOriginalLines(response.data.lines_data || {});
                 setMessage('Data extracted successfully.');
             })

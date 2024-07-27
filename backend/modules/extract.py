@@ -1,4 +1,4 @@
-from flask import request, jsonify, current_app as app
+from flask import request, jsonify
 from pdf2image import convert_from_path
 import pytesseract
 import json
@@ -70,30 +70,35 @@ def register_extract_routes(app):
             progress = int((int(current_file_index) + 1) / len(filenames) * 100)
             with open(progress_file, 'w') as f:
                 f.write(str(progress))
-
-        if output_format == 'json':
+        if output_format in ['json', 'csv', 'text']:
             response_data = {filename: data for filename, data, _ in results}
             lines_data = {filename: lines for filename, _, lines in results}
-            return jsonify({'extracted_data': response_data, 'lines_data': lines_data})
-        elif output_format == 'csv':
-            output = io.StringIO()
-            writer = csv.writer(output)
+
+            # Prepare CSV format
+            csv_output = io.StringIO()
+            csv_writer = csv.writer(csv_output)
             headers = set()
             for _, data, _ in results:
                 headers.update(data.keys())
-            writer.writerow(['filename'] + list(headers))
+            csv_writer.writerow(['filename'] + list(headers))
             for filename, data, _ in results:
                 row = [filename] + [data.get(header, '') for header in headers]
-                writer.writerow(row)
-            csv_data = output.getvalue()
-            return jsonify({'csv_data': csv_data})
-        elif output_format == 'text':
+                csv_writer.writerow(row)
+            csv_data = csv_output.getvalue()
+
+            # Prepare text format
             text_data = ""
             for filename, data, _ in results:
                 text_data += f"File: {filename}\n"
                 text_data += "\n".join([f"{key}: {value}" for key, value in data.items()])
                 text_data += "\n\n"
-            return jsonify({'text_data': text_data})
+
+            return jsonify({
+                'json_data': response_data,
+                'lines_data': lines_data,
+                'csv_data': csv_data,
+                'text_data': text_data
+            }), 200
         else:
             return jsonify({'message': 'Unsupported output format'}), 400
 

@@ -15,7 +15,14 @@ const JsonTemplateGenerator = ({ onTemplateGenerated, fetchTemplates }) => {
             name: heading.trim(),
             keyword: heading.trim(),
             separator: ':',
-            index: 1
+            index: '1',
+            boundaries: {
+                left: '',
+                right: '',
+                up: '',
+                down: ''
+            },
+            data_type: 'text'
         }));
 
         const template = {
