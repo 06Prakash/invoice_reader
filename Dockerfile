@@ -1,24 +1,45 @@
-# Use an official Python runtime as a parent image
+# Step 1: Build the frontend
+FROM node:18 AS build-frontend
+WORKDIR /frontend
+
+# Copy package.json and package-lock.json for dependency resolution
+COPY frontend/package*.json ./
+
+# Install frontend dependencies
+RUN npm install
+
+# Copy the rest of the frontend code and build it
+COPY frontend/ .
+RUN npm run build
+
+# Step 2: Build the backend and create the final image
 FROM python:3.9-slim
-
-# Install Tesseract OCR and Poppler
-RUN apt-get update && apt-get install -y \
-    tesseract-ocr \
-    tesseract-ocr-eng \
-    libtesseract-dev \
-    poppler-utils
-
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy the current directory contents into the container at /app
-COPY . /app
-
-# Install any needed packages specified in requirements.txt
+# Copy the backend requirements file and install dependencies
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Make port 5000 available to the world outside this container
+# Install necessary packages for PDF processing and OpenCV dependencies
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    libtesseract-dev \
+    poppler-utils \
+    libgl1-mesa-glx \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the rest of the backend code into the container
+COPY backend /app
+
+# Copy the frontend build artifacts from the previous stage
+COPY --from=build-frontend /frontend/build /app/static
+
+# Copy the default template to the appropriate location
+COPY resources /app/resources
+
+# Expose the port the app runs on
 EXPOSE 5000
 
-# Run invoice_reader_app.py when the container launches
-CMD ["python", "invoice_reader_app.py"]
+# Run the application
+CMD ["python", "app.py"]

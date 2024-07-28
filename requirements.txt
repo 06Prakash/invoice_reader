@@ -1,6 +1,0 @@
-flask
-flask-cors
-pytesseract
-pdf2image
-Pillow
-pandas
