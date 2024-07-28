@@ -80,6 +80,7 @@ const App = () => {
         }
         setLoading(true);
         setMessage('');
+        setProgress(0);
         const data = {
             filenames: uploadedFiles,
             template: selectedTemplate,

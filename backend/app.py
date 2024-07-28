@@ -1,3 +1,4 @@
+import logging
 from flask import Flask
 from flask_cors import CORS
 import os
@@ -7,6 +8,10 @@ from modules.routes import register_routes
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app.config.from_object('config')
 

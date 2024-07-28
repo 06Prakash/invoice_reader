@@ -1,3 +1,4 @@
+import logging
 from flask import request, jsonify
 from pdf2image import convert_from_path
 import pytesseract
@@ -5,46 +6,50 @@ import json
 import csv
 import io
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 from .preprocessing import preprocess_image
 from .extraction import extract_value
 
+# Create a logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# Create a file handler and set the log level
+file_handler = logging.FileHandler('logs/app.log')
+file_handler.setLevel(logging.DEBUG)
+
+# Create a log formatter
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+
+# Add the file handler to the logger
+logger.addHandler(file_handler)
+
+progress_lock = Lock()
+progress = 0
+
 def register_extract_routes(app):
-    @app.route('/extract', methods=['POST'])
-    def extract_data():
-        data = request.json
-        if 'filenames' not in data or 'template' not in data:
-            return jsonify({'message': 'Filenames and template are required'}), 400
+    global progress  # Declare progress as global
 
-        filenames = data['filenames']
-        template_name = data['template']
-        output_format = data.get('output_format', 'json')
-
-        results = []
-        progress_file = os.path.join(app.config['UPLOAD_FOLDER'], 'progress.txt')
-        with open(progress_file, 'w') as f:
-            f.write('0')
-
-        for current_file_index, filename in enumerate(filenames):
-            pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            if template_name == "Default Template":
-                template_path = 'resources/json_templates/default_template.json'
-            else:
-                template_path = os.path.join(app.config['TEMPLATE_FOLDER'], f'{template_name}.json')
-
-            if not os.path.exists(pdf_path):
-                return jsonify({'message': f'File {filename} not found'}), 404
-            if not os.path.exists(template_path):
-                return jsonify({'message': 'Template not found'}), 404
-
-            with open(template_path, 'r') as f:
-                template = json.load(f)
-
+    def extract_from_pdf(filename, template, upload_folder, total_pages, progress_file):
+        global progress  # Declare progress as global inside the function
+        pdf_path = os.path.join(upload_folder, filename)
+        logger.info(f"Extraction started for {filename} at {pdf_path} using template {template['name']} ...")
+        try:
             pages = convert_from_path(pdf_path, 300)
-            extracted_data = {}
-            original_lines = []
+        except Exception as e:
+            logger.error(f"Error converting PDF: {str(e)}")
+            return filename, {'error': str(e)}, []
 
-            for page_number, page_data in enumerate(pages):
-                image_path = f"page_{page_number}.jpg"
+        extracted_data = {}
+        original_lines = []
+        page_count = len(pages)
+
+        for page_number, page_data in enumerate(pages):
+            try:
+                image_path = f"{filename}_page_{page_number}.jpg"
+                logger.info(f"Processing page {page_number} of {filename}")
                 page_data.save(image_path, 'JPEG')
 
                 image_path = preprocess_image(image_path)
@@ -66,45 +71,100 @@ def register_extract_routes(app):
                     value = extract_value(page_text, keyword, separator, boundaries, data_type, indices, multiline)
                     extracted_data[name] = value
 
-            results.append((filename, extracted_data, original_lines))
-            progress = int((int(current_file_index) + 1) / len(filenames) * 100)
-            with open(progress_file, 'w') as f:
-                f.write(str(progress))
-        if output_format in ['json', 'csv', 'text']:
-            response_data = {filename: data for filename, data, _ in results}
-            lines_data = {filename: lines for filename, _, lines in results}
+                # Update progress file
+                with progress_lock:
+                    progress += 1
+                    overall_progress = int((progress / total_pages) * 100)
+                    with open(progress_file, 'w') as pf:
+                        logger.info(f"Current progress: {overall_progress}%")
+                        pf.write(str(overall_progress))
 
-            # Prepare CSV format
-            csv_output = io.StringIO()
-            csv_writer = csv.writer(csv_output)
-            headers = set()
-            for _, data, _ in results:
-                headers.update(data.keys())
-            csv_writer.writerow(['filename'] + list(headers))
-            for filename, data, _ in results:
-                row = [filename] + [data.get(header, '') for header in headers]
-                csv_writer.writerow(row)
-            csv_data = csv_output.getvalue()
+            except Exception as e:
+                logger.error(f"Error processing page {page_number} of {filename}: {e}")
+                continue
 
-            # Prepare text format
-            text_data = ""
-            for filename, data, _ in results:
-                text_data += f"File: {filename}\n"
-                text_data += "\n".join([f"{key}: {value}" for key, value in data.items()])
-                text_data += "\n\n"
+        return filename, extracted_data, original_lines
 
-            return jsonify({
-                'json_data': response_data,
-                'lines_data': lines_data,
-                'csv_data': csv_data,
-                'text_data': text_data
-            }), 200
+    @app.route('/extract', methods=['POST'])
+    def extract_data():
+        global progress  # Declare progress as global inside the function
+        data = request.json
+        if 'filenames' not in data or 'template' not in data:
+            logger.error('Filenames and template are required')
+            return jsonify({'message': 'Filenames and template are required'}), 400
+
+        filenames = data['filenames']
+        template_name = data['template']
+        output_format = data.get('output_format', 'json')
+        upload_folder = app.config['UPLOAD_FOLDER']
+        progress_file = os.path.join(upload_folder, 'progress.txt')
+
+        # Create the progress file
+        with open(progress_file, 'w') as pf:
+            pf.write('0')
+
+        if template_name == "Default Template":
+            template_path = 'resources/json_templates/default_template.json'
         else:
-            return jsonify({'message': 'Unsupported output format'}), 400
+            template_path = os.path.join(app.config['TEMPLATE_FOLDER'], f'{template_name}.json')
+
+        if not os.path.exists(template_path):
+            logger.error('Template not found')
+            return jsonify({'message': 'Template not found'}), 404
+
+        with open(template_path, 'r') as f:
+            template = json.load(f)
+
+        # Set the maximum number of workers to 2 for now
+        max_workers = 2
+
+        total_pages = sum([len(convert_from_path(os.path.join(upload_folder, filename), 300)) for filename in filenames])
+        progress = 0  # Ensure progress starts at zero
+
+        results = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(extract_from_pdf, filename, template, upload_folder, total_pages, progress_file) for filename in filenames]
+            for future in as_completed(futures):
+                results.append(future.result())
+
+        response_data = {filename: data for filename, data, _ in results}
+        lines_data = {filename: lines for filename, _, lines in results}
+
+        csv_output = io.StringIO()
+        csv_writer = csv.writer(csv_output)
+        headers = set()
+        for _, data, _ in results:
+            headers.update(data.keys())
+        csv_writer.writerow(['filename'] + list(headers))
+        for filename, data, _ in results:
+            row = [filename] + [data.get(header, '') for header in headers]
+            csv_writer.writerow(row)
+        csv_data = csv_output.getvalue()
+
+        text_data = ""
+        for filename, data, _ in results:
+            text_data += f"File: {filename}\n"
+            text_data += "\n".join([f"{key}: {value}" for key, value in data.items()])
+            text_data += "\n\n"
+
+        # Ensure progress file is set to 100% after all processing is done
+        with open(progress_file, 'w') as pf:
+            pf.write('100')
+
+        return jsonify({
+            'json_data': response_data,
+            'lines_data': lines_data,
+            'csv_data': csv_data,
+            'text_data': text_data
+        }), 200
 
     @app.route('/progress', methods=['GET'])
     def get_progress():
-        progress_file = os.path.join(app.config['UPLOAD_FOLDER'], 'progress.txt')
-        with open(progress_file, 'r') as f:
-            progress = f.read()
-        return jsonify({'progress': int(progress)})
+        upload_folder = app.config['UPLOAD_FOLDER']
+        progress_file = os.path.join(upload_folder, 'progress.txt')
+        try:
+            with open(progress_file, 'r') as f:
+                progress = f.read()
+            return jsonify({'progress': progress}), 200
+        except FileNotFoundError:
+            return jsonify({'progress': '0'}), 200
