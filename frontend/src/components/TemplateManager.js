@@ -37,12 +37,14 @@ const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchT
         };
 
         try {
-            await axios.post('http://localhost:5001/templates', template);
+            const response = await axios.post('http://localhost:5001/templates', template);
+            const generatedTemplateName = response.data.generatedTemplateName || template.name; // Assuming the backend returns the full template name with company prefix
+
             setTemplateName('');
             setTemplateFields('');
             fetchTemplates();
-            onTemplateSelect(template.name);
-            fetchTemplateFields(template.name); // Fetch the updated template fields
+            onTemplateSelect(generatedTemplateName);
+            fetchTemplateFields(generatedTemplateName); // Fetch the updated template fields
         } catch (error) {
             console.error('Error saving template:', error);
         }
@@ -50,13 +52,18 @@ const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchT
 
     const fetchTemplateFields = async (templateName) => {
         try {
-            if (templateName == 'Default Template') {
-                templateName = 'default_template'
+            if (templateName === 'Default Template') {
+                templateName = 'default_template';
+                const response = await axios.get(`http://localhost:5001/default_template`);
+                const fields = JSON.stringify(response.data.fields, null, 2);
+                setTemplateFields(fields);
+                setTemplateName(templateName);
+            } else {
+                const response = await axios.get(`http://localhost:5001/templates/${templateName}`);
+                const fields = JSON.stringify(response.data.fields, null, 2);
+                setTemplateFields(fields);
+                setTemplateName(templateName);
             }
-            const response = await axios.get(`http://localhost:5001/templates/${templateName}`);
-            const fields = JSON.stringify(response.data.fields, null, 2);
-            setTemplateFields(fields);
-            setTemplateName(templateName);
         } catch (error) {
             console.error('Error fetching template fields:', error);
         }

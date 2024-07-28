@@ -1,21 +1,39 @@
+# backend/app.py
 import logging
-from flask import Flask
-from flask_cors import CORS
 import os
-
-# Import modules from the new location
+from flask import Flask, send_from_directory
+from flask_cors import CORS
+from extensions import db, bcrypt, login_manager, jwt
 from modules.routes import register_routes
 
-app = Flask(__name__, static_folder='static', static_url_path='')
-CORS(app)
+def create_app():
+    app = Flask(__name__, static_folder='static', static_url_path='')
+    CORS(app)
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+    # Configure logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
-app.config.from_object('config')
+    app.config.from_object('config')
 
-register_routes(app)
+    db.init_app(app)
+    bcrypt.init_app(app)
+    login_manager.init_app(app)
+    jwt.init_app(app)
+
+    register_routes(app)
+
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve(path):
+        if path != "" and os.path.exists(app.static_folder + '/' + path):
+            return send_from_directory(app.static_folder, path)
+        else:
+            return send_from_directory(app.static_folder, 'index.html')
+
+    return app
+
+app = create_app()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

@@ -20,16 +20,17 @@ WORKDIR /app
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install necessary packages for PDF processing and OpenCV dependencies
+# Install necessary packages for PDF processing, OpenCV, and PostgreSQL client (psql)
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libtesseract-dev \
     poppler-utils \
     libgl1-mesa-glx \
+    postgresql-client \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the rest of the backend code into the container
+# Copy the backend code into the container
 COPY backend /app
 
 # Copy the frontend build artifacts from the previous stage
@@ -38,8 +39,17 @@ COPY --from=build-frontend /frontend/build /app/static
 # Copy the default template to the appropriate location
 COPY resources /app/resources
 
+# Copy the entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+
+# Create the logs directory
+RUN mkdir -p /app/logs
+
+# Make entrypoint.sh executable
+RUN chmod +x /app/entrypoint.sh
+
 # Expose the port the app runs on
 EXPOSE 5000
 
-# Run the application
-CMD ["python", "app.py"]
+# Set the entrypoint to the script
+ENTRYPOINT ["./entrypoint.sh", "db", "python", "app.py"]

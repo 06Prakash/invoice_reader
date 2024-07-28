@@ -6,12 +6,12 @@ const JsonTemplateGenerator = ({ onTemplateGenerated, fetchTemplates }) => {
     const [headings, setHeadings] = useState('');
 
     const handleGenerateTemplate = async () => {
-        if (!templateName || !headings && templateName.trim() !== "" && headings.trim() !== "") {
+        if (!templateName || !headings || templateName.trim() === "" || headings.trim() === "") {
             alert('Please enter both template name and headings.');
             return;
         }
 
-        const fields = headings.split(',').map((heading, index) => ({
+        const fields = headings.split(',').map((heading) => ({
             name: heading.trim(),
             keyword: heading.trim(),
             separator: ':',
@@ -31,10 +31,11 @@ const JsonTemplateGenerator = ({ onTemplateGenerated, fetchTemplates }) => {
         };
 
         try {
-            await axios.post('http://localhost:5001/templates', template);
+            const response = await axios.post('http://localhost:5001/templates', template);
+            const generatedTemplateName = response.data.generatedTemplateName || template.name; // Assuming the backend returns the full template name
             alert('Template generated and saved successfully.');
             fetchTemplates(); // Fetch the updated list of templates
-            onTemplateGenerated(template.name);
+            onTemplateGenerated(generatedTemplateName);
         } catch (error) {
             console.error('Error generating template:', error);
         }
