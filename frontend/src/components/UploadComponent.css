@@ -1,20 +1,14 @@
 .upload-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 2rem;
-  }
-  
-  .file-input {
-    margin-right: 1rem;
-  }
-  
-  .upload-button {
-    background-color: #007bff;
-    color: white;
-  }
-  
-  .upload-button:disabled {
-    background-color: #cccccc;
-  }
-  
+  margin: 20px 0; /* Add margin to separate from the header */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.upload-container input {
+  margin-right: 10px; /* Add some space between the input and the button */
+}
+
+.upload-container button {
+  margin-left: 10px; /* Add some space to the left of the button */
+}

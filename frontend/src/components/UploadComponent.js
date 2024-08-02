@@ -25,7 +25,7 @@ const UploadComponent = ({ onUploadSuccess }) => {
         setUploading(true);
 
         try {
-            const response = await axios.post('/upload', formData, {
+            const response = await axios.post('http://localhost:5001/upload', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }
@@ -41,19 +41,8 @@ const UploadComponent = ({ onUploadSuccess }) => {
 
     return (
         <div className="upload-container">
-            <input
-                type="file"
-                multiple
-                onChange={handleFileChange}
-                className="file-input"
-            />
-            <Button
-                variant="contained"
-                color="primary"
-                onClick={handleUpload}
-                disabled={uploading}
-                className="upload-button"
-            >
+            <input type="file" multiple onChange={handleFileChange} />
+            <Button variant="contained" color="primary" onClick={handleUpload} disabled={uploading}>
                 {uploading ? <CircularProgress size={24} /> : 'Upload'}
             </Button>
         </div>
