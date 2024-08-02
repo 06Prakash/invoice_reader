@@ -1,9 +1,6 @@
-from flask_sqlalchemy import SQLAlchemy
-from flask_bcrypt import Bcrypt
+# backend/modules/models.py
+from extensions import db, bcrypt
 from flask_login import UserMixin
-
-db = SQLAlchemy()
-bcrypt = Bcrypt()
 
 class Company(db.Model):
     id = db.Column(db.Integer, primary_key=True)

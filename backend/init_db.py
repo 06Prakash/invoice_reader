@@ -1,5 +1,6 @@
 # backend/init_db.py
-from app import db, app
+from extensions import db
+from app import app
 from modules.models import Company, User
 
 with app.app_context():
