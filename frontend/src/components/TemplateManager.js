@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import './TemplateManager.css'; // Ensure you have the CSS file
+import './TemplateManager.css';
 
 const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchTemplates }) => {
     const [templateName, setTemplateName] = useState('');
     const [templateFields, setTemplateFields] = useState('');
-
+    
     useEffect(() => {
         fetchDefaultTemplate();
     }, []);
@@ -38,7 +38,7 @@ const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchT
         };
 
         try {
-            await axios.post('http://localhost:5001/templates', template);
+            await axios.post('/templates', template);
             setTemplateName('');
             setTemplateFields('');
             fetchTemplates();
@@ -53,12 +53,12 @@ const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchT
         try {
             if (templateName === 'Default Template') {
                 templateName = 'default_template';
-                const response = await axios.get(`http://localhost:5001/default_template`);
+                const response = await axios.get(`/default_template`);
                 const fields = JSON.stringify(response.data.fields, null, 2);
                 setTemplateFields(fields);
                 setTemplateName(templateName);
             } else {
-                const response = await axios.get(`http://localhost:5001/templates/${templateName}`);
+                const response = await axios.get(`/templates/${templateName}`);
                 const fields = JSON.stringify(response.data.fields, null, 2);
                 setTemplateFields(fields);
                 setTemplateName(templateName);
@@ -70,7 +70,7 @@ const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchT
 
     const fetchDefaultTemplate = async () => {
         try {
-            const response = await axios.get('http://localhost:5001/templates/default');
+            const response = await axios.get('/templates/default');
             const fields = JSON.stringify(response.data.fields, null, 2);
             setTemplateFields(fields);
             setTemplateName('Default Template');
@@ -84,29 +84,26 @@ const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchT
         <div className="template-manager">
             <h2>Template Management</h2>
             <div className="form-group">
-                <label htmlFor="templateName">Template Name</label>
+                <label>Template Name</label>
                 <input
                     type="text"
-                    id="templateName"
                     placeholder="Template Name"
                     value={templateName}
                     onChange={(e) => setTemplateName(e.target.value)}
                 />
             </div>
             <div className="form-group">
-                <label htmlFor="templateFields">Template Fields</label>
+                <label>Template Fields</label>
                 <textarea
-                    id="templateFields"
                     placeholder='Enter fields in JSON format. Example: [{"name": "VAT REG NO", "keyword": "VAT REG NO", "separator": ":", "index": 1}]'
                     value={templateFields}
                     onChange={(e) => setTemplateFields(e.target.value)}
                 ></textarea>
             </div>
-            <button className="save-button" onClick={handleSaveTemplate}>Save Template</button>
-            <div className="template-select">
-                <label htmlFor="selectTemplate">Select Template</label>
+            <button onClick={handleSaveTemplate}>Save Template</button>
+            <div className="select-template-group">
+                <label>Select Template</label>
                 <select
-                    id="selectTemplate"
                     onChange={(e) => onTemplateSelect(e.target.value)}
                     value={selectedTemplate}
                 >

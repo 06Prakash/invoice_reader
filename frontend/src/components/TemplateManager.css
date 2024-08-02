@@ -1,41 +1,42 @@
 .template-manager {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin: 20px;
-    font-family: Arial, sans-serif;
-}
-
-.template-manager h2 {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     margin-bottom: 20px;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    width: 50%;
+  }
+  
+  .template-manager h2 {
     margin-bottom: 20px;
-}
-
-.form-group label {
+    font-size: 24px;
+    color: #333;
+  }
+  
+  .form-group {
+    margin-bottom: 20px;
+  }
+  
+  .form-group label {
+    display: block;
     margin-bottom: 5px;
-}
-
-.form-group input,
-.form-group textarea {
+    font-weight: bold;
+  }
+  
+  .form-group input,
+  .form-group textarea {
+    width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
     font-size: 16px;
-    width: 100%;
-}
-
-.form-group textarea {
-    resize: vertical;
-    min-height: 150px;
-}
-
-.save-button {
+    box-sizing: border-box;
+  }
+  
+  .form-group textarea {
+    height: 150px;
+  }
+  
+  button {
     background-color: #007bff;
     color: white;
     border: none;
@@ -43,25 +44,28 @@
     border-radius: 5px;
     cursor: pointer;
     font-size: 16px;
-}
-
-.save-button:hover {
+    margin-top: 10px;
+  }
+  
+  button:hover {
     background-color: #0056b3;
-}
-
-.template-select {
+  }
+  
+  .select-template-group {
     display: flex;
-    flex-direction: column;
-    width: 50%;
-}
-
-.template-select label {
-    margin-bottom: 5px;
-}
-
-.template-select select {
+    align-items: center;
+    margin-top: 20px;
+  }
+  
+  .select-template-group label {
+    margin-right: 10px;
+    font-weight: bold;
+  }
+  
+  .select-template-group select {
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
     font-size: 16px;
-}
+  }
+  

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import './JsonTemplateGenerator.css';
 
 const JsonTemplateGenerator = ({ onTemplateGenerated, fetchTemplates }) => {
     const [templateName, setTemplateName] = useState('');
     const [headings, setHeadings] = useState('');
 
     const handleGenerateTemplate = async () => {
-        if (!templateName || !headings || templateName.trim() === "" || headings.trim() === "") {
+        if (!templateName || !headings) {
             alert('Please enter both template name and headings.');
             return;
         }
@@ -31,30 +32,35 @@ const JsonTemplateGenerator = ({ onTemplateGenerated, fetchTemplates }) => {
         };
 
         try {
-            const response = await axios.post('http://localhost:5001/templates', template);
-            const generatedTemplateName = response.data.generatedTemplateName || template.name; // Assuming the backend returns the full template name
+            await axios.post('http://localhost:5001/templates', template);
             alert('Template generated and saved successfully.');
             fetchTemplates(); // Fetch the updated list of templates
-            onTemplateGenerated(generatedTemplateName);
+            onTemplateGenerated(template.name);
         } catch (error) {
             console.error('Error generating template:', error);
         }
     };
 
     return (
-        <div>
+        <div className="json-template-generator">
             <h2>Generate JSON Template</h2>
-            <input
-                type="text"
-                placeholder="Enter template name"
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-            />
-            <textarea
-                placeholder="Enter headings, separated by commas"
-                value={headings}
-                onChange={(e) => setHeadings(e.target.value)}
-            ></textarea>
+            <div className="form-group">
+                <label>Template Name</label>
+                <input
+                    type="text"
+                    placeholder="Enter template name"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                />
+            </div>
+            <div className="form-group">
+                <label>Headings</label>
+                <textarea
+                    placeholder="Enter headings, separated by commas"
+                    value={headings}
+                    onChange={(e) => setHeadings(e.target.value)}
+                ></textarea>
+            </div>
             <button onClick={handleGenerateTemplate}>Generate Template</button>
         </div>
     );

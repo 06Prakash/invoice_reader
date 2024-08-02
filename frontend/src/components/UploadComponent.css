@@ -1,0 +1,20 @@
+.upload-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+  }
+  
+  .file-input {
+    margin-right: 1rem;
+  }
+  
+  .upload-button {
+    background-color: #007bff;
+    color: white;
+  }
+  
+  .upload-button:disabled {
+    background-color: #cccccc;
+  }
+  

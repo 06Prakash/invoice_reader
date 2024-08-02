@@ -1,0 +1,49 @@
+.json-template-generator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 20px 0;
+}
+
+.json-template-generator h2 {
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+.json-template-generator .form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 600px;
+}
+
+.json-template-generator .form-group label {
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.json-template-generator .form-group input,
+.json-template-generator .form-group textarea {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.json-template-generator button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 10px;
+}
+
+.json-template-generator button:hover {
+    background-color: #0056b3;
+}

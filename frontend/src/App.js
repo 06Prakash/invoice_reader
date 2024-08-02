@@ -1,5 +1,3 @@
-// src/App.js
-
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
 import axios from 'axios';
@@ -148,7 +146,7 @@ const App = () => {
                             <Redirect to="/login" />
                         ) : (
                             <div>
-                                <h1>Invoice Reader</h1>
+                                {/* <h1>Invoice Reader</h1> */}
                                 <UploadComponent onUploadSuccess={handleUploadSuccess} />
                                 <TemplateManager
                                     templates={templates}
@@ -158,20 +156,18 @@ const App = () => {
                                     defaultTemplateFields={defaultTemplateFields}
                                 />
                                 <JsonTemplateGenerator fetchTemplates={fetchTemplates} />
-                                <div>
+                                <div className="output-format">
                                     <label htmlFor="output-format">Output Format:</label>
                                     <select id="output-format" value={outputFormat} onChange={handleOutputFormatChange}>
                                         <option value="json">JSON</option>
                                         <option value="csv">CSV</option>
                                         <option value="text">Text</option>
                                     </select>
-                                </div>
-                                <div>
                                     <button onClick={handleExtractData} disabled={loading}>
                                         {loading ? `Extracting... ${progress}% completed` : 'Extract Data'}
                                     </button>
-                                    {message && <p>{message}</p>}
                                 </div>
+                                {message && <p>{message}</p>}
                                 {loading && <LinearProgress variant="determinate" value={progress} />}
                                 {extractedData && (
                                     <DataReview extractedData={extractedData} outputFormat={outputFormat} originalLines={originalLines} />

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Button, CircularProgress } from '@mui/material';
+import './UploadComponent.css';
 
 const UploadComponent = ({ onUploadSuccess }) => {
     const [selectedFiles, setSelectedFiles] = useState([]);
@@ -24,7 +25,7 @@ const UploadComponent = ({ onUploadSuccess }) => {
         setUploading(true);
 
         try {
-            const response = await axios.post('http://localhost:5001/upload', formData, {
+            const response = await axios.post('/upload', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }
@@ -39,9 +40,20 @@ const UploadComponent = ({ onUploadSuccess }) => {
     };
 
     return (
-        <div>
-            <input type="file" multiple onChange={handleFileChange} />
-            <Button variant="contained" color="primary" onClick={handleUpload} disabled={uploading}>
+        <div className="upload-container">
+            <input
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                className="file-input"
+            />
+            <Button
+                variant="contained"
+                color="primary"
+                onClick={handleUpload}
+                disabled={uploading}
+                className="upload-button"
+            >
                 {uploading ? <CircularProgress size={24} /> : 'Upload'}
             </Button>
         </div>
