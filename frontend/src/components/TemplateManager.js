@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import './TemplateManager.css'; // Ensure you have the CSS file
 
 const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchTemplates }) => {
     const [templateName, setTemplateName] = useState('');
     const [templateFields, setTemplateFields] = useState('');
-    
+
     useEffect(() => {
         fetchDefaultTemplate();
     }, []);
@@ -37,14 +38,12 @@ const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchT
         };
 
         try {
-            const response = await axios.post('http://localhost:5001/templates', template);
-            const generatedTemplateName = response.data.generatedTemplateName || template.name; // Assuming the backend returns the full template name with company prefix
-
+            await axios.post('http://localhost:5001/templates', template);
             setTemplateName('');
             setTemplateFields('');
             fetchTemplates();
-            onTemplateSelect(generatedTemplateName);
-            fetchTemplateFields(generatedTemplateName); // Fetch the updated template fields
+            onTemplateSelect(template.name);
+            fetchTemplateFields(template.name); // Fetch the updated template fields
         } catch (error) {
             console.error('Error saving template:', error);
         }
@@ -82,31 +81,43 @@ const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchT
     };
 
     return (
-        <div>
+        <div className="template-manager">
             <h2>Template Management</h2>
-            <input
-                type="text"
-                placeholder="Template Name"
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-            />
-            <textarea
-                placeholder='Enter fields in JSON format. Example: [{"name": "VAT REG NO", "keyword": "VAT REG NO", "separator": ":", "index": 1}]'
-                value={templateFields}
-                onChange={(e) => setTemplateFields(e.target.value)}
-            ></textarea>
-            <button onClick={handleSaveTemplate}>Save Template</button>
-            <select
-                onChange={(e) => onTemplateSelect(e.target.value)}
-                value={selectedTemplate}
-            >
-                <option value="">Select Template</option>
-                {templates.map((template) => (
-                    <option key={template} value={template}>
-                        {template}
-                    </option>
-                ))}
-            </select>
+            <div className="form-group">
+                <label htmlFor="templateName">Template Name</label>
+                <input
+                    type="text"
+                    id="templateName"
+                    placeholder="Template Name"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                />
+            </div>
+            <div className="form-group">
+                <label htmlFor="templateFields">Template Fields</label>
+                <textarea
+                    id="templateFields"
+                    placeholder='Enter fields in JSON format. Example: [{"name": "VAT REG NO", "keyword": "VAT REG NO", "separator": ":", "index": 1}]'
+                    value={templateFields}
+                    onChange={(e) => setTemplateFields(e.target.value)}
+                ></textarea>
+            </div>
+            <button className="save-button" onClick={handleSaveTemplate}>Save Template</button>
+            <div className="template-select">
+                <label htmlFor="selectTemplate">Select Template</label>
+                <select
+                    id="selectTemplate"
+                    onChange={(e) => onTemplateSelect(e.target.value)}
+                    value={selectedTemplate}
+                >
+                    <option value="">Select Template</option>
+                    {templates.map((template) => (
+                        <option key={template} value={template}>
+                            {template}
+                        </option>
+                    ))}
+                </select>
+            </div>
         </div>
     );
 };

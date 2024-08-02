@@ -1,26 +1,27 @@
+// src/components/LoginComponent.js
+
 import React, { useState } from 'react';
 import axios from 'axios';
 
 const LoginComponent = ({ setToken }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
 
     const handleLogin = async () => {
         try {
-            const response = await axios.post('http://localhost:5001/user/login', { username, password });
-            const token = response.data.access_token;
-            localStorage.setItem('jwt_token', token);
-            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-            setToken(token);
+            const response = await axios.post('/user/login', { username, password });
+            setToken(response.data.access_token);
             alert('Login successful');
         } catch (error) {
-            console.error('Error logging in:', error);
+            setError('Login failed: ' + (error.response?.data?.message || error.message));
         }
     };
 
     return (
         <div>
             <h2>Login</h2>
+            {error && <p className="error">{error}</p>}
             <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
             <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
             <button onClick={handleLogin}>Login</button>

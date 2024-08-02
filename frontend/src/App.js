@@ -1,4 +1,7 @@
+// src/App.js
+
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
 import axios from 'axios';
 import UploadComponent from './components/UploadComponent';
 import DataReview from './components/DataReview';
@@ -6,6 +9,7 @@ import TemplateManager from './components/TemplateManager';
 import JsonTemplateGenerator from './components/JsonTemplateGenerator';
 import RegisterComponent from './components/RegisterComponent';
 import LoginComponent from './components/LoginComponent';
+import NavBar from './components/NavBar';
 import LinearProgress from '@mui/material/LinearProgress';
 import './App.css';
 
@@ -22,11 +26,6 @@ const App = () => {
     const [progress, setProgress] = useState(0);
     const [token, setToken] = useState(localStorage.getItem('jwt_token') || '');
 
-    // Set the default Authorization header when the app loads
-    if (token) {
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    }
-
     useEffect(() => {
         if (token) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -38,7 +37,7 @@ const App = () => {
     useEffect(() => {
         if (loading) {
             const interval = setInterval(() => {
-                axios.get('http://localhost:5001/progress', { headers: { Authorization: `Bearer ${token}` } })
+                axios.get('/progress')
                     .then(response => {
                         setProgress(response.data.progress);
                         if (response.data.progress >= 100) {
@@ -51,10 +50,10 @@ const App = () => {
             }, 5000);
             return () => clearInterval(interval);
         }
-    }, [loading, token]);
+    }, [loading]);
 
     const fetchTemplates = () => {
-        axios.get('http://localhost:5001/templates', { headers: { Authorization: `Bearer ${token}` } })
+        axios.get('/templates')
             .then(response => {
                 setTemplates(response.data);
             })
@@ -64,7 +63,7 @@ const App = () => {
     };
 
     const fetchDefaultTemplate = () => {
-        axios.get('http://localhost:5001/default_template')
+        axios.get('/default_template')
             .then(response => {
                 const fields = JSON.stringify(response.data.fields, null, 2);
                 setDefaultTemplateFields(fields);
@@ -73,7 +72,6 @@ const App = () => {
                 }
             })
             .catch(error => {
-                alert('Error fetching default template');
                 console.error('Error fetching default template:', error);
             });
     };
@@ -99,7 +97,7 @@ const App = () => {
             output_format: outputFormat
         };
 
-        axios.post('http://localhost:5001/extract', data, { headers: { Authorization: `Bearer ${token}` } })
+        axios.post('/extract', data)
             .then(response => {
                 console.log('Data extracted successfully:', response.data);
                 setExtractedData(response.data);
@@ -123,12 +121,6 @@ const App = () => {
         setOutputFormat(event.target.value);
     };
 
-    const handleLogout = () => {
-        setToken('');
-        localStorage.removeItem('jwt_token');
-        delete axios.defaults.headers.common['Authorization'];
-    };
-
     const handleDownload = (format) => {
         const fileData = extractedData;
         const blob = new Blob([fileData], { type: 'text/plain;charset=utf-8' });
@@ -140,61 +132,61 @@ const App = () => {
         URL.revokeObjectURL(url);
     };
 
-    const handleTemplateGenerated = (templateName) => {
-        fetchTemplates();
-        setSelectedTemplate(templateName);
-    };
-
     return (
-        <div className="App">
-            {!token ? (
-                <div>
-                    <RegisterComponent />
-                    <LoginComponent setToken={(token) => {
-                        setToken(token);
-                        localStorage.setItem('jwt_token', token);
-                        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-                    }} />
-                </div>
-            ) : (
-                <div>
-                    <button onClick={handleLogout}>Logout</button>
-                    <h1>Invoice Extractor</h1>
-                    <UploadComponent onUploadSuccess={handleUploadSuccess} />
-                    <TemplateManager
-                        templates={templates}
-                        onTemplateSelect={handleTemplateSelect}
-                        selectedTemplate={selectedTemplate}
-                        fetchTemplates={fetchTemplates}
-                        defaultTemplateFields={defaultTemplateFields}
-                    />
-                    <JsonTemplateGenerator onTemplateGenerated={handleTemplateGenerated} fetchTemplates={fetchTemplates} />
-                    <div>
-                        <label htmlFor="output-format">Output Format:</label>
-                        <select id="output-format" value={outputFormat} onChange={handleOutputFormatChange}>
-                            <option value="json">JSON</option>
-                            <option value="csv">CSV</option>
-                            <option value="text">Text</option>
-                        </select>
-                    </div>
-                    <div>
-                        <button onClick={handleExtractData} disabled={loading}>
-                            {loading ? `Extracting... ${progress}% completed` : 'Extract Data'}
-                        </button>
-                        {message && <p>{message}</p>}
-                    </div>
-                    {loading && <LinearProgress variant="determinate" value={progress} />}
-                    {extractedData && (
-                        <DataReview extractedData={extractedData} outputFormat={outputFormat} originalLines={originalLines} />
-                    )}
-                    {extractedData && (
-                        <div>
-                            <button onClick={() => handleDownload(outputFormat)}>Download Data</button>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
+        <Router>
+            <div className="App">
+                <NavBar token={token} setToken={setToken} />
+                <Switch>
+                    <Route path="/register">
+                        {token ? <Redirect to="/" /> : <RegisterComponent setToken={setToken} />}
+                    </Route>
+                    <Route path="/login">
+                        {token ? <Redirect to="/" /> : <LoginComponent setToken={setToken} />}
+                    </Route>
+                    <Route path="/">
+                        {!token ? (
+                            <Redirect to="/login" />
+                        ) : (
+                            <div>
+                                <h1>Invoice Reader</h1>
+                                <UploadComponent onUploadSuccess={handleUploadSuccess} />
+                                <TemplateManager
+                                    templates={templates}
+                                    onTemplateSelect={handleTemplateSelect}
+                                    selectedTemplate={selectedTemplate}
+                                    fetchTemplates={fetchTemplates}
+                                    defaultTemplateFields={defaultTemplateFields}
+                                />
+                                <JsonTemplateGenerator fetchTemplates={fetchTemplates} />
+                                <div>
+                                    <label htmlFor="output-format">Output Format:</label>
+                                    <select id="output-format" value={outputFormat} onChange={handleOutputFormatChange}>
+                                        <option value="json">JSON</option>
+                                        <option value="csv">CSV</option>
+                                        <option value="text">Text</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <button onClick={handleExtractData} disabled={loading}>
+                                        {loading ? `Extracting... ${progress}% completed` : 'Extract Data'}
+                                    </button>
+                                    {message && <p>{message}</p>}
+                                </div>
+                                {loading && <LinearProgress variant="determinate" value={progress} />}
+                                {extractedData && (
+                                    <DataReview extractedData={extractedData} outputFormat={outputFormat} originalLines={originalLines} />
+                                )}
+                                {extractedData && (
+                                    <div>
+                                        <button onClick={() => handleDownload(outputFormat)}>Download Data</button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </Route>
+                </Switch>
+            </div>
+        </Router>
     );
 };
 
