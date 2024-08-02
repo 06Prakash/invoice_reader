@@ -11,7 +11,7 @@ services:
       - .env
     depends_on:
       - db
-    entrypoint: ["./entrypoint.sh", "db", "python", "app.py"]
+    entrypoint: ["/app/entrypoint.sh", "db", "python", "app.py"]
 
   db:
     image: postgres:13

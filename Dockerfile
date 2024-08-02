@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y \
     poppler-utils \
     libgl1-mesa-glx \
     postgresql-client \
+    dos2unix \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -42,6 +43,8 @@ COPY resources /app/resources
 # Copy the entrypoint script
 COPY entrypoint.sh /app/entrypoint.sh
 
+RUN dos2unix /app/entrypoint.sh
+
 # Create the logs directory
 RUN mkdir -p /app/logs
 
@@ -52,4 +55,4 @@ RUN chmod +x /app/entrypoint.sh
 EXPOSE 5000
 
 # Set the entrypoint to the script
-ENTRYPOINT ["./entrypoint.sh", "db", "python", "app.py"]
+ENTRYPOINT ["/app/entrypoint.sh", "db", "python", "app.py"]
