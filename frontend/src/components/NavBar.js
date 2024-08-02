@@ -14,7 +14,7 @@ const NavBar = ({ token, setToken }) => {
 
     return (
         <nav className="navbar">
-            <h1>Nira Invoice Reader</h1>
+            <h1>NIRA Invoice Reader</h1>
             <div>
                 {token ? (
                     <button onClick={handleLogout} className="nav-button">Logout</button>
