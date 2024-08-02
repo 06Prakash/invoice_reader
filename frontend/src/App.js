@@ -1,3 +1,4 @@
+// src/App.js
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
 import axios from 'axios';
@@ -10,6 +11,7 @@ import LoginComponent from './components/LoginComponent';
 import NavBar from './components/NavBar';
 import LinearProgress from '@mui/material/LinearProgress';
 import './App.css';
+import './components/JsonTemplateGenerator.css'; // Include the new CSS file
 
 const App = () => {
     const [templates, setTemplates] = useState([]);
@@ -146,7 +148,6 @@ const App = () => {
                             <Redirect to="/login" />
                         ) : (
                             <div>
-                                {/* <h1>Invoice Reader</h1> */}
                                 <UploadComponent onUploadSuccess={handleUploadSuccess} />
                                 <TemplateManager
                                     templates={templates}
