@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import Select from 'react-select';
 import './TemplateManager.css';
 
 const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchTemplates }) => {
@@ -80,6 +81,11 @@ const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchT
         }
     };
 
+    const templateOptions = templates.map((template) => ({
+        value: template,
+        label: template
+    }));
+
     return (
         <div className="template-manager">
             <h2>Template Management</h2>
@@ -103,17 +109,25 @@ const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchT
             <button onClick={handleSaveTemplate}>Save Template</button>
             <div className="select-template-group">
                 <label>Select Template</label>
-                <select
-                    onChange={(e) => onTemplateSelect(e.target.value)}
-                    value={selectedTemplate}
-                >
-                    <option value="">Select Template</option>
-                    {templates.map((template) => (
-                        <option key={template} value={template}>
-                            {template}
-                        </option>
-                    ))}
-                </select>
+                <Select
+                    options={templateOptions}
+                    onChange={(selectedOption) => onTemplateSelect(selectedOption.value)}
+                    value={templateOptions.find(option => option.value === selectedTemplate)}
+                    styles={{
+                        control: (provided) => ({
+                            ...provided,
+                            borderColor: '#004d40',
+                            '&:hover': { borderColor: '#00332d' },
+                            boxShadow: 'none'
+                        }),
+                        option: (provided, state) => ({
+                            ...provided,
+                            backgroundColor: state.isFocused ? '#004d40' : 'white',
+                            color: state.isFocused ? 'white' : 'black',
+                            '&:hover': { backgroundColor: '#00332d', color: 'white' }
+                        })
+                    }}
+                />
             </div>
         </div>
     );
