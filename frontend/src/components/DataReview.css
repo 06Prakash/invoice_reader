@@ -1,5 +1,9 @@
-.data-review {
+.data-review-container {
     margin: 20px;
+    border: 2px solid #004d40; /* blackish green border */
+    border-radius: 8px;
+    padding: 20px;
+    background-color: #fff;
 }
 
 .data-review h2, .data-review h3 {

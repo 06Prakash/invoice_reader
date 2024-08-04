@@ -121,17 +121,6 @@ const App = () => {
         setOutputFormat(event.target.value);
     };
 
-    const handleDownload = (format) => {
-        const fileData = extractedData;
-        const blob = new Blob([fileData], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `extracted_data.${format}`;
-        link.click();
-        URL.revokeObjectURL(url);
-    };
-
     return (
         <Router>
             <div className="App">
@@ -175,11 +164,6 @@ const App = () => {
                                 {loading && <LinearProgress variant="determinate" value={progress} />}
                                 {extractedData && (
                                     <DataReview extractedData={extractedData} outputFormat={outputFormat} originalLines={originalLines} />
-                                )}
-                                {extractedData && (
-                                    <div>
-                                        <button onClick={() => handleDownload(outputFormat)}>Download Data</button>
-                                    </div>
                                 )}
                             </div>
                         )}

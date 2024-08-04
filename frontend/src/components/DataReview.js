@@ -92,20 +92,22 @@ const DataReview = ({ extractedData, originalLines, outputFormat }) => {
     };
 
     return (
-        <div className="data-review">
-            <h2>Review Extracted Data</h2>
-            {renderData()}
-            <button className="download-button" onClick={() => downloadData(outputFormat)}>Download {outputFormat.toUpperCase()}</button>
-            <h3>Original Lines</h3>
-            {Object.keys(originalLines)
-                .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                .map(filename => (
-                    <div key={filename}>
-                        <h4>{filename}</h4>
-                        <pre>{originalLines[filename].join('\n')}</pre>
-                    </div>
-                ))}
-            {renderPagination()}
+        <div className="data-review-container">
+            <div className="data-review">
+                <h2>Review Extracted Data</h2>
+                {renderData()}
+                <button className="download-button" onClick={() => downloadData(outputFormat)}>Download {outputFormat.toUpperCase()}</button>
+                <h3>Original Lines</h3>
+                {Object.keys(originalLines)
+                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                    .map(filename => (
+                        <div key={filename}>
+                            <h4>{filename}</h4>
+                            <pre>{originalLines[filename].join('\n')}</pre>
+                        </div>
+                    ))}
+                {renderPagination()}
+            </div>
         </div>
     );
 };
