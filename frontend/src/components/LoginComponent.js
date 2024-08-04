@@ -9,7 +9,7 @@ const LoginComponent = ({ setToken }) => {
 
     const handleLogin = async () => {
         try {
-            const response = await axios.post('http://localhost:5001/user/login', { username, password });
+            const response = await axios.post('/user/login', { username, password });
             setToken(response.data.access_token);
             alert('Login successful');
         } catch (error) {

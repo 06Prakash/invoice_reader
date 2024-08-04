@@ -12,3 +12,4 @@ Flask-Bcrypt==0.7.1
 Flask-Login==0.5.0
 Flask-JWT-Extended==4.3.1
 psycopg2-binary
+gunicorn

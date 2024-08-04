@@ -34,7 +34,7 @@ const JsonTemplateGenerator = ({ fetchTemplates }) => {
         };
 
         try {
-            await axios.post('http://localhost:5001/templates', template);
+            await axios.post('/templates', template);
             alert('Template generated and saved successfully.');
             fetchTemplates(); // Fetch the updated list of templates
         } catch (error) {

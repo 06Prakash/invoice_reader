@@ -11,7 +11,7 @@ const RegisterComponent = ({ setToken }) => {
 
     const handleRegister = async () => {
         try {
-            const response = await axios.post('http://localhost:5001/user/register', { username, email, password, company });
+            const response = await axios.post('/user/register', { username, email, password, company });
             setToken(response.data.access_token);
             alert('Registration successful');
         } catch (error) {

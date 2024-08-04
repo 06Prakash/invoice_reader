@@ -25,7 +25,7 @@ const UploadComponent = ({ onUploadSuccess }) => {
         setUploading(true);
 
         try {
-            const response = await axios.post('http://localhost:5001/upload', formData, {
+            const response = await axios.post('/upload', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }
