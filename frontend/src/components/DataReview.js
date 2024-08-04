@@ -1,6 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
+import './DataReview.css';
 
 const DataReview = ({ extractedData, originalLines, outputFormat }) => {
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+
     const renderData = () => {
         if (outputFormat === 'json') {
             console.log('Extracted Data:', extractedData);
@@ -14,11 +18,11 @@ const DataReview = ({ extractedData, originalLines, outputFormat }) => {
             const csvData = extractedData.csv_data.trim();
             const rows = csvData.split('\n').map(row => row.split(','));
             return (
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table>
                     <thead>
                         <tr>
                             {rows[0].map((header, index) => (
-                                <th key={index} style={{ border: '1px solid black', padding: '8px', backgroundColor: '#f2f2f2' }}>{header}</th>
+                                <th key={index}>{header}</th>
                             ))}
                         </tr>
                     </thead>
@@ -26,7 +30,7 @@ const DataReview = ({ extractedData, originalLines, outputFormat }) => {
                         {rows.slice(1).map((row, index) => (
                             <tr key={index}>
                                 {row.map((value, idx) => (
-                                    <td key={idx} style={{ border: '1px solid black', padding: '8px' }}>{value}</td>
+                                    <td key={idx}>{value}</td>
                                 ))}
                             </tr>
                         ))}
@@ -36,7 +40,7 @@ const DataReview = ({ extractedData, originalLines, outputFormat }) => {
         } else if (outputFormat === 'text') {
             console.log('Extracted Data:', extractedData);
             let textData = '';
-            textData = extractedData.text_data
+            textData = extractedData.text_data;
             return <pre>{textData}</pre>;
         } else {
             console.log('Invalid output format');
@@ -65,18 +69,43 @@ const DataReview = ({ extractedData, originalLines, outputFormat }) => {
         downloadAnchorNode.remove();
     };
 
+    const totalPages = Math.ceil(Object.keys(originalLines).length / itemsPerPage);
+
+    const paginate = (pageNum) => {
+        setCurrentPage(pageNum);
+    };
+
+    const renderPagination = () => {
+        const pages = [];
+        for (let i = 1; i <= totalPages; i++) {
+            pages.push(
+                <button
+                    key={i}
+                    onClick={() => paginate(i)}
+                    className={currentPage === i ? 'active' : ''}
+                >
+                    {i}
+                </button>
+            );
+        }
+        return <div className="pagination">{pages}</div>;
+    };
+
     return (
-        <div>
+        <div className="data-review">
             <h2>Review Extracted Data</h2>
             {renderData()}
-            <button onClick={() => downloadData(outputFormat)}>Download {outputFormat.toUpperCase()}</button>
+            <button className="download-button" onClick={() => downloadData(outputFormat)}>Download {outputFormat.toUpperCase()}</button>
             <h3>Original Lines</h3>
-            {Object.keys(originalLines).map(filename => (
-                <div key={filename}>
-                    <h4>{filename}</h4>
-                    <pre>{originalLines[filename].join('\n')}</pre>
-                </div>
-            ))}
+            {Object.keys(originalLines)
+                .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                .map(filename => (
+                    <div key={filename}>
+                        <h4>{filename}</h4>
+                        <pre>{originalLines[filename].join('\n')}</pre>
+                    </div>
+                ))}
+            {renderPagination()}
         </div>
     );
 };

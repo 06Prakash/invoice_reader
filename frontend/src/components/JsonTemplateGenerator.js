@@ -69,7 +69,7 @@ const JsonTemplateGenerator = ({ fetchTemplates }) => {
                         />
                         <Button
                             variant="contained"
-                            color="primary"
+                            className="generate-button"
                             onClick={handleGenerateTemplate}
                         >
                             Generate Template

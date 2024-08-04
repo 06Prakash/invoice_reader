@@ -157,17 +157,20 @@ const App = () => {
                                     defaultTemplateFields={defaultTemplateFields}
                                 />
                                 <JsonTemplateGenerator fetchTemplates={fetchTemplates} />
-                                <div className="output-format">
-                                    <label htmlFor="output-format">Output Format:</label>
-                                    <select id="output-format" value={outputFormat} onChange={handleOutputFormatChange}>
-                                        <option value="json">JSON</option>
-                                        <option value="csv">CSV</option>
-                                        <option value="text">Text</option>
-                                    </select>
-                                    <button onClick={handleExtractData} disabled={loading}>
-                                        {loading ? `Extracting... ${progress}% completed` : 'Extract Data'}
-                                    </button>
+                                <div className="output-format-container">
+                                    <div className="output-format">
+                                        <label htmlFor="output-format">Output Format:</label>
+                                        <select id="output-format" value={outputFormat} onChange={handleOutputFormatChange}>
+                                            <option value="json">JSON</option>
+                                            <option value="csv">CSV</option>
+                                            <option value="text">Text</option>
+                                        </select>
+                                        <button onClick={handleExtractData} disabled={loading}>
+                                            {loading ? `Extracting... ${progress}% completed` : 'Extract Data'}
+                                        </button>
+                                    </div>
                                 </div>
+
                                 {message && <p>{message}</p>}
                                 {loading && <LinearProgress variant="determinate" value={progress} />}
                                 {extractedData && (

@@ -9,14 +9,14 @@ body {
 
 /* App Container */
 .App {
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 20px;
+  padding: 0;
 }
 
 /* Header */
 .header {
-  background-color: #007bff;
+  background-color: #004d40; /* Blackish green */
   color: white;
   padding: 10px 20px;
   display: flex;
@@ -33,16 +33,18 @@ body {
 
 .header button {
   background-color: white;
-  color: #007bff;
+  color: #004d40; /* Match the header */
   border: none;
   padding: 10px 20px;
   border-radius: 5px;
   cursor: pointer;
   font-size: 16px;
+  transition: background-color 0.3s, color 0.3s;
 }
 
 .header button:hover {
   background-color: #e7e7e7;
+  color: #004d40; /* Ensuring color consistency */
 }
 
 /* Flexbox Containers */
@@ -84,6 +86,14 @@ body {
   font-size: 16px;
   width: 100%;
   box-sizing: border-box;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.form-group input:hover,
+.form-group textarea:hover,
+.form-group select:hover {
+  border-color: #004d40;
+  box-shadow: 0 0 5px rgba(0, 77, 64, 0.5);
 }
 
 .form-group textarea {
@@ -96,17 +106,19 @@ body {
 
 /* Button Styles */
 button {
-  background-color: #007bff;
+  background-color: #004d40; /* Blackish green */
   color: white;
   border: none;
   padding: 10px 20px;
   border-radius: 5px;
   cursor: pointer;
   font-size: 16px;
+  transition: background-color 0.3s, transform 0.3s;
 }
 
 button:hover {
-  background-color: #0056b3;
+  background-color: #00332d;
+  transform: scale(1.05);
 }
 
 .button-group {
@@ -123,10 +135,15 @@ button:hover {
   margin-left: 10px;
 }
 
+.output-format-container {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+}
+
 .output-format {
   display: flex;
   align-items: center;
-  margin: 1rem 0;
 }
 
 .output-format label {
@@ -139,19 +156,27 @@ button:hover {
   border: 1px solid #ccc;
   border-radius: 5px;
   font-size: 1rem;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.output-format select:hover {
+  border-color: #004d40;
+  box-shadow: 0 0 5px rgba(0, 77, 64, 0.5);
 }
 
 .output-format button {
   margin-left: 1rem;
-  background-color: #007bff;
+  background-color: #004d40; /* Blackish green */
   color: white;
   padding: 0.5rem 1rem;
   border: none;
   border-radius: 5px;
   cursor: pointer;
   font-size: 1rem;
+  transition: background-color 0.3s, transform 0.3s;
 }
 
 .output-format button:hover {
-  background-color: #0056b3;
+  background-color: #00332d;
+  transform: scale(1.05);
 }

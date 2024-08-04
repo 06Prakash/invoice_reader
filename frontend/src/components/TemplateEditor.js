@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './TemplateEditor.css'; // Make sure to create this CSS file
+import './TemplateEditor.css'; // Ensure this path is correct
 
 const TemplateEditor = ({ onSave }) => {
     const [title, setTitle] = useState('');

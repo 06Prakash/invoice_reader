@@ -41,8 +41,14 @@ const UploadComponent = ({ onUploadSuccess }) => {
 
     return (
         <div className="upload-container">
-            <input type="file" multiple onChange={handleFileChange} />
-            <Button variant="contained" color="primary" onClick={handleUpload} disabled={uploading}>
+            <label className="custom-file-upload">
+                <input type="file" multiple onChange={handleFileChange} />
+                Choose Files
+            </label>
+            {selectedFiles.length > 0 && (
+                <span className="file-count">{selectedFiles.length} file(s) selected</span>
+            )}
+            <Button variant="contained" className="upload-button" onClick={handleUpload} disabled={uploading}>
                 {uploading ? <CircularProgress size={24} /> : 'Upload'}
             </Button>
         </div>

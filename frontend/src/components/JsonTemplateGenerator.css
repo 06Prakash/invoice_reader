@@ -8,8 +8,9 @@
 }
 
 .json-template-generator .MuiAccordionSummary-root {
-    background-color: #f8f9fa;
+    background-color: #004d40; /* Blackish green */
     border-bottom: 1px solid #ddd;
+    color: white;
 }
 
 .json-template-generator .MuiAccordionSummary-content {
@@ -20,6 +21,7 @@
 
 .json-template-generator .MuiAccordionDetails-root {
     padding: 20px;
+    background-color: #f8f9fa;
 }
 
 .json-template-generator .form-group {
@@ -38,8 +40,8 @@
     margin-bottom: 20px;
 }
 
-.json-template-generator button {
-    background-color: #007bff;
+.json-template-generator .generate-button {
+    background-color: #004d40; /* Blackish-green */
     color: white;
     border: none;
     padding: 10px 20px;
@@ -48,8 +50,10 @@
     font-size: 16px;
     width: fit-content;
     align-self: flex-end;
+    transition: background-color 0.3s, transform 0.3s;
 }
 
-.json-template-generator button:hover {
-    background-color: #0056b3;
+.json-template-generator .generate-button:hover {
+    background-color: #00332d;
+    transform: scale(1.05);
 }
