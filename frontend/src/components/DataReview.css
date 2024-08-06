@@ -27,10 +27,14 @@
     transform: scale(1.05);
 }
 
+.table-container {
+    overflow-x: auto; /* Ensure table fits within the container */
+    margin: 20px 0;
+}
+
 .data-review table {
     width: 100%;
     border-collapse: collapse;
-    margin: 20px 0;
 }
 
 .data-review th, .data-review td {
@@ -40,8 +44,8 @@
 }
 
 .data-review th {
-    background-color: #f8f9fa;
-    color: #333;
+    background-color: #004d40;
+    color: white;
     font-weight: bold;
 }
 

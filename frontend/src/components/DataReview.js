@@ -18,24 +18,26 @@ const DataReview = ({ extractedData, originalLines, outputFormat }) => {
             const csvData = extractedData.csv_data.trim();
             const rows = csvData.split('\n').map(row => row.split(','));
             return (
-                <table>
-                    <thead>
-                        <tr>
-                            {rows[0].map((header, index) => (
-                                <th key={index}>{header}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.slice(1).map((row, index) => (
-                            <tr key={index}>
-                                {row.map((value, idx) => (
-                                    <td key={idx}>{value}</td>
+                <div className="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                {rows[0].map((header, index) => (
+                                    <th key={index}>{header}</th>
                                 ))}
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {rows.slice(1).map((row, index) => (
+                                <tr key={index}>
+                                    {row.map((value, idx) => (
+                                        <td key={idx}>{value}</td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             );
         } else if (outputFormat === 'text') {
             console.log('Extracted Data:', extractedData);
