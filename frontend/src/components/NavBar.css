@@ -1,0 +1,51 @@
+/* src/components/NavBar.css */
+.navbar {
+    background-color: #004d40; /* Blackish green color */
+    color: white;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #00332e; /* Slightly darker shade for the border */
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+}
+
+.logo {
+    height: 40px;
+    width: 40px;
+    border-radius: 50%; /* Make the logo round */
+    margin-right: 15px;
+    border: 2px solid #fff; /* Add a white border around the logo */
+    object-fit: cover; /* Ensure the logo is properly contained within the round shape */
+}
+
+.navbar h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.nav-button {
+    background-color: white;
+    color: #004d40; /* Match the navbar color */
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+    text-decoration: none; /* Remove underline from link */
+    margin-left: 10px; /* Space between buttons */
+}
+
+.nav-button:hover {
+    background-color: #e7e7e7;
+}
+
+.navbar img {
+    border-radius: 50%;
+}

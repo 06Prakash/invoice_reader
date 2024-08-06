@@ -1,116 +1,140 @@
-# Invoice Reader
+# Invoice Reader Application
 
-Invoice Reader is a web application that allows users to upload invoice PDFs, specify fields to extract, and download the extracted data in various formats (JSON, CSV, or plain text). The backend is powered by Flask, and the frontend is a simple HTML/JavaScript interface. The application uses Tesseract OCR and pdf2image for PDF processing.
+## Overview
+
+The Invoice Reader Application is a powerful tool designed to extract and process data from invoice PDFs. It utilizes modern web technologies and machine learning techniques to automate the extraction process, making it efficient and reliable.
 
 ## Features
 
-- Upload invoice PDF files
-- Specify fields to extract from invoices
-- Specify separator used in the invoice (e.g., ':', '|', '-')
-- Download extracted data in JSON, CSV, or plain text format
-- Dockerized for easy deployment
+- **User Authentication**: Secure login and registration functionality with JWT-based authentication.
+- **Template Management**: Create, save, and manage extraction templates specific to your company's needs.
+- **PDF Upload and Extraction**: Upload PDF files and extract data based on predefined templates.
+- **Progress Tracking**: Monitor the extraction progress in real-time.
+- **Data Download**: Download the extracted data in JSON, CSV, or text formats.
 
-## Prerequisites
+## Tech Stack
+
+- **Backend**: Flask, SQLAlchemy, Flask-JWT-Extended, PostgreSQL
+- **Frontend**: React, Axios, Material-UI
+- **Containerization**: Docker, Docker Compose
+
+## Getting Started
+
+### Prerequisites
 
 - Docker
-- Python 3.9 (if running locally without Docker)
+- Docker Compose
 
-## Installation
-
-### Using Docker
+### Installation
 
 1. **Clone the repository**:
-    ```sh
-    git clone https://github.com/06Prakash/invoice_reader.git
-    cd /path/to/invoice_reader/directory
+    ```bash
+    git clone <repository-url>
+    cd invoice_reader
     ```
 
-2. **Build the Docker image**:
-    ```sh
-    docker build -t invoice-reader .
+2. **Set up environment variables**:
+    Create a `.env` file in the root directory and add the following variables:
+    ```plaintext
+    FLASK_ENV=development
+    DATABASE_URI=postgresql://<db_user>:<db_password>@db/invoice_extractor
+    SECRET_KEY=<your_secret_key>
+    JWT_SECRET_KEY=<your_jwt_secret_key>
+    POSTGRES_USER=<db_user>
+    POSTGRES_PASSWORD=<db_password>
+    POSTGRES_DB=invoice_extractor
     ```
 
-3. **Run the Docker container**:
-    ```sh
-    docker run -p 5001:5000 invoice-reader
+3. **Build and run the application using Docker Compose**:
+    ```bash
+    docker-compose up --build
     ```
 
-4. **Access the application**:
-    Open your web browser and go to `http://localhost:5001`.
+    This command will build the Docker images, set up the containers, and start the application.
 
-### Running Locally
+### Usage
 
-1. **Clone the repository**:
-    ```sh
-    git clone https://github.com/06Prakash/invoice_reader.git
-    cd /path/to/invoice_reader/directory
+1. **Access the application**:
+    Open your web browser and navigate to `http://localhost:5001`.
+
+2. **Register and login**:
+    - Register a new user with your company name.
+    - Login with the registered credentials.
+
+3. **Template Management**:
+    - Create a new template by specifying the template name and field details.
+    - Save the template to make it available for data extraction.
+
+4. **Upload and Extract**:
+    - Upload PDF files for extraction.
+    - Select the desired template and initiate the extraction process.
+    - Monitor the extraction progress and download the results in the preferred format.
+
+## Folder Structure
+
+```plaintext
+invoice_reader/
+├── backend/
+│   ├── app.py
+│   ├── config.py
+│   ├── extensions.py
+│   ├── init_db.py
+│   ├── modules/
+│   │   ├── __init__.py
+│   │   ├── models.py
+│   │   ├── routes.py
+│   │   ├── template.py
+│   │   ├── extract.py
+│   │   └── user_routes.py
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── App.js
+│   │   ├── index.js
+│   │   └── ...
+│   └── package.json
+├── resources/
+│   ├── json_templates/
+│   │   └── default_template.json
+│   └── ...
+├── docker-compose.yml
+├── Dockerfile
+├── entrypoint.sh
+└── README.md
+
+## API Endpoints
+
+### Authentication
+
+- **POST /user/register**: Register a new user.
+- **POST /user/login**: Login and retrieve a JWT token.
+
+### Templates
+
+- **POST /templates**: Create or update a template.
+- **GET /templates**: Retrieve the list of templates.
+- **GET /templates/<name>**: Retrieve a specific template by name.
+- **GET /default_template**: Retrieve the default template.
+
+### Extraction
+
+- **POST /extract**: Upload PDFs and extract data.
+- **GET /progress**: Get the progress of the current extraction process.
+
+## Troubleshooting
+
+- Ensure all environment variables are correctly set in the `.env` file.
+- Verify that Docker and Docker Compose are properly installed and running.
+- Check the logs for any errors during the build or runtime:
+    ```bash
+    docker-compose logs
     ```
-
-2. **Install dependencies**:
-    ```sh
-    pip install -r requirements.txt
-    ```
-
-3. **Install Tesseract and Poppler**:
-    - On Ubuntu:
-        ```sh
-        sudo apt-get update
-        sudo apt-get install -y tesseract-ocr tesseract-ocr-eng libtesseract-dev poppler-utils
-        ```
-    - On Windows, download and install Tesseract from [here](https://github.com/UB-Mannheim/tesseract/wiki) and Poppler from [here](http://blog.alivate.com.au/poppler-windows/).
-
-4. **Run the Flask application**:
-    ```sh
-    python invoice_reader_app.py
-    ```
-
-5. **Access the application**:
-    Open your web browser and go to `http://localhost:5000`.
-
-## Usage
-
-1. **Upload an Invoice PDF**:
-    - Click on the "Choose File" button and select a PDF file.
-    - Click on the "Upload" button to upload the file.
-
-2. **Specify Extraction Criteria**:
-    - Enter the fields you want to extract from the invoice, separated by commas.
-    - Enter the separator used in the invoice (e.g., ':', '|', '-').
-    - Select the desired output format (JSON, CSV, or Text).
-
-3. **Extract Data**:
-    - Click on the "Extract Data" button to process the PDF and extract the specified fields.
-    - The extracted data will be displayed in the specified format.
-
-## Project Structure
-    invoice_reader/
-        ├── Dockerfile
-        ├── requirements.txt
-        ├── invoice_reader_app.py
-        ├── static/
-        │ └── invoice_reader_ui.html
-        ├── ocr_invoice_app.py
-        └── test_pdfs/
-
-   - **Dockerfile**: Docker configuration file for building the image.
-   - **requirements.txt**: Python dependencies file.
-   - **invoice_reader_app.py**: Main Flask application.
-   - **static/**: Directory containing static files (HTML, CSS, JS).
-   - **ocr_invoice_app.py**: Additional OCR processing script (if needed).
-   - **test_pdfs/**: Directory for storing test PDFs.
 
 ## Contributing
 
-Feel free to fork this repository, make changes, and submit pull requests. For major changes, please open an issue first to discuss what you would like to change.
+We welcome contributions! Please fork the repository and submit a pull request with your changes.
 
-## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## Acknowledgements
-
-- [Flask](https://flask.palletsprojects.com/)
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract)
-- [pdf2image](https://github.com/Belval/pdf2image)
-- [Poppler](https://poppler.freedesktop.org/)
 

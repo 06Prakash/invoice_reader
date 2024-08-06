@@ -1,5 +1,6 @@
 import logging
 from flask import request, jsonify
+from flask_jwt_extended import jwt_required
 from pdf2image import convert_from_path
 import pytesseract
 import json
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 # Create a file handler and set the log level
-file_handler = logging.FileHandler('logs/app.log')
+file_handler = logging.FileHandler('/app/logs/app.log')
 file_handler.setLevel(logging.DEBUG)
 
 # Create a log formatter
@@ -86,6 +87,7 @@ def register_extract_routes(app):
         return filename, extracted_data, original_lines
 
     @app.route('/extract', methods=['POST'])
+    @jwt_required()
     def extract_data():
         global progress  # Declare progress as global inside the function
         data = request.json
@@ -159,6 +161,7 @@ def register_extract_routes(app):
         }), 200
 
     @app.route('/progress', methods=['GET'])
+    @jwt_required()
     def get_progress():
         upload_folder = app.config['UPLOAD_FOLDER']
         progress_file = os.path.join(upload_folder, 'progress.txt')

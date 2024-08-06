@@ -1,11 +1,17 @@
+// src/App.js
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
 import axios from 'axios';
 import UploadComponent from './components/UploadComponent';
 import DataReview from './components/DataReview';
 import TemplateManager from './components/TemplateManager';
 import JsonTemplateGenerator from './components/JsonTemplateGenerator';
+import RegisterComponent from './components/RegisterComponent';
+import LoginComponent from './components/LoginComponent';
+import NavBar from './components/NavBar';
 import LinearProgress from '@mui/material/LinearProgress';
 import './App.css';
+import './components/JsonTemplateGenerator.css'; // Include the new CSS file
 
 const App = () => {
     const [templates, setTemplates] = useState([]);
@@ -18,16 +24,20 @@ const App = () => {
     const [originalLines, setOriginalLines] = useState([]);
     const [defaultTemplateFields, setDefaultTemplateFields] = useState('');
     const [progress, setProgress] = useState(0);
+    const [token, setToken] = useState(localStorage.getItem('jwt_token') || '');
 
     useEffect(() => {
-        fetchTemplates();
-        fetchDefaultTemplate();
-    }, []);
+        if (token) {
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            fetchTemplates();
+            fetchDefaultTemplate();
+        }
+    }, [token]);
 
     useEffect(() => {
         if (loading) {
             const interval = setInterval(() => {
-                axios.get('http://localhost:5001/progress')
+                axios.get('/progress')
                     .then(response => {
                         setProgress(response.data.progress);
                         if (response.data.progress >= 100) {
@@ -43,7 +53,7 @@ const App = () => {
     }, [loading]);
 
     const fetchTemplates = () => {
-        axios.get('http://localhost:5001/templates')
+        axios.get('/templates')
             .then(response => {
                 setTemplates(response.data);
             })
@@ -53,7 +63,7 @@ const App = () => {
     };
 
     const fetchDefaultTemplate = () => {
-        axios.get('http://localhost:5001/default_template')
+        axios.get('/default_template')
             .then(response => {
                 const fields = JSON.stringify(response.data.fields, null, 2);
                 setDefaultTemplateFields(fields);
@@ -87,7 +97,7 @@ const App = () => {
             output_format: outputFormat
         };
 
-        axios.post('http://localhost:5001/extract', data)
+        axios.post('/extract', data)
             .then(response => {
                 console.log('Data extracted successfully:', response.data);
                 setExtractedData(response.data);
@@ -111,53 +121,56 @@ const App = () => {
         setOutputFormat(event.target.value);
     };
 
-    const handleDownload = (format) => {
-        const fileData = extractedData;
-        const blob = new Blob([fileData], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `extracted_data.${format}`;
-        link.click();
-        URL.revokeObjectURL(url);
-    };
-
     return (
-        <div className="App">
-            <h1>Invoice Extractor</h1>
-            <UploadComponent onUploadSuccess={handleUploadSuccess} />
-            <TemplateManager
-                templates={templates}
-                onTemplateSelect={handleTemplateSelect}
-                selectedTemplate={selectedTemplate}
-                fetchTemplates={fetchTemplates}
-                defaultTemplateFields={defaultTemplateFields}
-            />
-            <JsonTemplateGenerator onTemplateGenerated={fetchTemplates} />
-            <div>
-                <label htmlFor="output-format">Output Format:</label>
-                <select id="output-format" value={outputFormat} onChange={handleOutputFormatChange}>
-                    <option value="json">JSON</option>
-                    <option value="csv">CSV</option>
-                    <option value="text">Text</option>
-                </select>
+        <Router>
+            <div className="App">
+                <NavBar token={token} setToken={setToken} />
+                <Switch>
+                    <Route path="/register">
+                        {token ? <Redirect to="/" /> : <RegisterComponent setToken={setToken} />}
+                    </Route>
+                    <Route path="/login">
+                        {token ? <Redirect to="/" /> : <LoginComponent setToken={setToken} />}
+                    </Route>
+                    <Route path="/">
+                        {!token ? (
+                            <Redirect to="/login" />
+                        ) : (
+                            <div>
+                                <UploadComponent onUploadSuccess={handleUploadSuccess} />
+                                <TemplateManager
+                                    templates={templates}
+                                    onTemplateSelect={handleTemplateSelect}
+                                    selectedTemplate={selectedTemplate}
+                                    fetchTemplates={fetchTemplates}
+                                    defaultTemplateFields={defaultTemplateFields}
+                                />
+                                <JsonTemplateGenerator fetchTemplates={fetchTemplates} />
+                                <div className="output-format-container">
+                                    <div className="output-format">
+                                        <label htmlFor="output-format">Output Format:</label>
+                                        <select id="output-format" value={outputFormat} onChange={handleOutputFormatChange}>
+                                            <option value="json">JSON</option>
+                                            <option value="csv">CSV</option>
+                                            <option value="text">Text</option>
+                                        </select>
+                                        <button onClick={handleExtractData} disabled={loading}>
+                                            {loading ? `Extracting... ${progress}% completed` : 'Extract Data'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {message && <p>{message}</p>}
+                                {loading && <LinearProgress variant="determinate" value={progress} />}
+                                {extractedData && (
+                                    <DataReview extractedData={extractedData} outputFormat={outputFormat} originalLines={originalLines} />
+                                )}
+                            </div>
+                        )}
+                    </Route>
+                </Switch>
             </div>
-            <div>
-                <button onClick={handleExtractData} disabled={loading}>
-                    {loading ? `Extracting... ${progress}% completed` : 'Extract Data'}
-                </button>
-                {message && <p>{message}</p>}
-            </div>
-            {loading && <LinearProgress variant="determinate" value={progress} />}
-            {extractedData && (
-                <DataReview extractedData={extractedData} outputFormat={outputFormat} originalLines={originalLines} />
-            )}
-            {extractedData && (
-                <div>
-                    <button onClick={() => handleDownload(outputFormat)}>Download Data</button>
-                </div>
-            )}
-        </div>
+        </Router>
     );
 };
 

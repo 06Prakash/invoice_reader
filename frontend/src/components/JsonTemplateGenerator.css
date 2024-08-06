@@ -1,0 +1,59 @@
+.json-template-generator {
+    width: 100%;
+    margin: 20px 0;
+}
+
+.json-template-generator .MuiAccordion-root {
+    width: 100%;
+}
+
+.json-template-generator .MuiAccordionSummary-root {
+    background-color: #004d40; /* Blackish green */
+    border-bottom: 1px solid #ddd;
+    color: white;
+}
+
+.json-template-generator .MuiAccordionSummary-content {
+    margin: 0;
+    font-weight: bold;
+    font-size: 1.25rem;
+}
+
+.json-template-generator .MuiAccordionDetails-root {
+    padding: 20px;
+    background-color: #f8f9fa;
+}
+
+.json-template-generator .form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.json-template-generator .form-group label {
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.json-template-generator .form-group .MuiTextField-root {
+    margin-bottom: 20px;
+}
+
+.json-template-generator .generate-button {
+    background-color: #004d40; /* Blackish-green */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    width: fit-content;
+    align-self: flex-end;
+    transition: background-color 0.3s, transform 0.3s;
+}
+
+.json-template-generator .generate-button:hover {
+    background-color: #00332d;
+    transform: scale(1.05);
+}

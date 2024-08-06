@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { Accordion, AccordionSummary, AccordionDetails, TextField, Button, Typography } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import './JsonTemplateGenerator.css';
 
-const JsonTemplateGenerator = ({ onTemplateGenerated, fetchTemplates }) => {
+const JsonTemplateGenerator = ({ fetchTemplates }) => {
     const [templateName, setTemplateName] = useState('');
     const [headings, setHeadings] = useState('');
 
     const handleGenerateTemplate = async () => {
-        if (!templateName || !headings && templateName.trim() !== "" && headings.trim() !== "") {
+        if (!templateName || !headings.trim()) {
             alert('Please enter both template name and headings.');
             return;
         }
@@ -31,30 +34,49 @@ const JsonTemplateGenerator = ({ onTemplateGenerated, fetchTemplates }) => {
         };
 
         try {
-            await axios.post('http://localhost:5001/templates', template);
+            await axios.post('/templates', template);
             alert('Template generated and saved successfully.');
             fetchTemplates(); // Fetch the updated list of templates
-            onTemplateGenerated(template.name);
         } catch (error) {
             console.error('Error generating template:', error);
         }
     };
 
     return (
-        <div>
-            <h2>Generate JSON Template</h2>
-            <input
-                type="text"
-                placeholder="Enter template name"
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-            />
-            <textarea
-                placeholder="Enter headings, separated by commas"
-                value={headings}
-                onChange={(e) => setHeadings(e.target.value)}
-            ></textarea>
-            <button onClick={handleGenerateTemplate}>Generate Template</button>
+        <div className="json-template-generator">
+            <Accordion>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography>Generate JSON Template</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <div className="form-group">
+                        <TextField
+                            label="Template Name"
+                            value={templateName}
+                            onChange={(e) => setTemplateName(e.target.value)}
+                            fullWidth
+                            margin="normal"
+                        />
+                        <TextField
+                            label="Headings"
+                            value={headings}
+                            onChange={(e) => setHeadings(e.target.value)}
+                            fullWidth
+                            margin="normal"
+                            multiline
+                            rows={4}
+                            placeholder="Enter headings, separated by commas"
+                        />
+                        <Button
+                            variant="contained"
+                            className="generate-button"
+                            onClick={handleGenerateTemplate}
+                        >
+                            Generate Template
+                        </Button>
+                    </div>
+                </AccordionDetails>
+            </Accordion>
         </div>
     );
 };
