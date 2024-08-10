@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Button, CircularProgress } from '@mui/material';
-import './UploadComponent.css';
+import './styles/UploadComponent.css';
 
 const UploadComponent = ({ onUploadSuccess }) => {
     const [selectedFiles, setSelectedFiles] = useState([]);
