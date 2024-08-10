@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './DataReview.css';
+import './styles/DataReview.css';
 
 const DataReview = ({ extractedData, originalLines, outputFormat }) => {
     const [currentPage, setCurrentPage] = useState(1);

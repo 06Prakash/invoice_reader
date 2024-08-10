@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Button, TextField, Grid } from '@mui/material';
-import './LoginComponent.css';
+import './styles/LoginComponent.css';
 
 const LoginComponent = ({ setToken }) => {
     const [username, setUsername] = useState('');

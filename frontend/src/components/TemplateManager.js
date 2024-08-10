@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Select from 'react-select';
-import './TemplateManager.css';
+import './styles/TemplateManager.css';
 
 const TemplateManager = ({ onTemplateSelect, templates, selectedTemplate, fetchTemplates }) => {
     const [templateName, setTemplateName] = useState('');

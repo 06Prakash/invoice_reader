@@ -3,7 +3,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import './NavBar.css';
+import './styles/NavBar.css';
 import newLogo from './../assets/logo192.png'; 
 
 const NavBar = ({ token, setToken }) => {

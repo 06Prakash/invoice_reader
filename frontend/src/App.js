@@ -11,7 +11,7 @@ import LoginComponent from './components/LoginComponent';
 import NavBar from './components/NavBar';
 import LinearProgress from '@mui/material/LinearProgress';
 import './App.css';
-import './components/JsonTemplateGenerator.css'; // Include the new CSS file
+import './components/styles/JsonTemplateGenerator.css'; // Include the new CSS file
 
 const App = () => {
     const [templates, setTemplates] = useState([]);

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Accordion, AccordionSummary, AccordionDetails, TextField, Button, Typography } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import './JsonTemplateGenerator.css';
+import './styles/JsonTemplateGenerator.css';
 
 const JsonTemplateGenerator = ({ fetchTemplates }) => {
     const [templateName, setTemplateName] = useState('');

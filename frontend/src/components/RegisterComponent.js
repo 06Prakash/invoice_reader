@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Button, TextField, Grid } from '@mui/material';
-import './RegisterComponent.css';
+import './styles/RegisterComponent.css';
 
 const RegisterComponent = ({ setToken }) => {
     const [username, setUsername] = useState('');
