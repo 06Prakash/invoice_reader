@@ -1,5 +1,5 @@
 # Step 1: Build the frontend
-FROM node:18 AS build-frontend
+FROM node:18-alpine AS build-frontend
 WORKDIR /frontend
 
 # Increase Node.js memory limit
@@ -8,8 +8,8 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 # Copy package.json and package-lock.json for dependency resolution
 COPY frontend/package*.json ./
 
-# Install frontend dependencies
-RUN npm install
+# Install frontend dependencies with no optional packages
+RUN npm install --no-optional
 
 # Copy the rest of the frontend code and build it
 COPY frontend/ .
