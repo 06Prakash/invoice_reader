@@ -2,6 +2,9 @@
 FROM node:18 AS build-frontend
 WORKDIR /frontend
 
+# Increase Node.js memory limit
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
 # Copy package.json and package-lock.json for dependency resolution
 COPY frontend/package*.json ./
 
