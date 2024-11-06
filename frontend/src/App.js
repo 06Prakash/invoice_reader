@@ -21,6 +21,7 @@ const App = () => {
     const [message, setMessage] = useState('');
     const [extractedData, setExtractedData] = useState(null);
     const [outputFormat, setOutputFormat] = useState('json');
+    const [useEnhanced, setUseEnhanced] = useState(false);
     const [originalLines, setOriginalLines] = useState([]);
     const [defaultTemplateFields, setDefaultTemplateFields] = useState('');
     const [progress, setProgress] = useState(0);
@@ -94,7 +95,8 @@ const App = () => {
         const data = {
             filenames: uploadedFiles,
             template: selectedTemplate,
-            output_format: outputFormat
+            output_format: outputFormat,
+            use_enhanced: useEnhanced,
         };
 
         axios.post('/extract', data)
@@ -119,6 +121,11 @@ const App = () => {
 
     const handleOutputFormatChange = (event) => {
         setOutputFormat(event.target.value);
+    };
+
+    const handleExtractionMethodChange = (event) => {
+        const value = event.target.value;
+        setUseEnhanced(value === "enhanced"); // Set to true if "enhanced" is selected, otherwise false
     };
 
     return (
@@ -153,6 +160,16 @@ const App = () => {
                                             <option value="json">JSON</option>
                                             <option value="csv">CSV</option>
                                             <option value="text">Text</option>
+                                        </select>
+                                        {/* Dropdown to select extraction method */}
+                                        <label htmlFor="extraction-method">Extraction Method:</label>
+                                        <select
+                                            id="extraction-method"
+                                            value={useEnhanced ? "enhanced" : "standard"}
+                                            onChange={handleExtractionMethodChange}
+                                        >
+                                            <option value="standard">Standard Extraction</option>
+                                            <option value="enhanced">Enhanced Extraction (Beta)</option>
                                         </select>
                                         <button onClick={handleExtractData} disabled={loading}>
                                             {loading ? `Extracting... ${progress}% completed` : 'Extract Data'}

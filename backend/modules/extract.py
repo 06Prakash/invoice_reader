@@ -11,10 +11,25 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 from .preprocessing import preprocess_image
 from .extraction import extract_value
+import easyocr
+import numpy as np
+import cv2
+from transformers import pipeline
+from PIL import Image
+
 
 # Create a logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+# Initialize EasyOCR and NER model
+# Debugging: check if model files are present
+model_dir = '/root/.EasyOCR/model'
+if not os.path.exists(model_dir) or not os.listdir(model_dir):
+    print("Warning: EasyOCR models not found in expected directory.")
+    ocr_reader = easyocr.Reader(['en'], model_storage_directory=model_dir, download_enabled=True)
+else:
+    ocr_reader = easyocr.Reader(['en'], model_storage_directory=model_dir, download_enabled=False)
+nlp_ner = pipeline("ner", model="dbmdz/bert-large-cased-finetuned-conll03-english")
 
 # Create a file handler and set the log level
 file_handler = logging.FileHandler('/app/logs/app.log')
@@ -32,6 +47,70 @@ progress = 0
 
 def register_extract_routes(app):
     global progress  # Declare progress as global
+
+    def enhanced_extract_from_pdf(filename, template, upload_folder, total_pages, progress_file):
+        pdf_path = os.path.join(upload_folder, filename)
+        logger.info(f"Enhanced extraction started for {filename} at {pdf_path} using template {template['name']} ...")
+
+        try:
+            # Convert PDF to images
+            pages = convert_from_path(pdf_path, 300)
+        except Exception as e:
+            logger.error(f"Error converting PDF: {str(e)}")
+            return filename, {'error': str(e)}, []
+
+        extracted_data = {}
+        original_lines = []
+        page_count = len(pages)
+
+        for page_number, page_data in enumerate(pages):
+            try:
+                # Convert page to grayscale and apply thresholding for better OCR accuracy
+                image = np.array(page_data.convert('L'))
+                _, thresh_image = cv2.threshold(image, 128, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                processed_image = Image.fromarray(thresh_image)
+                logger.info(f"Processed page {page_number} of {filename} for OCR")
+
+                # Run OCR and extract text
+                page_text = ocr_reader.readtext(np.array(processed_image), detail=0)
+                page_text = "\n".join(page_text)  # Combine OCR text into one block
+                original_lines.extend(page_text.split('\n'))
+
+                # NLP-based Field Extraction
+                for field in template['fields']:
+                    name = field['name']
+                    keyword = field['keyword']
+                    separator = field.get('separator', ':')
+                    index = field.get('index', '1')
+                    indices = [int(i) for i in index.split(',')]
+                    boundaries = field.get('boundaries', {'left': '', 'right': '', 'up': '', 'down': ''})
+                    data_type = field.get('data_type', 'text')
+                    multiline = field.get('multiline', False)
+
+                    # Run NLP to find entities and potential matches
+                    entities = nlp_ner(page_text)
+                    matches = [ent['word'] for ent in entities if keyword.lower() in ent['word'].lower()]
+                    
+                    if matches:
+                        extracted_data[name] = matches[0]  # Use the first match or apply further logic if needed
+                    else:
+                        # Fallback to custom extraction function for complex fields
+                        extracted_data[name] = extract_value(page_text, keyword, separator, boundaries, data_type, indices, multiline)
+
+                # Update progress file
+                with progress_lock:
+                    global progress
+                    progress += 1
+                    overall_progress = int((progress / total_pages) * 100)
+                    with open(progress_file, 'w') as pf:
+                        logger.info(f"Current progress: {overall_progress}%")
+                        pf.write(str(overall_progress))
+
+            except Exception as e:
+                logger.error(f"Error processing page {page_number} of {filename}: {e}")
+                continue
+
+        return filename, extracted_data, original_lines
 
     def extract_from_pdf(filename, template, upload_folder, total_pages, progress_file):
         global progress  # Declare progress as global inside the function
@@ -98,6 +177,7 @@ def register_extract_routes(app):
         filenames = data['filenames']
         template_name = data['template']
         output_format = data.get('output_format', 'json')
+        use_enhanced = data.get('use_enhanced', False)
         upload_folder = app.config['UPLOAD_FOLDER']
         progress_file = os.path.join(upload_folder, 'progress.txt')
 
@@ -125,7 +205,11 @@ def register_extract_routes(app):
 
         results = []
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(extract_from_pdf, filename, template, upload_folder, total_pages, progress_file) for filename in filenames]
+            # futures = [executor.submit(extract_from_pdf, filename, template, upload_folder, total_pages, progress_file) for filename in filenames]
+            if use_enhanced:
+                futures = [executor.submit(enhanced_extract_from_pdf, filename, template, upload_folder, total_pages, progress_file) for filename in filenames]
+            else:
+                futures = [executor.submit(extract_from_pdf, filename, template, upload_folder, total_pages, progress_file) for filename in filenames]
             for future in as_completed(futures):
                 results.append(future.result())
 
