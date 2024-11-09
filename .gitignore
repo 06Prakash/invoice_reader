@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+/huggingface_cache
+/easyocr_models
 /.pnp
 .pnp.js
 

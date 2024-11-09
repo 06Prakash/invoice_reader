@@ -13,6 +13,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./easyocr_models:/root/.EasyOCR/model
+      - ./huggingface_cache:/root/.cache/huggingface
     ports:
       - "5001:5000"
     env_file:

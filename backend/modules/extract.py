@@ -14,39 +14,62 @@ from .extraction import extract_value
 import easyocr
 import numpy as np
 import cv2
-from transformers import pipeline
+from transformers import pipeline, AutoModelForTokenClassification, AutoTokenizer
 from PIL import Image
-
 
 # Create a logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-# Initialize EasyOCR and NER model
-# Debugging: check if model files are present
-model_dir = '/root/.EasyOCR/model'
-if not os.path.exists(model_dir) or not os.listdir(model_dir):
-    print("Warning: EasyOCR models not found in expected directory.")
-    ocr_reader = easyocr.Reader(['en'], model_storage_directory=model_dir, download_enabled=True)
-else:
-    ocr_reader = easyocr.Reader(['en'], model_storage_directory=model_dir, download_enabled=False)
-nlp_ner = pipeline("ner", model="dbmdz/bert-large-cased-finetuned-conll03-english")
 
-# Create a file handler and set the log level
+# File handler for logging
 file_handler = logging.FileHandler('/app/logs/app.log')
 file_handler.setLevel(logging.DEBUG)
-
-# Create a log formatter
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
-
-# Add the file handler to the logger
 logger.addHandler(file_handler)
+
+# Define model directories
+easyocr_model_dir = '/root/.EasyOCR/model'
+huggingface_cache_dir = '/root/.cache/huggingface/transformers'
+model_dir = "dbmdz/bert-large-cased-finetuned-conll03-english"
+
+# Check if EasyOCR model files exist
+easyocr_required_files = ['craft_mlt_25k.pth', 'english_g2.pth']
+easyocr_model_exists = all(os.path.exists(os.path.join(easyocr_model_dir, f)) for f in easyocr_required_files)
+
+# Initialize EasyOCR reader based on model presence
+if easyocr_model_exists:
+    logger.info("EasyOCR models found. Initializing without download.")
+    ocr_reader = easyocr.Reader(['en'], model_storage_directory=easyocr_model_dir, download_enabled=False)
+else:
+    logger.info("EasyOCR models missing. Downloading models.")
+    ocr_reader = easyocr.Reader(['en'], model_storage_directory=easyocr_model_dir, download_enabled=True)
+
+# Check if Hugging Face model files exist
+huggingface_model_path = os.path.join(huggingface_cache_dir, model_dir)
+huggingface_model_exists = os.path.exists(huggingface_model_path)
+
+# Define model directories
+huggingface_cache_dir = '/root/.cache/huggingface/transformers'
+
+# Load the tokenizer and model with specified cache directory
+try:
+    tokenizer = AutoTokenizer.from_pretrained(model_dir, cache_dir=huggingface_cache_dir)
+    model = AutoModelForTokenClassification.from_pretrained(model_dir, cache_dir=huggingface_cache_dir)
+    logger.info("Hugging Face NER model loaded successfully from cache.")
+except Exception as e:
+    logger.error(f"Failed to load Hugging Face NER model: {e}")
+    raise e
+
+# Initialize the pipeline with the loaded model and tokenizer
+nlp_ner = pipeline("ner", model=model, tokenizer=tokenizer)
+
 
 progress_lock = Lock()
 progress = 0
 
 def register_extract_routes(app):
-    global progress  # Declare progress as global
+    global progress
 
     def enhanced_extract_from_pdf(filename, template, upload_folder, total_pages, progress_file):
         pdf_path = os.path.join(upload_folder, filename)
@@ -73,7 +96,7 @@ def register_extract_routes(app):
 
                 # Run OCR and extract text
                 page_text = ocr_reader.readtext(np.array(processed_image), detail=0)
-                page_text = "\n".join(page_text)  # Combine OCR text into one block
+                page_text = "\n".join(page_text)
                 original_lines.extend(page_text.split('\n'))
 
                 # NLP-based Field Extraction
@@ -92,12 +115,12 @@ def register_extract_routes(app):
                     matches = [ent['word'] for ent in entities if keyword.lower() in ent['word'].lower()]
                     
                     if matches:
-                        extracted_data[name] = matches[0]  # Use the first match or apply further logic if needed
+                        extracted_data[name] = matches[0]
                     else:
                         # Fallback to custom extraction function for complex fields
                         extracted_data[name] = extract_value(page_text, keyword, separator, boundaries, data_type, indices, multiline)
 
-                # Update progress file
+                # Update progress
                 with progress_lock:
                     global progress
                     progress += 1
@@ -113,7 +136,7 @@ def register_extract_routes(app):
         return filename, extracted_data, original_lines
 
     def extract_from_pdf(filename, template, upload_folder, total_pages, progress_file):
-        global progress  # Declare progress as global inside the function
+        global progress
         pdf_path = os.path.join(upload_folder, filename)
         logger.info(f"Extraction started for {filename} at {pdf_path} using template {template['name']} ...")
         try:
@@ -151,7 +174,7 @@ def register_extract_routes(app):
                     value = extract_value(page_text, keyword, separator, boundaries, data_type, indices, multiline)
                     extracted_data[name] = value
 
-                # Update progress file
+                # Update progress
                 with progress_lock:
                     progress += 1
                     overall_progress = int((progress / total_pages) * 100)
@@ -168,7 +191,7 @@ def register_extract_routes(app):
     @app.route('/extract', methods=['POST'])
     @jwt_required()
     def extract_data():
-        global progress  # Declare progress as global inside the function
+        global progress
         data = request.json
         if 'filenames' not in data or 'template' not in data:
             logger.error('Filenames and template are required')
@@ -181,7 +204,7 @@ def register_extract_routes(app):
         upload_folder = app.config['UPLOAD_FOLDER']
         progress_file = os.path.join(upload_folder, 'progress.txt')
 
-        # Create the progress file
+        # Create progress file
         with open(progress_file, 'w') as pf:
             pf.write('0')
 
@@ -197,15 +220,12 @@ def register_extract_routes(app):
         with open(template_path, 'r') as f:
             template = json.load(f)
 
-        # Set the maximum number of workers to 2 for now
         max_workers = 2
-
         total_pages = sum([len(convert_from_path(os.path.join(upload_folder, filename), 300)) for filename in filenames])
-        progress = 0  # Ensure progress starts at zero
+        progress = 0  # Reset progress
 
         results = []
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # futures = [executor.submit(extract_from_pdf, filename, template, upload_folder, total_pages, progress_file) for filename in filenames]
             if use_enhanced:
                 futures = [executor.submit(enhanced_extract_from_pdf, filename, template, upload_folder, total_pages, progress_file) for filename in filenames]
             else:
@@ -233,7 +253,6 @@ def register_extract_routes(app):
             text_data += "\n".join([f"{key}: {value}" for key, value in data.items()])
             text_data += "\n\n"
 
-        # Ensure progress file is set to 100% after all processing is done
         with open(progress_file, 'w') as pf:
             pf.write('100')
 
