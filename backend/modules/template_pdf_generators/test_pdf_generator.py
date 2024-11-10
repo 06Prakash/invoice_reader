@@ -7,7 +7,6 @@ import random
 import io
 import os
 
-
 # Initialize Faker for generating random data
 fake = Faker()
 
@@ -48,9 +47,6 @@ def create_overlay(data, width, height):
     c.setFont("Helvetica", 10)
     c.drawString(320, height - 119, data["ifsc_code"])  # IFSC code
     
-    # Strikethrough for IFSC code (optional)
-    ifsc_width = c.stringWidth(data["ifsc_code"], "Helvetica", 10)
-
     c.drawString(150, height - 134, data["amount_in_words"])  # Amount in words
     c.drawString(475, height - 134, str(data["amount"]))  # Amount
 
@@ -65,8 +61,6 @@ def create_overlay(data, width, height):
     c.setFont("Helvetica", 8)
     c.drawString(185, height - 552, data["pan"])  # PAN number
 
-    # line_x, line_y = 320, height - 119
-    # c.line(line_x, line_y + 2, line_x + ifsc_width, line_y + 2)
     # Tick mark using ZapfDingbats font
     c.setFont("ZapfDingbats", 12)
     c.drawString(266, height - 686, chr(52))  # Tick mark in checkbox area
@@ -102,11 +96,21 @@ def fill_form_with_data(input_pdf_path, output_pdf_path):
         with open(output_pdf_path, "wb") as output_stream:
             output.write(output_stream)
 
-# Define file paths
+def generate_multiple_pdfs(input_pdf_path, output_dir, total_pdfs):
+    """Generates the specified number of filled PDF forms."""
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    for i in range(total_pdfs):
+        output_pdf_path = os.path.join(output_dir, f"filled_sip_form_{i + 1}.pdf")
+        fill_form_with_data(input_pdf_path, output_pdf_path)
+        print(f"Filled form saved at: {output_pdf_path}")
+
+# Define file paths and specify total PDFs to generate
 base_dir = os.path.dirname(__file__)
 input_pdf_path = os.path.join(base_dir, "mnt/data/Sundaram SIP Form.pdf")
-output_pdf_path = os.path.join(base_dir, "mnt/generated/filled_sip_form_example.pdf")
+output_dir = os.path.join(base_dir, "mnt/generated/")
+total_pdfs = 15  # User-specified total number of PDFs to generate
 
-# Generate and fill the form
-fill_form_with_data(input_pdf_path, output_pdf_path)
-print("Filled form saved at:", output_pdf_path)
+# Generate specified number of PDFs
+generate_multiple_pdfs(input_pdf_path, output_dir, total_pdfs)
