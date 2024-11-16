@@ -1,0 +1,16 @@
+services:
+  init-db:
+    image: python:3.9-slim
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydatabase
+    volumes:
+      - ./backend:/app
+    networks:
+      - shared_network
+    entrypoint: ["/bin/bash", "-c", "pip install --no-cache-dir -r /app/init-db-requirements.txt && python /app/init_db.py"]
+
+networks:
+  shared_network:
+    external: true

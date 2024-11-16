@@ -10,6 +10,7 @@ cmd="$@"
 
 export PGPASSWORD=$POSTGRES_PASSWORD
 
+>&2 echo "Waiting for PostgreSQL to be ready..."
 until psql -h "$host" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c '\q'; do
   >&2 echo "Postgres is unavailable - sleeping"
   sleep 1

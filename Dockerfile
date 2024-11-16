@@ -19,13 +19,17 @@ RUN npm run build
 FROM python:3.9-slim
 WORKDIR /app
 
-# Copy the backend requirements file and install dependencies
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install app-specific dependencies first
+COPY backend/app-requirements.txt .
+RUN pip install --no-cache-dir -r app-requirements.txt
+
+# Install base dependencies
+COPY backend/base-requirements.txt .
+RUN pip install --no-cache-dir -r base-requirements.txt
 
 # Create EasyOCR model directory and download models during build
 RUN mkdir -p /root/.EasyOCR/model && \
-    python -c "import easyocr; easyocr.Reader(['en'], model_storage_directory='/root/.EasyOCR', download_enabled=True)"
+python -c "import easyocr; easyocr.Reader(['en'], model_storage_directory='/root/.EasyOCR', download_enabled=True)"
 
 # Verify if models are downloaded correctly
 RUN ls -lh /root/.EasyOCR/model  # This should list the downloaded models

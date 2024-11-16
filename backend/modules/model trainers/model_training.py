@@ -53,10 +53,13 @@ def postprocess_text(text):
 
 def preprocess_image(image):
     """Preprocess image for better OCR accuracy."""
-    # Convert to grayscale and apply adaptive thresholding to enhance contrast
+    # Resize to improve OCR accuracy on low-resolution scans
+    image = image.resize((int(image.width * 1.2), int(image.height * 1.2)))
     gray = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2GRAY)
-    processed_image = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    blurred = cv2.medianBlur(gray, 3)  # Reduce noise
+    processed_image = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     return Image.fromarray(processed_image)
+
 
 def ocr_extract_text_from_pdf(pdf_path):
     """Extract and preprocess text from each PDF page."""
@@ -70,7 +73,8 @@ def ocr_extract_text_from_pdf(pdf_path):
     for page_number, page in enumerate(pages):
         logger.info(f"Processing page {page_number + 1}")
         processed_page = preprocess_image(page)
-        page_text = pytesseract.image_to_string(processed_page)
+        page_text = pytesseract.image_to_string(processed_page, config='--psm 11')  # Assume uniform block of text
+        # Experiment with other modes like --psm 4 or --psm 11 if text is misaligned.
         ocr_text += page_text + "\n"
         ocr_text = postprocess_text(ocr_text)
     return ocr_text
@@ -159,7 +163,7 @@ def extract_data_from_pdf(pdf_path):
 # Example usage
 if __name__ == "__main__":
     base_dir = os.path.dirname(__file__)
-    pdf_path = r'.\..\template_pdf_generators\mnt\generated\filled_sip_form_1.pdf'
+    pdf_path = r'.\..\template_pdf_generators\mnt\generated\filled_sip_form_15.pdf'
     # pdf_path = r'.\..\..\..\test_pdfs\107813(1100).pdf'
     test_pdf_path = os.path.join(base_dir, pdf_path)
 

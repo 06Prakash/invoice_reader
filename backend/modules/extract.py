@@ -16,6 +16,13 @@ import numpy as np
 import cv2
 from transformers import pipeline, AutoModelForTokenClassification, AutoTokenizer
 from PIL import Image
+# from azure.core.credentials import AzureKeyCredential
+# from azure.ai.formrecognizer import DocumentAnalysisClient
+
+# # Azure Form Recognizer Configuration
+# AZURE_ENDPOINT = os.getenv("AZURE_FORM_RECOGNIZER_ENDPOINT")
+# AZURE_KEY = os.getenv("AZURE_FORM_RECOGNIZER_KEY")
+# azure_client = DocumentAnalysisClient(endpoint=AZURE_ENDPOINT, credential=AzureKeyCredential(AZURE_KEY))
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -89,14 +96,21 @@ def register_extract_routes(app):
         for page_number, page_data in enumerate(pages):
             try:
                 # Convert page to grayscale and apply thresholding for better OCR accuracy
-                image = np.array(page_data.convert('L'))
-                _, thresh_image = cv2.threshold(image, 128, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-                processed_image = Image.fromarray(thresh_image)
-                logger.info(f"Processed page {page_number} of {filename} for OCR")
+                # image = np.array(page_data.convert('L'))
+                # _, thresh_image = cv2.threshold(image, 128, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                # processed_image = Image.fromarray(thresh_image)
+                # logger.info(f"Processed page {page_number} of {filename} for OCR")
 
-                # Run OCR and extract text
-                page_text = ocr_reader.readtext(np.array(processed_image), detail=0)
-                page_text = "\n".join(page_text)
+                # # Run OCR and extract text
+                # page_text = ocr_reader.readtext(np.array(processed_image), detail=0)
+                # page_text = "\n".join(page_text)
+                image_path = f"{filename}_page_{page_number}.jpg"
+                logger.info(f"Processing page {page_number} of {filename}")
+                page_data.save(image_path, 'JPEG')
+
+                image_path = preprocess_image(image_path)
+
+                page_text = pytesseract.image_to_string(image_path)
                 original_lines.extend(page_text.split('\n'))
 
                 # NLP-based Field Extraction
@@ -109,6 +123,7 @@ def register_extract_routes(app):
                     boundaries = field.get('boundaries', {'left': '', 'right': '', 'up': '', 'down': ''})
                     data_type = field.get('data_type', 'text')
                     multiline = field.get('multiline', False)
+                    capture_mode = field.get('capture_mode', 'between')
 
                     # Run NLP to find entities and potential matches
                     entities = nlp_ner(page_text)
@@ -118,7 +133,7 @@ def register_extract_routes(app):
                         extracted_data[name] = matches[0]
                     else:
                         # Fallback to custom extraction function for complex fields
-                        extracted_data[name] = extract_value(page_text, keyword, separator, boundaries, data_type, indices, multiline)
+                        extracted_data[name] = extract_value(page_text, keyword, separator, boundaries, capture_mode, data_type, indices, multiline, logger)
 
                 # Update progress
                 with progress_lock:
@@ -171,7 +186,8 @@ def register_extract_routes(app):
                     boundaries = field.get('boundaries', {'left': '', 'right': '', 'up': '', 'down': ''})
                     data_type = field.get('data_type', 'text')
                     multiline = field.get('multiline', False)
-                    value = extract_value(page_text, keyword, separator, boundaries, data_type, indices, multiline)
+                    capture_mode = field.get('capture_mode', 'between')
+                    value = extract_value(page_text, keyword, separator, boundaries, capture_mode, data_type, indices, multiline, logger)
                     extracted_data[name] = value
 
                 # Update progress
@@ -187,6 +203,41 @@ def register_extract_routes(app):
                 continue
 
         return filename, extracted_data, original_lines
+
+    # def extract_with_azure(filename, upload_folder, template, logger):
+    #     """
+    #     Perform Azure-based extraction using Form Recognizer.
+    #     """
+    #     pdf_path = os.path.join(upload_folder, filename)
+    #     logger.info(f"Starting Azure extraction for {filename} using template {template['name']}")
+
+    #     try:
+    #         # Read the PDF file
+    #         with open(pdf_path, "rb") as file:
+    #             poller = azure_client.begin_analyze_document("prebuilt-layout", document=file)
+    #             result = poller.result()
+
+    #         extracted_data = {}
+    #         for page in result.pages:
+    #             logger.info(f"Processing page {page.page_number}")
+    #             for table in page.tables:
+    #                 for cell in table.cells:
+    #                     logger.debug(f"Cell text: {cell.content}")
+
+    #         # Example template-based data extraction
+    #         for field in template["fields"]:
+    #             name = field["name"]
+    #             keyword = field["keyword"]
+    #             value = next(
+    #                 (cell.content for table in result.tables for cell in table.cells if keyword.lower() in cell.content.lower()), 
+    #                 None
+    #             )
+    #             extracted_data[name] = value or "Not Found"
+
+    #         return filename, extracted_data, []  # Returning empty lines as Azure handles structured data
+    #     except Exception as e:
+    #         logger.error(f"Azure extraction failed for {filename}: {str(e)}")
+    #         return filename, {'error': str(e)}, []
 
     @app.route('/extract', methods=['POST'])
     @jwt_required()
@@ -228,6 +279,7 @@ def register_extract_routes(app):
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             if use_enhanced:
                 futures = [executor.submit(enhanced_extract_from_pdf, filename, template, upload_folder, total_pages, progress_file) for filename in filenames]
+                # futures = [executor.submit(extract_with_azure, filename, upload_folder, template) for filename in filenames]
             else:
                 futures = [executor.submit(extract_from_pdf, filename, template, upload_folder, total_pages, progress_file) for filename in filenames]
             for future in as_completed(futures):
