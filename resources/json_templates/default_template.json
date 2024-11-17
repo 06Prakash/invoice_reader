@@ -22,10 +22,10 @@
         "up": ""
       },
       "data_type": "text",
-      "index": "0,1",
+      "index": "4",
       "keyword": "Sales Invoice No",
       "name": "Sales Invoice No",
-      "separator": ":"
+      "separator": " "
     },
     {
       "boundaries": {
@@ -35,20 +35,21 @@
         "up": ""
       },
       "data_type": "time",
-      "index": "2",
+      "index": "0",
       "keyword": "Invoice Time",
       "name": "Invoice Time",
-      "separator": " : "
+      "separator": "|",
+      "capture_mode": "after_left"
     },
     {
       "boundaries": {
         "down": "",
         "left": "Date of Invoice",
-        "right": "Sales Person",
+        "right": "Sales",
         "up": ""
       },
       "data_type": "date",
-      "index": "0,1",
+      "index": "1",
       "keyword": "Date of Invoice",
       "name": "Date of Invoice",
       "separator": ":"
@@ -60,7 +61,7 @@
         "right": "",
         "up": ""
       },
-      "data_type": "text",
+      "data_type": "text-only",
       "index": "2",
       "keyword": "Sales Person",
       "name": "Sales Person",
@@ -73,7 +74,7 @@
         "right": "Comptroller",
         "up": ""
       },
-      "data_type": "text",
+      "data_type": "text-only",
       "index": "0,1",
       "keyword": "Sales Type",
       "name": "Sales Type",
@@ -83,27 +84,30 @@
       "boundaries": {
         "down": "",
         "left": "Comptroller",
-        "right": "",
+        "right": "|",
         "up": ""
       },
       "data_type": "text",
-      "index": "2",
+      "index": "1",
       "keyword": "Comptroller",
       "name": "Comptroller",
       "separator": " : "
     },
     {
       "boundaries": {
-        "down": "Telephone-",
-        "left": "|",
-        "right": ":",
-        "up": ""
+        "down": "Telephone",
+        "left": "",
+        "right": "",
+        "up": "Billed To",
+        "multiline-left": "Billed To",
+        "multiline-right": "DC"
       },
-      "data_type": "text",
-      "index": "0,1",
-      "keyword": "DC.NO",
+      "data_type": "text-only",
+      "index": "0",
+      "keyword": "Billed To",
       "name": "Billed To",
-      "separator": "DC.NO"
+      "separator": "DC",
+      "multiline": true
     },
     {
       "boundaries": {
@@ -113,7 +117,7 @@
         "up": ""
       },
       "data_type": "number",
-      "index": "0,1",
+      "index": "1",
       "keyword": "Telephone",
       "name": "Telephone",
       "separator": "-"
@@ -134,12 +138,12 @@
     {
       "boundaries": {
         "down": "",
-        "left": "",
+        "left": "Total",
         "right": "",
         "up": ""
       },
       "data_type": "text",
-      "index": "14",
+      "index": "13",
       "keyword": "Total",
       "name": "Total",
       "separator": " "

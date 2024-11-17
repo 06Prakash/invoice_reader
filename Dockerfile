@@ -27,12 +27,13 @@ RUN pip install --no-cache-dir -r app-requirements.txt
 COPY backend/base-requirements.txt .
 RUN pip install --no-cache-dir -r base-requirements.txt
 
+# We don't need this if we have Azure
 # Create EasyOCR model directory and download models during build
-RUN mkdir -p /root/.EasyOCR/model && \
-python -c "import easyocr; easyocr.Reader(['en'], model_storage_directory='/root/.EasyOCR', download_enabled=True)"
+# RUN mkdir -p /root/.EasyOCR/model && \
+# python -c "import easyocr; easyocr.Reader(['en'], model_storage_directory='/root/.EasyOCR', download_enabled=True)"
 
 # Verify if models are downloaded correctly
-RUN ls -lh /root/.EasyOCR/model  # This should list the downloaded models
+# RUN ls -lh /root/.EasyOCR/model  # This should list the downloaded models
 
 # Install necessary packages for PDF processing, OpenCV, and PostgreSQL client (psql)
 RUN apt-get update && apt-get install -y \
