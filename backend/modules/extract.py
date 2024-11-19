@@ -139,18 +139,21 @@ def register_extract_routes(app):
 
         return filename, extracted_data, original_lines
 
-    def extract_with_azure(filename, upload_folder, progress_file):
+    def extract_with_azure(filename, upload_folder, total_pages, progress_file):
         """
         Extracts data from a PDF using Azure Form Recognizer and writes progress.
 
         :param filename: Name of the PDF file to process
         :param upload_folder: Folder containing the file
+        :param total_pages: Total number of pages to process across all files
         :param progress_file: Path to the progress file to update progress
         :return: Tuple of (filename, extracted_data, original_lines)
         """
         document_analysis_client = DocumentAnalysisClient(endpoint=AZURE_ENDPOINT, credential=AzureKeyCredential(AZURE_KEY))
         pdf_path = os.path.join(upload_folder, filename)
         logger.info(f"Starting Azure extraction for {filename} at {pdf_path}.")
+
+        global progress
 
         try:
             with open(pdf_path, "rb") as document:
@@ -174,16 +177,20 @@ def register_extract_routes(app):
                 for line in page.lines:
                     original_lines.append(line.content)
 
-            # Update progress in the progress file
-            with open(progress_file, 'a') as pf:
-                pf.write(f"Processed {filename}\n")
-                logger.info(f"Progress updated for {filename} in {progress_file}")
+            # Update progress in the progress file based on the number of pages
+            with progress_lock:
+                progress += len(result.pages)
+                overall_progress = int((progress / total_pages) * 100)
+                with open(progress_file, 'w') as pf:
+                    logger.info(f"Current progress: {overall_progress}%")
+                    pf.write(str(overall_progress))
 
             return filename, extracted_data, original_lines
 
         except Exception as e:
             logger.error(f"Azure extraction failed for {filename}: {str(e)}")
             return filename, {'error': str(e)}, []
+
 
     @app.route('/extract', methods=['POST'])
     @jwt_required()
@@ -227,7 +234,7 @@ def register_extract_routes(app):
             for filename in filenames:
                 if use_enhanced:  # Use Azure extraction
                     futures.append(
-                        executor.submit(extract_with_azure, filename, upload_folder, progress_file)
+                        executor.submit(extract_with_azure, filename, upload_folder, total_pages, progress_file)
                     )
                 else:  # Use template-based extraction
                     futures.append(
