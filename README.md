@@ -1,21 +1,29 @@
-# Invoice Reader Application
+# NIRA: Transforming PDFs with Cutting-Edge AI
 
 ## Overview
 
-The Invoice Reader Application is a powerful tool designed to extract and process data from invoice PDFs. It utilizes modern web technologies and machine learning techniques to automate the extraction process, making it efficient and reliable.
+NIRA is a sophisticated AI-powered application designed to extract and process data from various types of documents, including invoices, handwritten text, printed receipts, and more. By integrating both custom and prebuilt AI models, NIRA enables flexible and efficient document data extraction methods tailored to user needs.
 
 ## Features
 
+- **AI-Powered Extraction Methods**: Supports multiple extraction methods:
+  - NIRA Standard Extraction
+  - NIRA AI - Handwritten (Custom) Extraction
+  - NIRA AI - Invoice (PB) Extraction
+  - NIRA AI - Printed Text (PB) Extraction
+  - NIRA AI - Printed Business Card (PB) Extraction
+  - NIRA AI - Printed Receipt (PB) Extraction
 - **User Authentication**: Secure login and registration functionality with JWT-based authentication.
-- **Template Management**: Create, save, and manage extraction templates specific to your company's needs.
-- **PDF Upload and Extraction**: Upload PDF files and extract data based on predefined templates.
+- **Template Management**: Create, save, and manage extraction templates specific to various use cases.
+- **Document Upload and Extraction**: Upload files and extract data using predefined templates and AI models.
 - **Progress Tracking**: Monitor the extraction progress in real-time.
-- **Data Download**: Download the extracted data in JSON, CSV, or text formats.
+- **Data Export**: Download the extracted data in JSON, CSV, or text formats.
 
 ## Tech Stack
 
 - **Backend**: Flask, SQLAlchemy, Flask-JWT-Extended, PostgreSQL
 - **Frontend**: React, Axios, Material-UI
+- **AI Models**: Custom and prebuilt models integrated via Azure
 - **Containerization**: Docker, Docker Compose
 
 ## Getting Started
@@ -29,7 +37,7 @@ The Invoice Reader Application is a powerful tool designed to extract and proces
 
 1. **Clone the repository**:
     ```bash
-    git clone <repository-url>
+    git clone https://github.com/06Prakash/invoice_reader.git
     cd invoice_reader
     ```
 
@@ -37,20 +45,29 @@ The Invoice Reader Application is a powerful tool designed to extract and proces
     Create a `.env` file in the root directory and add the following variables:
     ```plaintext
     FLASK_ENV=development
-    DATABASE_URI=postgresql://<db_user>:<db_password>@db/invoice_extractor
+    DATABASE_URI=postgresql://<db_user>:<db_password>@db/nira_db
     SECRET_KEY=<your_secret_key>
     JWT_SECRET_KEY=<your_jwt_secret_key>
     POSTGRES_USER=<db_user>
     POSTGRES_PASSWORD=<db_password>
-    POSTGRES_DB=invoice_extractor
+    POSTGRES_DB=nira_db
+    AZURE_CLIENT_ID=<azure_client_id>
+    AZURE_TENANT_ID=<azure_tenant_id>
+    AZURE_CLIENT_SECRET=<azure_client_secret>
+    KEY_VAULT_URL=<key_vault_url>
     ```
 
-3. **Build and run the application using Docker Compose**:
+3. **Start the database**:
+    ```bash
+    docker-compose -f .\docker-compose-db.yml up --build
+    ```
+
+4. **Start the application**:
     ```bash
     docker-compose up --build
     ```
 
-    This command will build the Docker images, set up the containers, and start the application.
+    These commands will build the Docker images, set up the containers, and start the application.
 
 ### Usage
 
@@ -58,50 +75,83 @@ The Invoice Reader Application is a powerful tool designed to extract and proces
     Open your web browser and navigate to `http://localhost:5001`.
 
 2. **Register and login**:
-    - Register a new user with your company name.
+    - Register a new user.
     - Login with the registered credentials.
 
-3. **Template Management**:
-    - Create a new template by specifying the template name and field details.
-    - Save the template to make it available for data extraction.
+3. **Select Extraction Method**:
+    - Choose one of the AI-powered extraction methods from the dropdown menu.
 
 4. **Upload and Extract**:
-    - Upload PDF files for extraction.
-    - Select the desired template and initiate the extraction process.
-    - Monitor the extraction progress and download the results in the preferred format.
+    - Upload documents for extraction.
+    - Monitor the extraction progress and download the results in the desired format.
 
 ## Folder Structure
 
+### Backend
 ```plaintext
-invoice_reader/
-├── backend/
-│   ├── app.py
-│   ├── config.py
-│   ├── extensions.py
-│   ├── init_db.py
-│   ├── modules/
-│   │   ├── __init__.py
-│   │   ├── models.py
-│   │   ├── routes.py
-│   │   ├── template.py
-│   │   ├── extract.py
-│   │   └── user_routes.py
-├── frontend/
-│   ├── public/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── App.js
-│   │   ├── index.js
-│   │   └── ...
-│   └── package.json
-├── resources/
-│   ├── json_templates/
-│   │   └── default_template.json
-│   └── ...
-├── docker-compose.yml
-├── Dockerfile
-├── entrypoint.sh
-└── README.md
+backend/
+├── app.py
+├── config.py
+├── extensions.py
+├── init_db.py
+├── modules/
+│   ├── __init__.py
+│   ├── extract.py
+│   ├── extract_with_azure.py
+│   ├── extraction.py
+│   ├── models.py
+│   ├── preprocessing.py
+│   ├── routes.py
+│   ├── serve.py
+│   ├── template.py
+│   ├── upload.py
+│   ├── user_routes.py
+│   ├── utils.py
+│   ├── validation.py
+│   └── template_pdf_generators/
+│       ├── __init__.py
+│       └── ...
+├── templates/
+├── uploads/
+├── app-requirements.txt
+├── base-requirements.txt
+└── Dockerfile
+```
+
+### Frontend
+```plaintext
+frontend/
+├── public/
+│   ├── favicon.ico
+│   ├── logo192.png
+│   ├── logo512.png
+├── src/
+│   ├── assets/
+│   ├── components/
+│   │   ├── DataReview.js
+│   │   ├── JsonTemplateGenerator.js
+│   │   ├── LoginComponent.js
+│   │   ├── NavBar.js
+│   │   ├── OriginalLinesDisplay.js
+│   │   ├── RegisterComponent.js
+│   │   ├── TemplateEditor.js
+│   │   ├── TemplateManager.js
+│   │   ├── UploadComponent.js
+│   ├── styles/
+│   │   ├── DataReview.css
+│   │   ├── JsonTemplateGenerator.css
+│   │   ├── LoginComponent.css
+│   │   ├── NavBar.css
+│   │   ├── RegisterComponent.css
+│   │   ├── TemplateEditor.css
+│   │   ├── TemplateManager.css
+│   │   ├── UploadComponent.css
+│   ├── App.js
+│   ├── App.test.js
+│   ├── index.css
+│   └── index.js
+├── package.json
+```
 
 ## API Endpoints
 
@@ -119,7 +169,7 @@ invoice_reader/
 
 ### Extraction
 
-- **POST /extract**: Upload PDFs and extract data.
+- **POST /extract**: Upload documents and extract data.
 - **GET /progress**: Get the progress of the current extraction process.
 
 ## Troubleshooting
@@ -134,7 +184,4 @@ invoice_reader/
 ## Contributing
 
 We welcome contributions! Please fork the repository and submit a pull request with your changes.
-
-
-
 
