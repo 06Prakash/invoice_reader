@@ -1,0 +1,11 @@
+pytesseract==0.3.8
+pdf2image==1.16.0
+opencv-python-headless==4.5.3.56
+azure-ai-formrecognizer==3.2.0
+azure-identity==1.12.0
+azure-keyvault-secrets==4.9.0
+Faker==13.3.4
+pdfplumber==0.5.28
+reportlab==3.6.12
+# easyocr
+# transformers

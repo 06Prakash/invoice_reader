@@ -1,28 +1,19 @@
-version: '3.8'
-
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
+    volumes:
+      - ./easyocr_models:/root/.EasyOCR/model
+      - ./huggingface_cache:/root/.cache/huggingface
     ports:
       - "5001:5000"
     env_file:
       - .env
-    depends_on:
-      - db
+    networks:
+      - shared_network
     entrypoint: ["/app/entrypoint.sh", "db", "python", "app.py"]
 
-  db:
-    image: postgres:13
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
+networks:
+  shared_network:
+    external: true

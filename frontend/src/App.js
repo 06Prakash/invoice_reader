@@ -21,6 +21,8 @@ const App = () => {
     const [message, setMessage] = useState('');
     const [extractedData, setExtractedData] = useState(null);
     const [outputFormat, setOutputFormat] = useState('json');
+    const [extractionModels, setExtractionModels] = useState([]);
+    const [selectedModel, setSelectedModel] = useState('Nira standard Extraction');
     const [originalLines, setOriginalLines] = useState([]);
     const [defaultTemplateFields, setDefaultTemplateFields] = useState('');
     const [progress, setProgress] = useState(0);
@@ -51,6 +53,18 @@ const App = () => {
             return () => clearInterval(interval);
         }
     }, [loading]);
+
+    useEffect(() => {
+        // Fetch available extraction models from the backend or define them statically
+        axios.get('/extraction-models')
+            .then(response => {
+                setExtractionModels(response.data.models || ['Nira standard Extraction']); // Fallback to default models if no data
+            })
+            .catch(error => {
+                console.error('Error fetching extraction models:', error);
+                setExtractionModels(['Nira standard Extraction']); // Default models in case of error
+            });
+    }, []);
 
     const fetchTemplates = () => {
         axios.get('/templates')
@@ -94,7 +108,8 @@ const App = () => {
         const data = {
             filenames: uploadedFiles,
             template: selectedTemplate,
-            output_format: outputFormat
+            output_format: outputFormat,
+            extraction_model: selectedModel,
         };
 
         axios.post('/extract', data)
@@ -119,6 +134,10 @@ const App = () => {
 
     const handleOutputFormatChange = (event) => {
         setOutputFormat(event.target.value);
+    };
+
+    const handleExtractionMethodChange = (event) => {
+        setSelectedModel(event.target.value);
     };
 
     return (
@@ -154,6 +173,18 @@ const App = () => {
                                             <option value="csv">CSV</option>
                                             <option value="text">Text</option>
                                         </select>
+                                        {/* Dropdown to select extraction method */}
+                                        <label htmlFor="extraction-method">Extraction Method:</label>
+                                            <select
+                                                id="extraction-method"
+                                                value={selectedModel}
+                                                onChange={handleExtractionMethodChange}>
+                                                {extractionModels.map((model) => (
+                                                    <option key={model} value={model}>
+                                                        {model.charAt(0).toUpperCase() + model.slice(1)} Extraction
+                                                    </option>
+                                                ))}
+                                            </select>
                                         <button onClick={handleExtractData} disabled={loading}>
                                             {loading ? `Extracting... ${progress}% completed` : 'Extract Data'}
                                         </button>
