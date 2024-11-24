@@ -15,11 +15,7 @@ from azure.core.credentials import AzureKeyCredential
 from azure.ai.formrecognizer import DocumentAnalysisClient
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-# import numpy as np
-# from PIL import Image
-# import cv2
-# import easyocr
-# from transformers import pipeline, AutoModelForTokenClassification, AutoTokenizer
+
 
 # # Azure Form Recognizer Configuration
 key_vault_url = os.getenv("KEY_VAULT_URL")
