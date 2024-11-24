@@ -15,11 +15,7 @@ from azure.core.credentials import AzureKeyCredential
 from azure.ai.formrecognizer import DocumentAnalysisClient
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-# import numpy as np
-# from PIL import Image
-# import cv2
-# import easyocr
-# from transformers import pipeline, AutoModelForTokenClassification, AutoTokenizer
+
 
 # # Azure Form Recognizer Configuration
 key_vault_url = os.getenv("KEY_VAULT_URL")
@@ -164,12 +160,12 @@ def register_extract_routes(app):
     
     def extraction_model_mapping(extraction_model):
         model_mapping = {
-            "Nira standard": "Standard",
-            "Nira AI - Custom handwritten": "MutualFundModelSundaramFinance",
-            "Nira AI - Invoice": "prebuilt-invoice",
-            "Nira AI - Printed Text": "prebuilt-read",
-            "Nira AI - Printed business card": "prebuilt-businessCard",
-            "Nira AI - Printed receipt": "prebuilt-receipt",
+            "NIRA standard": "Standard",
+            "NIRA AI - Custom handwritten": "MutualFundModelSundaramFinance",
+            "NIRA AI - Invoice": "prebuilt-invoice",
+            "NIRA AI - Printed Text": "prebuilt-read",
+            "NIRA AI - Printed business card": "prebuilt-businessCard",
+            "NIRA AI - Printed receipt": "prebuilt-receipt",
         }
         return model_mapping[extraction_model]
     
@@ -297,7 +293,7 @@ def register_extract_routes(app):
         filenames = data['filenames']
         template_name = data['template']
         output_format = data.get('output_format', 'json')
-        extraction_model = data.get('extraction_model', 'Nira Standard').replace("(PB)", "").replace("(Custom)", "").strip()
+        extraction_model = data.get('extraction_model', 'NIRA Standard').replace("(PB)", "").replace("(Custom)", "").strip()
         upload_folder = app.config['UPLOAD_FOLDER']
         progress_file = os.path.join(upload_folder, 'progress.txt')
 
@@ -391,12 +387,12 @@ def register_extract_routes(app):
         """
         try:
             extraction_models = [
-                "Nira standard",
-                "Nira AI - handwritten (Custom)",
-                "Nira AI - Invoice (PB)",
-                "Nira AI - Printed Text (PB)",
-                "Nira AI - Printed business card (PB)",
-                "Nira AI - Printed receipt (PB)"
+                "NIRA standard",
+                "NIRA AI - handwritten (Custom)",
+                "NIRA AI - Invoice (PB)",
+                "NIRA AI - Printed Text (PB)",
+                "NIRA AI - Printed business card (PB)",
+                "NIRA AI - Printed receipt (PB)"
             ]
             logger.info("Extraction models fetched successfully.")
             return jsonify({"models": extraction_models}), 200

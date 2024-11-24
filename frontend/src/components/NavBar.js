@@ -16,8 +16,8 @@ const NavBar = ({ token, setToken }) => {
     return (
         <nav className="navbar">
             <div className="navbar-brand">
-                <img src={newLogo} alt="NIRA Invoice Reader" className="logo" />
-                <h1>NIRA Invoice Reader</h1>
+                <img src={newLogo} alt="NIRA PDF Reader" className="logo" />
+                <h1>NIRA PDF Reader</h1>
             </div>
             <div>
                 {token ? (

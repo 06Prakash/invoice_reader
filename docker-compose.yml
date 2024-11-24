@@ -3,16 +3,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    volumes:
-      - ./easyocr_models:/root/.EasyOCR/model
-      - ./huggingface_cache:/root/.cache/huggingface
     ports:
       - "5001:5000"
     env_file:
       - .env
     networks:
       - shared_network
-    entrypoint: ["/app/entrypoint.sh", "db", "python", "app.py"]
+    entrypoint: ["python", "app.py"]
 
 networks:
   shared_network:

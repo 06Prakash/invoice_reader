@@ -6,6 +6,7 @@
 /easyocr_models
 /.pnp
 .pnp.js
+.env
 
 # testing
 /coverage
