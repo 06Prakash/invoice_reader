@@ -1,6 +1,6 @@
 {
-  "short_name": "Invoice Reader",
-  "name": "NIRA Invoice Reader",
+  "short_name": "PDF Reader",
+  "name": "NIRA PDF Reader",
   "icons": [
     {
       "src": "favicon.ico",

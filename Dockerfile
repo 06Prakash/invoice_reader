@@ -70,4 +70,4 @@ RUN chmod +x /app/entrypoint.sh
 EXPOSE 5000
 
 # Set the entrypoint to the script
-ENTRYPOINT ["/app/entrypoint.sh", "db", "python", "app.py"]
+ENTRYPOINT ["python", "app.py"]

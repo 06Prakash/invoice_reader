@@ -22,7 +22,7 @@ const App = () => {
     const [extractedData, setExtractedData] = useState(null);
     const [outputFormat, setOutputFormat] = useState('json');
     const [extractionModels, setExtractionModels] = useState([]);
-    const [selectedModel, setSelectedModel] = useState('Nira standard Extraction');
+    const [selectedModel, setSelectedModel] = useState('NIRA standard Extraction');
     const [originalLines, setOriginalLines] = useState([]);
     const [defaultTemplateFields, setDefaultTemplateFields] = useState('');
     const [progress, setProgress] = useState(0);
@@ -58,11 +58,11 @@ const App = () => {
         // Fetch available extraction models from the backend or define them statically
         axios.get('/extraction-models')
             .then(response => {
-                setExtractionModels(response.data.models || ['Nira standard Extraction']); // Fallback to default models if no data
+                setExtractionModels(response.data.models || ['NIRA standard Extraction']); // Fallback to default models if no data
             })
             .catch(error => {
                 console.error('Error fetching extraction models:', error);
-                setExtractionModels(['Nira standard Extraction']); // Default models in case of error
+                setExtractionModels(['NIRA standard Extraction']); // Default models in case of error
             });
     }, []);
 
