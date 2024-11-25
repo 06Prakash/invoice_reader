@@ -161,7 +161,7 @@ def register_extract_routes(app):
     def extraction_model_mapping(extraction_model):
         model_mapping = {
             "NIRA standard": "Standard",
-            "NIRA AI - Custom handwritten": "MutualFundModelSundaramFinance",
+            "NIRA AI - handwritten": "MutualFundModelSundaramFinance",
             "NIRA AI - Invoice": "prebuilt-invoice",
             "NIRA AI - Printed Text": "prebuilt-read",
             "NIRA AI - Printed business card": "prebuilt-businessCard",
