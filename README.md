@@ -11,6 +11,7 @@ NIRA is a sophisticated AI-powered application designed to extract and process d
   - NIRA AI - Handwritten (Custom) Extraction
   - NIRA AI - Invoice (PB) Extraction
   - NIRA AI - Printed Text (PB) Extraction
+  - NIRA AI - Printed Tables Extraction
   - NIRA AI - Printed Business Card (PB) Extraction
   - NIRA AI - Printed Receipt (PB) Extraction
 - **User Authentication**: Secure login and registration functionality with JWT-based authentication.

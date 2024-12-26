@@ -1,7 +1,8 @@
 # backend/init_db.py
 from extensions import db
 from flask import Flask
-from modules.models import Company, User
+from backend.modules.models.company import Company
+from backend.modules.models.user import User
 
 # Minimal Flask app context for database initialization
 app = Flask(__name__)

@@ -2,7 +2,7 @@ from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 import os
 import json
-from .models import db, User
+from modules.models.user import User
 import logging
 
 

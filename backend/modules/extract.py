@@ -164,6 +164,7 @@ def register_extract_routes(app):
             "NIRA AI - handwritten": "MutualFundModelSundaramFinance",
             "NIRA AI - Invoice": "prebuilt-invoice",
             "NIRA AI - Printed Text": "prebuilt-read",
+            "NIRA AI - Printed Tables": "prebuilt-layout",
             "NIRA AI - Printed business card": "prebuilt-businessCard",
             "NIRA AI - Printed receipt": "prebuilt-receipt",
         }
@@ -236,26 +237,6 @@ def register_extract_routes(app):
                         extracted_data[name] = flatten_nested_field(field_value)
                     else:
                         extracted_data[name] = field_value
-
-                    # # Remove commas and ensure compatibility for CSV
-                    # if isinstance(field_value, (str, int, float)):  # Simple types
-                    #     if isinstance(field_value, str):
-                    #         field_value = field_value.replace(',', '')  # Remove commas
-                    #     extracted_data[name] = field_value
-                    # elif isinstance(field_value, dict):  # Handle dictionary type
-                    #     extracted_data[name] = {
-                    #         k: (v.value if hasattr(v, "value") else v.content if hasattr(v, "content") else str(v)).replace(',', '')
-                    #         if isinstance((v.value if hasattr(v, "value") else v), str) else v
-                    #         for k, v in field_value.items()
-                    #     }
-                    # elif hasattr(field_value, '__dict__'):  # Custom objects
-                    #     sanitized_dict = {
-                    #         k: (str(v).replace(',', '') if isinstance(v, str) else v)
-                    #         for k, v in field_value.__dict__.items()
-                    #     }
-                    #     extracted_data[name] = sanitized_dict
-                    # else:
-                    #     extracted_data[name] = str(field_value).replace(',', '')  # Fallback to string and remove commas
 
             # Log the final extracted_data
             logger.info("Final extracted data:")
@@ -391,6 +372,7 @@ def register_extract_routes(app):
                 "NIRA AI - handwritten (Custom)",
                 "NIRA AI - Invoice (PB)",
                 "NIRA AI - Printed Text (PB)",
+                "NIRA AI - Printed Tables (PB)",
                 "NIRA AI - Printed business card (PB)",
                 "NIRA AI - Printed receipt (PB)"
             ]
