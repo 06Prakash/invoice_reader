@@ -77,19 +77,19 @@ def extract_with_boundaries(text, left_boundary, right_boundary, capture_mode, l
         str: Extracted text based on the mode, or the original text if no boundaries match.
     """
     text = text.strip()
-    logger.info("*"*50)
-    logger.info(f"Capture mode: {capture_mode}")
-    logger.info(f"Left Boundary: {left_boundary}")
-    logger.info(f"Right Boundary: {right_boundary}")
-    logger.info(f"text: {text}")
-    logger.info("*"*50)
+    # logger.info("*"*50)
+    # logger.info(f"Capture mode: {capture_mode}")
+    # logger.info(f"Left Boundary: {left_boundary}")
+    # logger.info(f"Right Boundary: {right_boundary}")
+    # logger.info(f"text: {text}")
+    # logger.info("*"*50)
 
     # Capture everything based on the mode
     if capture_mode == "after_left":
         if left_boundary in text:
-            logger.info("="*100)
-            logger.info(text)
-            logger.info("="*100)
+            # logger.info("="*100)
+            # logger.info(text)
+            # logger.info("="*100)
             return text.split(left_boundary, 1)[1].strip()
     elif capture_mode == "before_right":
         if right_boundary in text:
