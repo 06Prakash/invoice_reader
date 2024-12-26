@@ -1,10 +1,5 @@
-# backend/modules/models.py
 from extensions import db, bcrypt
 from flask_login import UserMixin
-
-class Company(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(150), unique=True, nullable=False)
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)

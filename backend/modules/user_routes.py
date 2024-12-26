@@ -1,8 +1,7 @@
+# backend/modules/user_routes.py
 from flask import Blueprint, request, jsonify
-from extensions import db, bcrypt
 from flask_jwt_extended import create_access_token, jwt_required
-from sqlalchemy.orm import joinedload
-from modules.models import User, Company
+from modules.services.user_service import create_user, get_all_users, authenticate_user
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -20,19 +19,9 @@ def register():
     if not username or not email or not password or not company_name:
         return jsonify({'message': 'All fields are required'}), 400
 
-    if User.query.filter_by(username=username).first():
-        return jsonify({'message': 'Username already exists'}), 400
-
-    company = Company.query.filter_by(name=company_name).first()
-    if not company:
-        company = Company(name=company_name)
-        db.session.add(company)
-        db.session.commit()
-
-    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-    new_user = User(username=username, email=email, password_hash=hashed_password, company_id=company.id)
-    db.session.add(new_user)
-    db.session.commit()
+    result = create_user(username, email, password, company_name)
+    if isinstance(result, dict) and 'error' in result:
+        return jsonify({'message': result['error']}), 400
 
     logging.info(f"New user registered: {username}")
     return jsonify({'message': 'User registered successfully'}), 201
@@ -43,10 +32,10 @@ def login():
     username = data.get('username')
     password = data.get('password')
 
-    user = User.query.filter_by(username=username).first()
-    if user and bcrypt.check_password_hash(user.password_hash, password):
+    user = authenticate_user(username, password)
+    if user:
         access_token = create_access_token(
-            identity=user.username,  # 'identity' must be a string
+            identity=user.username,
             additional_claims={'company': user.company.name}
         )
         return jsonify({'access_token': access_token}), 200
@@ -56,6 +45,5 @@ def login():
 @user_bp.route('/users', methods=['GET'])
 @jwt_required()
 def get_users():
-    users = User.query.options(joinedload(User.company)).all()
-    users_list = [{'username': user.username, 'email': user.email, 'company': user.company.name if user.company else None} for user in users]
+    users_list = get_all_users()
     return jsonify(users_list), 200
