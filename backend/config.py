@@ -3,7 +3,6 @@ from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
 UPLOAD_FOLDER = 'uploads'
-TEMPLATE_FOLDER = 'resources/json_templates'
 ALLOWED_EXTENSIONS = {'pdf'}
 OUTPUT_FOLDER = 'uploads' # we can change this later
 
@@ -17,8 +16,6 @@ SQLALCHEMY_POOL_TIMEOUT = 30
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
-if not os.path.exists(TEMPLATE_FOLDER):
-    os.makedirs(TEMPLATE_FOLDER)
 
 # Key Vault Configuration
 KEY_VAULT_URL = os.getenv("KEY_VAULT_URL")

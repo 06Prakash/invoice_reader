@@ -4,7 +4,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .logging_util import setup_logger
 from .azure_extraction import extract_with_azure
-from .template_extraction import extract_with_template_logic
 from .progress_tracker import ProgressTracker
 import os
 import json
@@ -34,12 +33,10 @@ def register_extract_routes(app):
 
         # Get configurations from app.config
         upload_folder = app.config['UPLOAD_FOLDER']
-        template_folder = app.config['TEMPLATE_FOLDER']
         progress_file = os.path.join(upload_folder, 'progress.txt')
 
         # Extract filenames and template details
         filenames = data['filenames']
-        template_name = data['template']
         extraction_model = data.get('extraction_model', 'NIRA AI - Printed Text (PB)').strip()
         azure_endpoint = app.config['AZURE_ENDPOINT']
         azure_key = app.config['AZURE_KEY']
@@ -52,7 +49,7 @@ def register_extract_routes(app):
 
         # Perform extraction
         results = perform_extraction(
-            filenames, template_name, template_folder, upload_folder, total_pages,
+            filenames, upload_folder, total_pages,
             progress_file, extraction_model, azure_endpoint, azure_key, progress_tracker
         )
 
@@ -188,7 +185,7 @@ def register_extract_routes(app):
 
         return response_data, lines_data, csv_paths, text_paths, excel_paths
 
-    def perform_extraction(filenames, template_name, template_folder, upload_folder, total_pages, progress_file, extraction_model, azure_endpoint, azure_key, progress_tracker):
+    def perform_extraction(filenames, upload_folder, total_pages, progress_file, extraction_model, azure_endpoint, azure_key, progress_tracker):
         """
         Performs extraction concurrently using Azure or template-based logic.
         """
