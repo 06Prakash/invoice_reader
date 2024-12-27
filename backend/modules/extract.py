@@ -1,7 +1,7 @@
-from flask import request, jsonify
+from flask import request, jsonify, send_from_directory
 from flask_jwt_extended import jwt_required
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pdf2image import convert_from_path
+
 from .logging_util import setup_logger
 from .azure_extraction import extract_with_azure
 from .template_extraction import extract_with_template_logic
@@ -27,14 +27,13 @@ def register_extract_routes(app):
         data = request.json
 
         # Validate input data
-        if 'filenames' not in data or 'template' not in data:
-            logger.error('Filenames and template are required')
-            return jsonify({'message': 'Filenames and template are required'}), 400
+        is_valid, error_response, status_code = validate_input(data)
+        if not is_valid:
+            return error_response, status_code
 
         # Get configurations from app.config
         upload_folder = app.config['UPLOAD_FOLDER']
         template_folder = app.config['TEMPLATE_FOLDER']
-        logger.info(template_folder)
         progress_file = os.path.join(upload_folder, 'progress.txt')
 
         # Extract filenames and template details
@@ -43,68 +42,18 @@ def register_extract_routes(app):
         extraction_model = data.get('extraction_model', 'NIRA Standard').strip()
         azure_endpoint = app.config['AZURE_ENDPOINT']
         azure_key = app.config['AZURE_KEY']
-        # output_format = data.get('output_format', 'json')
 
         # Initialize progress tracking
-        with open(progress_file, 'w') as pf:
-            pf.write('0')
-
-        # # Load template
-        # template_path = os.path.join(template_folder, f'{template_name}.json')
-        # logger.info(template_path)
-        # if not os.path.exists(template_path):
-        #     logger.error('Template not found')
-        #     return jsonify({'message': 'Template not found'}), 404
-
-        # with open(template_path, 'r') as f:
-        #     template = json.load(f)
+        progress_tracker.initialize_progress(progress_file)
 
         # Determine total pages for progress tracking
-        total_pages = sum(len(convert_from_path(os.path.join(upload_folder, filename), 300)) for filename in filenames)
-        # Reset progress tracker
-        progress_tracker.reset_progress()
+        total_pages = progress_tracker.calculate_total_pages(filenames, upload_folder)
 
-        # Use ThreadPoolExecutor for concurrent processing
-        results = []
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            futures = []
-            for filename in filenames:
-                if 'nira standard' in extraction_model.lower():
-                    futures.append(
-                        executor.submit(
-                            extract_with_template_logic, filename, template_name, template_folder, upload_folder, total_pages, progress_file, progress_tracker
-                        )
-                    )
-                else:
-                    futures.append(
-                        executor.submit(
-                            extract_with_azure, filename, upload_folder, total_pages, progress_file, progress_tracker, extraction_model, azure_endpoint, azure_key
-                        )
-                    )
-
-            for future in as_completed(futures):
-                results.append(future.result())
+        # Perform extraction
+        results = perform_extraction(filenames, template_name, template_folder, upload_folder, total_pages, progress_file, extraction_model, azure_endpoint, azure_key)
 
         # Process results
-        response_data = {filename: data for filename, data, _ in results}
-        lines_data = {filename: lines for filename, _, lines in results}
-
-        csv_output = io.StringIO()
-        csv_writer = csv.writer(csv_output)
-        headers = set()
-        for _, data, _ in results:
-            headers.update(data.keys())
-        csv_writer.writerow(['filename'] + list(headers))
-        for filename, data, _ in results:
-            row = [filename] + [data.get(header, '') for header in headers]
-            csv_writer.writerow(row)
-        csv_data = csv_output.getvalue()
-
-        text_data = ""
-        for filename, data, _ in results:
-            text_data += f"File: {filename}\n"
-            text_data += "\n".join([f"{key}: {value}" for key, value in data.items()])
-            text_data += "\n\n"
+        response_data, lines_data, csv_data, text_data = process_results(results)
 
         # Mark progress as 100%
         with open(progress_file, 'w') as pf:
@@ -153,3 +102,100 @@ def register_extract_routes(app):
         except Exception as e:
             logger.error(f"Error fetching extraction models: {e}")
             return jsonify({"error": "Failed to fetch extraction models"}), 500
+
+    @app.route('/downloads/<filename>', methods=['GET'])
+    def download_file(filename):
+        """
+        Serves the Excel file for download.
+        """
+        output_folder = app.config['OUTPUT_FOLDER']  # Add OUTPUT_FOLDER to your config
+        return send_from_directory(output_folder, filename, as_attachment=True)
+    
+    ##############################################################
+    ################ Non routing functions #######################
+    ##############################################################
+    def validate_input(data):
+        """
+        Validates the input data for the extraction request.
+        """
+        if 'filenames' not in data or 'template' not in data:
+            logger.error('Filenames and template are required')
+            return False, jsonify({'message': 'Filenames and template are required'}), 400
+        return True, None, None
+
+    def process_results(results):
+        """
+        Processes the results from concurrent extraction tasks.
+        """
+        response_data = {filename: data for filename, data, _ in results}
+        lines_data = {filename: lines for filename, _, lines in results}
+
+        csv_output = io.StringIO()
+        csv_writer = csv.writer(csv_output)
+        headers = set()
+
+        # Collect headers from all results
+        for _, data, _ in results:
+            if isinstance(data, dict):
+                headers.update(data.keys())
+            elif isinstance(data, list) and data:
+                for item in data:
+                    if isinstance(item, dict):
+                        headers.update(item.keys())
+
+        # Write headers and rows to CSV
+        csv_writer.writerow(['filename'] + list(headers))
+        for filename, data, _ in results:
+            if isinstance(data, dict):
+                row = [filename] + [data.get(header, '') for header in headers]
+                csv_writer.writerow(row)
+            elif isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict):
+                        row = [filename] + [item.get(header, '') for header in headers]
+                        csv_writer.writerow(row)
+
+        csv_data = csv_output.getvalue()
+
+        text_data = ""
+        for filename, data, _ in results:
+            text_data += f"File: {filename}\n"
+            if isinstance(data, dict):
+                text_data += "\n".join([f"{key}: {value}" for key, value in data.items()])
+            elif isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict):
+                        text_data += "\n".join([f"{key}: {value}" for key, value in item.items()])
+                        text_data += "\n"
+            else:
+                text_data += f"Unhandled data type: {type(data)}\n"
+            text_data += "\n"
+
+        return response_data, lines_data, csv_data, text_data
+
+
+    def perform_extraction(filenames, template_name, template_folder, upload_folder, total_pages, progress_file, extraction_model, azure_endpoint, azure_key):
+        """
+        Performs extraction concurrently using Azure or template-based logic.
+        """
+        results = []
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = []
+            for filename in filenames:
+                if 'nira standard' in extraction_model.lower():
+                    futures.append(
+                        executor.submit(
+                            extract_with_template_logic, filename, template_name, template_folder, upload_folder, total_pages, progress_file, progress_tracker
+                        )
+                    )
+                else:
+                    futures.append(
+                        executor.submit(
+                            extract_with_azure, filename, upload_folder, total_pages, progress_file, progress_tracker, extraction_model, azure_endpoint, azure_key
+                        )
+                    )
+
+            for future in as_completed(futures):
+                results.append(future.result())
+
+        return results

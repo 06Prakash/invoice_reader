@@ -1,5 +1,7 @@
 from threading import Lock
 import logging
+from pdf2image import convert_from_path
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +13,20 @@ class ProgressTracker:
     def __init__(self):
         self.total_pages_processed = 0  # Instance variable to track total pages processed
         self.lock = Lock()  # Lock to ensure thread-safe updates
+
+    def initialize_progress(self, progress_file):
+        """
+        Initializes the progress tracker file.
+        """
+        with open(progress_file, 'w') as pf:
+            pf.write('0')
+        self.reset_progress()
+
+    def calculate_total_pages(self, filenames, upload_folder):
+        """
+        Calculates the total number of pages for all files.
+        """
+        return sum(len(convert_from_path(os.path.join(upload_folder, filename), 300)) for filename in filenames)
 
     def update_progress(self, progress_file, pages_processed_in_task, total_pages):
         """
