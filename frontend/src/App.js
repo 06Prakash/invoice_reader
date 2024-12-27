@@ -4,14 +4,11 @@ import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-d
 import axios from 'axios';
 import UploadComponent from './components/UploadComponent';
 import DataReview from './components/DataReview';
-import TemplateManager from './components/TemplateManager';
-import JsonTemplateGenerator from './components/JsonTemplateGenerator';
 import RegisterComponent from './components/RegisterComponent';
 import LoginComponent from './components/LoginComponent';
 import NavBar from './components/NavBar';
 import LinearProgress from '@mui/material/LinearProgress';
 import './App.css';
-import './components/styles/JsonTemplateGenerator.css'; // Include the new CSS file
 
 const App = () => {
     const [templates, setTemplates] = useState([]);
@@ -151,14 +148,6 @@ const App = () => {
                         ) : (
                             <div>
                                 <UploadComponent onUploadSuccess={handleUploadSuccess} />
-                                <TemplateManager
-                                    templates={templates}
-                                    onTemplateSelect={handleTemplateSelect}
-                                    selectedTemplate={selectedTemplate}
-                                    fetchTemplates={fetchTemplates}
-                                    defaultTemplateFields={defaultTemplateFields}
-                                />
-                                <JsonTemplateGenerator fetchTemplates={fetchTemplates} />
                                 <div className="output-format-container">
                                     <div className="output-format">
                                         {/* Dropdown to select extraction method */}
