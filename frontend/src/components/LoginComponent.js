@@ -10,7 +10,9 @@ const LoginComponent = ({ setToken }) => {
     const handleLogin = async () => {
         try {
             const response = await axios.post('/user/login', { username, password });
-            setToken(response.data.access_token);
+            const token = response.data.access_token
+            setToken(token);
+            localStorage.setItem('jwt_token', token);
             alert('Login successful');
         } catch (error) {
             console.error('Error logging in:', error);

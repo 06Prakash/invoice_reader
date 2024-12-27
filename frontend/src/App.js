@@ -20,9 +20,8 @@ const App = () => {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [extractedData, setExtractedData] = useState(null);
-    const [outputFormat, setOutputFormat] = useState('json');
     const [extractionModels, setExtractionModels] = useState([]);
-    const [selectedModel, setSelectedModel] = useState('NIRA standard Extraction');
+    const [selectedModel, setSelectedModel] = useState('NIRA AI - Printed Text (PB)');
     const [originalLines, setOriginalLines] = useState([]);
     const [defaultTemplateFields, setDefaultTemplateFields] = useState('');
     const [progress, setProgress] = useState(0);
@@ -58,11 +57,11 @@ const App = () => {
         // Fetch available extraction models from the backend or define them statically
         axios.get('/extraction-models')
             .then(response => {
-                setExtractionModels(response.data.models || ['NIRA standard Extraction']); // Fallback to default models if no data
+                setExtractionModels(response.data.models || ['NIRA AI - Printed Text (PB)']); // Fallback to default models if no data
             })
             .catch(error => {
                 console.error('Error fetching extraction models:', error);
-                setExtractionModels(['NIRA standard Extraction']); // Default models in case of error
+                setExtractionModels(['NIRA AI - Printed Text (PB)']); // Default models in case of error
             });
     }, []);
 
@@ -108,10 +107,9 @@ const App = () => {
         const data = {
             filenames: uploadedFiles,
             template: selectedTemplate,
-            output_format: outputFormat,
             extraction_model: selectedModel,
         };
-
+    
         axios.post('/extract', data)
             .then(response => {
                 console.log('Data extracted successfully:', response.data);
@@ -130,10 +128,6 @@ const App = () => {
 
     const handleTemplateSelect = (templateName) => {
         setSelectedTemplate(templateName);
-    };
-
-    const handleOutputFormatChange = (event) => {
-        setOutputFormat(event.target.value);
     };
 
     const handleExtractionMethodChange = (event) => {
@@ -167,12 +161,6 @@ const App = () => {
                                 <JsonTemplateGenerator fetchTemplates={fetchTemplates} />
                                 <div className="output-format-container">
                                     <div className="output-format">
-                                        <label htmlFor="output-format">Output Format:</label>
-                                        <select id="output-format" value={outputFormat} onChange={handleOutputFormatChange}>
-                                            <option value="json">JSON</option>
-                                            <option value="csv">CSV</option>
-                                            <option value="text">Text</option>
-                                        </select>
                                         {/* Dropdown to select extraction method */}
                                         <label htmlFor="extraction-method">Extraction Method:</label>
                                             <select
@@ -194,7 +182,7 @@ const App = () => {
                                 {message && <p>{message}</p>}
                                 {loading && <LinearProgress variant="determinate" value={progress} />}
                                 {extractedData && (
-                                    <DataReview extractedData={extractedData} outputFormat={outputFormat} originalLines={originalLines} />
+                                    <DataReview extractedData={extractedData} originalLines={originalLines} token={token}/>
                                 )}
                             </div>
                         )}

@@ -5,6 +5,7 @@ from azure.keyvault.secrets import SecretClient
 UPLOAD_FOLDER = 'uploads'
 TEMPLATE_FOLDER = 'resources/json_templates'
 ALLOWED_EXTENSIONS = {'pdf'}
+OUTPUT_FOLDER = 'uploads' # we can change this later
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'default_secret_key')
 SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URI', 'sqlite:///site.db')
@@ -30,7 +31,6 @@ AZURE_KEY = secret_client.get_secret("azure-form-recognizer-key").value
 
 # Model Mappings
 MODEL_MAPPING = {
-    "NIRA standard": "Standard",
     "NIRA AI - handwritten": "MutualFundModelSundaramFinance",
     "NIRA AI - Invoice": "prebuilt-invoice",
     "NIRA AI - Printed Text": "prebuilt-read",

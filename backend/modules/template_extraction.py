@@ -1,5 +1,6 @@
 import os
 import json
+import pandas as pd
 from pdf2image import convert_from_path
 from pytesseract import image_to_string
 from .preprocessing import preprocess_image
@@ -32,6 +33,61 @@ def load_template(template_name, template_folder):
         logger.info(f"Loading template from: {template_path}")
         return json.load(template_file)
 
+def process_template_extraction_result(result, filename, output_folder):
+    """
+    Processes the extracted data and generates outputs in JSON, CSV, Excel, and text formats.
+
+    :param result: Extracted data
+    :param filename: Name of the file being processed
+    :param output_folder: Folder to save the extracted outputs
+    :return: A dictionary containing paths to JSON, CSV, Excel, and text outputs
+    """
+    outputs = {}
+
+    # Convert result into a DataFrame for consistent handling
+    data_list = []
+    for key, value in result.items():
+        data_list.append({"Field": key, "Value": value})
+
+    if data_list:
+        df = pd.DataFrame(data_list)
+
+        # Save JSON output
+        json_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_template.json")
+        with open(json_path, "w") as json_file:
+            json.dump(result, json_file, indent=2)
+        logger.info(f"Template data saved as JSON at {json_path}")
+        outputs['json'] = json_path
+
+        # Save CSV output
+        csv_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_template.csv")
+        df.to_csv(csv_path, index=False)
+        logger.info(f"Template data saved as CSV at {csv_path}")
+        outputs['csv'] = csv_path
+
+        # Save Excel output
+        excel_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_template.xlsx")
+        with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+            df.to_excel(writer, sheet_name="Template Data", index=False)
+        logger.info(f"Template data saved as Excel at {excel_path}")
+        outputs['excel'] = excel_path
+
+        # Save Text output
+        text_data = ""
+        for key, value in result.items():
+            text_data += f"{key}: {value}\n"
+
+        text_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_template.txt")
+        with open(text_path, "w", encoding="utf-8") as text_file:
+            text_file.write(text_data)
+        logger.info(f"Template data saved as Text at {text_path}")
+        outputs['text'] = text_path
+
+    else:
+        logger.warning(f"No data found for {filename}")
+        outputs['error'] = f"No data found for {filename}"
+
+    return outputs
 
 def extract_from_pdf(filename, template, upload_folder, total_pages, progress_file, progress_tracker):
     """
@@ -43,7 +99,7 @@ def extract_from_pdf(filename, template, upload_folder, total_pages, progress_fi
     :param total_pages: Total number of pages to process for progress tracking
     :param progress_file: Path to the progress file for writing progress updates
     :param progress_tracker: Instance of progress tracker
-    :return: Tuple of (filename, extracted_data, original_lines)
+    :return: A dictionary containing paths to JSON, CSV, Excel, and text outputs
     """
     pdf_path = os.path.join(upload_folder, filename)
     logger.info(f"Starting template-based extraction for {filename} using template {template.get('name', 'Unnamed')}.")
@@ -107,12 +163,16 @@ def extract_from_pdf(filename, template, upload_folder, total_pages, progress_fi
                 continue
 
         logger.info(f"Template-based extraction completed for {filename}.")
-        return filename, extracted_data, original_lines
+
+        # # Save outputs in different formats
+        # output_folder = os.path.join(upload_folder, "outputs")
+        # os.makedirs(output_folder, exist_ok=True)
+
+        return process_template_extraction_result(extracted_data, filename, upload_folder)
 
     except Exception as e:
         logger.error(f"Template-based extraction failed for {filename}: {e}")
-        return filename, {'error': str(e)}, []
-
+        return {'error': str(e)}
 
 def extract_with_template_logic(filename, template_name, template_folder, upload_folder, total_pages, progress_file, progress_tracker):
     """
@@ -125,7 +185,7 @@ def extract_with_template_logic(filename, template_name, template_folder, upload
     :param total_pages: Total number of pages for progress tracking
     :param progress_file: File to track progress
     :param progress_tracker: Instance of progress tracker
-    :return: Tuple of extracted data
+    :return: A dictionary containing paths to JSON, CSV, Excel, and text outputs
     """
     try:
         # Load the appropriate template
@@ -136,8 +196,8 @@ def extract_with_template_logic(filename, template_name, template_folder, upload
 
     except FileNotFoundError as e:
         logger.error(f"Failed to load template: {e}")
-        return filename, {'error': 'Template not found'}, []
+        return {'error': 'Template not found'}
 
     except Exception as e:
         logger.error(f"Unexpected error during template extraction: {e}")
-        return filename, {'error': str(e)}, []
+        return {'error': str(e)}
