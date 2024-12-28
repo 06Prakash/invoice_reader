@@ -1,55 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './styles/DataReview.css';
 
 const DataReview = ({ extractedData, originalLines }) => {
     const [selectedFile, setSelectedFile] = useState('');
-    const [currentFormat, setCurrentFormat] = useState('json');
-    const [currentPaths, setCurrentPaths] = useState({});
+    const [currentFormat, setCurrentFormat] = useState('');
+    const [availableFormats, setAvailableFormats] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 100;
 
     const fileList = Object.keys(extractedData.json_data || {});
 
+    // Dynamically update available formats based on the selected file
+    useEffect(() => {
+        if (selectedFile) {
+            const formats = [];
+            if (extractedData.json_data[selectedFile]) formats.push('json');
+            if (extractedData.csv_data[selectedFile]) formats.push('csv');
+            if (extractedData.excel_paths[selectedFile]) formats.push('excel');
+            if (extractedData.text_data[selectedFile]) formats.push('text');
+            setAvailableFormats(formats);
+            setCurrentFormat(formats[0] || ''); // Default to the first available format
+        } else {
+            setAvailableFormats([]);
+            setCurrentFormat('');
+        }
+    }, [selectedFile, extractedData]);
+
     const handleFileSelection = (fileName) => {
         setSelectedFile(fileName);
-        setCurrentFormat('json'); // Reset format to JSON on file selection
-        setCurrentPaths({}); // Clear any previous paths when a new file is selected
+        setCurrentPage(1); // Reset pagination when changing files
     };
 
     const handleFormatChange = (event) => {
-        const format = event.target.value;
-        setCurrentFormat(format);
-    
-        if (selectedFile) {
-            // Dynamically fetch and store the relevant path for the selected file and format
-            let path = '';
-            if (format === 'json') {
-                path = extractedData.json_data[selectedFile];
-            } else if (format === 'csv') {
-                path = extractedData.csv_data[selectedFile];
-            } else if (format === 'excel') {
-                path = extractedData.excel_paths[selectedFile];
-            } else if (format === 'text') {
-                path = extractedData.text_data[selectedFile];
-            }
-    
-            setCurrentPaths((prevPaths) => ({
-                ...prevPaths,
-                [format]: path || '',
-            }));
-        }
-    };    
+        setCurrentFormat(event.target.value);
+    };
 
     const renderData = () => {
-        if (!selectedFile) {
-            return <p>Please select a file to view its content.</p>;
+        if (!selectedFile || !currentFormat) {
+            return <p>Please select a file and format to view its content.</p>;
         }
 
-        const path = currentPaths[currentFormat];
+        const formatPaths = {
+            json: extractedData.json_data[selectedFile],
+            csv: extractedData.csv_data[selectedFile],
+            excel: extractedData.excel_paths[selectedFile],
+            text: extractedData.text_data[selectedFile],
+        };
+
+        const path = formatPaths[currentFormat];
+
         if (path) {
             return (
                 <div>
-                    {/* <p>{currentFormat.toUpperCase()} Path: {path}</p> */}
                     <button onClick={() => downloadFile(path)}>
                         Download {currentFormat.toUpperCase()}
                     </button>
@@ -150,10 +152,11 @@ const DataReview = ({ extractedData, originalLines }) => {
                 <div className="format-selection">
                     <label>Select Format:</label>
                     <select value={currentFormat} onChange={handleFormatChange}>
-                        <option value="json">JSON</option>
-                        <option value="csv">CSV</option>
-                        <option value="excel">Excel</option>
-                        <option value="text">Text</option>
+                        {availableFormats.map((format) => (
+                            <option key={format} value={format}>
+                                {format.toUpperCase()}
+                            </option>
+                        ))}
                     </select>
                 </div>
             )}

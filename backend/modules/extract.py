@@ -66,7 +66,7 @@ def register_extract_routes(app):
             'lines_data': lines_data,    # Original lines
             'csv_data': csv_data,        # Combined CSV
             'text_data': text_data,      # Combined text
-            'excel_paths': excel_paths   # List of Excel paths for downloads
+            'excel_paths': excel_paths  # List of Excel paths for downloads
         }), 200
 
 
@@ -120,11 +120,24 @@ def register_extract_routes(app):
     def validate_input(data):
         """
         Validates the input data for the extraction request.
+        Ensures page_config is present for files with more than 10 pages.
         """
-        if 'filenames' not in data or 'template' not in data:
-            logger.error('Filenames and template are required')
-            return False, jsonify({'message': 'Filenames and template are required'}), 400
+        if 'filenames' not in data:
+            logger.error('Filenames are required')
+            return False, jsonify({'message': 'Filenames are required'}), 400
+
+        page_config = data.get('page_config', {})
+        filenames = data['filenames']
+
+        for filename in filenames:
+            progress_tracker = ProgressTracker()
+            total_pages = progress_tracker.get_total_pages(filename, app.config['UPLOAD_FOLDER'])
+            if total_pages > 10 and filename not in page_config:
+                logger.error(f"Page configuration is mandatory for files with more than 10 pages. Missing for {filename}")
+                return False, jsonify({'message': f'Page configuration is mandatory for {filename} with more than 10 pages'}), 400
+
         return True, None, None
+
     
     def process_results(results):
         """
@@ -143,7 +156,8 @@ def register_extract_routes(app):
         for result in results:
             filename = result.get('filename')
             extracted_data = result.get('extracted_data', {})
-            
+            original_lines = extracted_data.get('original_lines')  # Use original lines for lines_data
+
             # Initialize storage for the file's data
             file_data = {
                 "json_data": None,
@@ -155,8 +169,7 @@ def register_extract_routes(app):
             # Store paths for JSON, CSV, and Excel files
             file_data["json_data"] = extracted_data.get('json')
             file_data["csv_data"] = extracted_data.get('csv')
-            if 'excel' in extracted_data:  # Table-based extraction 
-                file_data["excel_path"] = extracted_data.get('excel')
+            file_data["excel_path"] = extracted_data.get('excel')
             file_data["text_data"] = extracted_data.get('text')
 
             # Append paths to respective lists
@@ -167,35 +180,27 @@ def register_extract_routes(app):
             if file_data["text_data"]:
                 text_paths[filename] = file_data["text_data"]
 
-            # Store extracted data and set lines data
+            # Store extracted data and lines data
             response_data[filename] = file_data["json_data"]
-            lines_data[filename] = extracted_data.get('text_data')  # No original lines for tables
-
-        # elif isinstance(extracted_data, dict):  # Field-based extraction result
-        #     # Handle field-based results directly
-        #     response_data[filename] = extracted_data
-        #     logger.info(extracted_data)
-        #     if extract_data["csv_data"]:
-        #         csv_paths[filename] = extract_data["csv_data"]
-        #     if extract_data["excel_path"]:
-        #         excel_paths[filename] = extract_data["excel_path"]
-        #     if extract_data["text_data"]:
-        #         text_paths[filename] = extract_data["text_data"]
-        #     lines_data[filename] = extracted_data.get('text_data')
-
+            lines_data[filename] = original_lines  # Set lines_data using original lines
         return response_data, lines_data, csv_paths, text_paths, excel_paths
 
-    def perform_extraction(filenames, upload_folder, total_pages, progress_file, extraction_model, azure_endpoint, azure_key, progress_tracker):
+    
+
+    def perform_extraction(filenames, upload_folder, total_pages, progress_file, extraction_model, azure_endpoint, azure_key, progress_tracker, page_config=None):
         """
         Performs extraction concurrently using Azure or template-based logic.
+        Handles page-specific extraction based on page_config.
         """
         results = []
         with ThreadPoolExecutor(max_workers=2) as executor:
             futures = []
             for filename in filenames:
+                specified_pages = page_config.get(filename) if page_config else None
                 futures.append(
                     executor.submit(
-                        extract_with_azure, filename, upload_folder, upload_folder, total_pages, progress_file, progress_tracker, extraction_model, azure_endpoint, azure_key
+                        extract_with_azure, filename, upload_folder, upload_folder, total_pages, progress_file, progress_tracker,
+                        extraction_model, azure_endpoint, azure_key, specified_pages
                     )
                 )
 

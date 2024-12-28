@@ -1,6 +1,8 @@
 from threading import Lock
 import logging
 from pdf2image import convert_from_path
+from PyPDF2 import PdfReader
+
 import os
 
 logger = logging.getLogger(__name__)
@@ -21,6 +23,24 @@ class ProgressTracker:
         with open(progress_file, 'w') as pf:
             pf.write('0')
         self.reset_progress()
+    
+    def get_total_pages(self, filename, upload_folder):
+        """
+        Calculate the total number of pages in the given PDF file.
+
+        :param filename: Name of the PDF file
+        :param upload_folder: Path to the folder containing the file
+        :return: Total number of pages in the PDF
+        """
+        file_path = os.path.join(upload_folder, filename)
+        try:
+            with open(file_path, 'rb') as pdf_file:
+                reader = PdfReader(pdf_file)
+                total_pages = len(reader.pages)
+                return total_pages
+        except Exception as e:
+            logger.error(f"Failed to get total pages for {filename}: {e}")
+            raise
 
     def calculate_total_pages(self, filenames, upload_folder):
         """

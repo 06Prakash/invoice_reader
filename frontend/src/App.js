@@ -8,6 +8,8 @@ import RegisterComponent from './components/RegisterComponent';
 import LoginComponent from './components/LoginComponent';
 import NavBar from './components/NavBar';
 import LinearProgress from '@mui/material/LinearProgress';
+import PageBasedExtractionComponent from './components/PageBasedExtractionComponent';
+
 import './App.css';
 
 const App = () => {
@@ -18,17 +20,16 @@ const App = () => {
     const [message, setMessage] = useState('');
     const [extractedData, setExtractedData] = useState(null);
     const [extractionModels, setExtractionModels] = useState([]);
+    const [pageConfig, setPageConfig] = useState({});
     const [selectedModel, setSelectedModel] = useState('NIRA AI - Printed Text (PB)');
     const [originalLines, setOriginalLines] = useState([]);
     const [defaultTemplateFields, setDefaultTemplateFields] = useState('');
     const [progress, setProgress] = useState(0);
     const [token, setToken] = useState(localStorage.getItem('jwt_token') || '');
-
+    
     useEffect(() => {
         if (token) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-            fetchTemplates();
-            fetchDefaultTemplate();
         }
     }, [token]);
 
@@ -62,28 +63,9 @@ const App = () => {
             });
     }, []);
 
-    const fetchTemplates = () => {
-        axios.get('/templates')
-            .then(response => {
-                setTemplates(response.data);
-            })
-            .catch(error => {
-                console.error('Error fetching templates:', error);
-            });
-    };
-
-    const fetchDefaultTemplate = () => {
-        axios.get('/default_template')
-            .then(response => {
-                const fields = JSON.stringify(response.data.fields, null, 2);
-                setDefaultTemplateFields(fields);
-                if (!templates.includes('Default Template')) {
-                    setTemplates(prevTemplates => [...prevTemplates, 'Default Template']);
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching default template:', error);
-            });
+    const handlePageConfigSubmit = (config) => {
+        setPageConfig(config);
+        console.log('Page-based extraction config:', config); // Debug or pass to backend
     };
 
     const handleUploadSuccess = (filenames, extractedData, linesData) => {
@@ -105,6 +87,7 @@ const App = () => {
             filenames: uploadedFiles,
             template: selectedTemplate,
             extraction_model: selectedModel,
+            page_config: pageConfig,
         };
     
         axios.post('/extract', data)
@@ -121,10 +104,6 @@ const App = () => {
             .finally(() => {
                 setLoading(false);
             });
-    };
-
-    const handleTemplateSelect = (templateName) => {
-        setSelectedTemplate(templateName);
     };
 
     const handleExtractionMethodChange = (event) => {
@@ -148,6 +127,7 @@ const App = () => {
                         ) : (
                             <div>
                                 <UploadComponent onUploadSuccess={handleUploadSuccess} />
+                                <PageBasedExtractionComponent onPageExtractionConfigSubmit={handlePageConfigSubmit} />
                                 <div className="output-format-container">
                                     <div className="output-format">
                                         {/* Dropdown to select extraction method */}

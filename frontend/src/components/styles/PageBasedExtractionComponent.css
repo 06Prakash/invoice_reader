@@ -1,0 +1,117 @@
+.page-extraction-container {
+    background-color: #f5fff5; /* Light greenish background for better readability */
+    border: 1px solid #006400; /* Dark green border */
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    color: #003300; /* Deep green for text */
+    font-family: 'Arial', sans-serif;
+}
+
+.page-extraction-container h3 {
+    color: #004d00; /* Slightly lighter green for headings */
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.page-extraction-container p {
+    color: #003300;
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+.file-config {
+    background-color: #ffffff; /* White background for file sections */
+    border: 1px solid #d4d4d4; /* Light gray border */
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.file-config h4 {
+    color: #004d00; /* Consistent greenish heading for filenames */
+    margin-bottom: 10px;
+}
+
+.section-config {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 10px;
+}
+
+.section-config label {
+    font-weight: bold;
+    color: #003300;
+    flex: 0 0 100px;
+}
+
+.section-config input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #006400;
+    border-radius: 4px;
+}
+
+.add-section {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.add-section input {
+    padding: 8px;
+    border: 1px solid #006400;
+    border-radius: 4px;
+    flex: 1;
+}
+
+.add-section button {
+    background-color: #006400;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 20px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.add-section button:hover {
+    background-color: #004d00;
+}
+
+.json-upload {
+    margin-top: 20px;
+}
+
+.json-upload input {
+    margin-top: 10px;
+}
+
+.json-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.json-actions button {
+    background-color: #006400;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 20px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.json-actions button:hover {
+    background-color: #004d00;
+}
+
+.json-upload p, .json-actions p {
+    margin-top: 10px;
+    font-size: 14px;
+    color: #003300;
+}
