@@ -127,7 +127,8 @@ const App = () => {
                         ) : (
                             <div>
                                 <UploadComponent onUploadSuccess={handleUploadSuccess} />
-                                <PageBasedExtractionComponent onPageExtractionConfigSubmit={handlePageConfigSubmit} />
+                                <PageBasedExtractionComponent onPageExtractionConfigSubmit={handlePageConfigSubmit} uploadedFiles={uploadedFiles}/>
+
                                 <div className="output-format-container">
                                     <div className="output-format">
                                         {/* Dropdown to select extraction method */}

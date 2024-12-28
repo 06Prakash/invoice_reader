@@ -115,3 +115,40 @@
     font-size: 14px;
     color: #003300;
 }
+.expand-collapse-header {
+    cursor: pointer;
+    color: #007bff;
+    font-size: 1.2em;
+    margin-bottom: 10px;
+}
+
+.expand-collapse-header:hover {
+    text-decoration: underline;
+}
+
+.page-extraction-content {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+}
+
+.notification {
+    color: green;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+.submit-button.clicked {
+    background-color: #007bff;
+    color: white;
+    box-shadow: 0 0 5px #007bff;
+    transform: scale(0.98);
+}
+
+.file-dropdown {
+    margin-right: 10px;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
