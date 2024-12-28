@@ -25,6 +25,8 @@ def register_extract_routes(app):
 
         # Create a tracker instance
         progress_tracker = ProgressTracker()
+        page_config = data.get('page_config')
+        logger.info(f"Page Config: {page_config}")  # Ensure page_config is being received
         
         # Validate input data
         is_valid, error_response, status_code = validate_input(data)
@@ -50,7 +52,7 @@ def register_extract_routes(app):
         # Perform extraction
         results = perform_extraction(
             filenames, upload_folder, total_pages,
-            progress_file, extraction_model, azure_endpoint, azure_key, progress_tracker
+            progress_file, extraction_model, azure_endpoint, azure_key, progress_tracker, page_config
         )
 
         # Process results
@@ -184,8 +186,6 @@ def register_extract_routes(app):
             response_data[filename] = file_data["json_data"]
             lines_data[filename] = original_lines  # Set lines_data using original lines
         return response_data, lines_data, csv_paths, text_paths, excel_paths
-
-    
 
     def perform_extraction(filenames, upload_folder, total_pages, progress_file, extraction_model, azure_endpoint, azure_key, progress_tracker, page_config=None):
         """

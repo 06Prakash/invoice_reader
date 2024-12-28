@@ -242,7 +242,7 @@ def extract_original_lines(result):
 
 def extract_with_azure(
     filename, upload_folder, output_folder, total_pages, progress_file, progress_tracker,
-    extraction_model, azure_endpoint, azure_key, specified_pages=None, page_config=None
+    extraction_model, azure_endpoint, azure_key, page_config=None
 ):
     """
     Extracts data from a PDF using Azure Form Recognizer and processes it based on the extraction type.
@@ -263,15 +263,14 @@ def extract_with_azure(
         section_data = {}
         outputs = {"json": None, "csv": None, "text": None, "excel": None, "text_data": "", "original_lines": ""}
 
-        if page_config and filename in page_config:
+        if page_config:
             # Process each section's page range
-            for section, page_range in page_config[filename].items():
+            for section, page_range in page_config.items():
                 try:
                     logger.info(f"Extracting section: {section} with pages: {page_range}")
-                    pages = parse_page_ranges(page_range)  # Convert "1,3-4" to [1, 3, 4]
 
                     with open(pdf_path, "rb") as document:
-                        poller = document_analysis_client.begin_analyze_document(mapped_model, document, pages=pages)
+                        poller = document_analysis_client.begin_analyze_document(mapped_model, document, pages=page_range)
                         result = poller.result()
 
                     if mapped_model == "prebuilt-layout":
@@ -303,7 +302,7 @@ def extract_with_azure(
         else:
             # If no page config is provided, process the entire document
             with open(pdf_path, "rb") as document:
-                poller = document_analysis_client.begin_analyze_document(mapped_model, document, pages=specified_pages)
+                poller = document_analysis_client.begin_analyze_document(mapped_model, document)
                 result = poller.result()
 
             if mapped_model == "prebuilt-layout":
