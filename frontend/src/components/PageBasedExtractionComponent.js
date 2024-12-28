@@ -49,6 +49,25 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit }) => {
         setPageRange('');
     };
 
+    const handleRemoveSection = (file, sectionToRemove) => {
+        setPageConfig((prevConfig) => {
+            const updatedConfig = { ...prevConfig };
+            delete updatedConfig[file][sectionToRemove];
+            if (Object.keys(updatedConfig[file]).length === 0) {
+                delete updatedConfig[file];
+            }
+            return updatedConfig;
+        });
+    };
+
+    const handleResetConfig = () => {
+        setPageConfig({});
+        setUploadedJson(null);
+        setFilename('');
+        setSection('');
+        setPageRange('');
+    };
+
     const handleSubmit = () => {
         console.log('Submitting Page Config:', pageConfig);
         onPageExtractionConfigSubmit(pageConfig);
@@ -66,7 +85,9 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit }) => {
     return (
         <div className="page-extraction-container">
             <h3>Page-Based Extraction</h3>
-            <p>Specify the pages to extract for each file and section:</p>
+            <p>
+                Specify the pages to extract for each file and section. Use the reset button to clear all configurations or remove individual sections as needed.
+            </p>
             <div className="file-inputs">
                 {Object.keys(pageConfig).length === 0 && <p>No files added yet.</p>}
                 {Object.entries(pageConfig).map(([file, sections]) => (
@@ -81,6 +102,7 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit }) => {
                                     value={range || ''}
                                     onChange={(e) => handleInputChange(file, section, e.target.value)}
                                 />
+                                <button onClick={() => handleRemoveSection(file, section)}>Remove Section</button>
                             </div>
                         ))}
                     </div>
@@ -118,6 +140,7 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit }) => {
             <div className="json-actions">
                 <button onClick={handleDownloadJson}>Download JSON</button>
                 <button onClick={handleSubmit}>Submit Page Configuration</button>
+                <button onClick={handleResetConfig}>Reset All Configurations</button>
             </div>
         </div>
     );
