@@ -50,6 +50,7 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit }) => {
     };
 
     const handleSubmit = () => {
+        console.log('Submitting Page Config:', pageConfig);
         onPageExtractionConfigSubmit(pageConfig);
     };
 
