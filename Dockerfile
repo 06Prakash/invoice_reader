@@ -52,9 +52,6 @@ COPY backend /app
 # Copy the frontend build artifacts from the previous stage
 COPY --from=build-frontend /frontend/build /app/static
 
-# Copy the default template to the appropriate location
-COPY resources /app/resources
-
 # Copy the entrypoint script
 COPY entrypoint.sh /app/entrypoint.sh
 
