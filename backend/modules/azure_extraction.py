@@ -5,6 +5,7 @@ from azure.core.credentials import AzureKeyCredential
 from .data_processing import process_field, flatten_nested_field
 from .logging_util import setup_logger
 import json
+from concurrent.futures import ThreadPoolExecutor
 
 logger = setup_logger()
 
@@ -248,6 +249,8 @@ def extract_with_azure(
     Extracts data from a PDF using Azure Form Recognizer and processes it based on the extraction type.
     Handles section-specific page configurations when provided.
     """
+    from azure.core.exceptions import HttpResponseError
+
     document_analysis_client = DocumentAnalysisClient(
         endpoint=azure_endpoint,
         credential=AzureKeyCredential(azure_key)
@@ -269,8 +272,16 @@ def extract_with_azure(
                 try:
                     logger.info(f"Extracting section: {section} with pages: {page_range}")
 
+                    # Ensure the page_range is properly formatted for Azure
+                    if isinstance(page_range, list):
+                        pages = ",".join(map(str, page_range))  # Convert [1, 3, 5] -> "1,3,5"
+                    elif isinstance(page_range, str):
+                        pages = page_range.replace(" ", "").strip()# Use the string directly if already in correct format
+                    else:
+                        raise ValueError(f"Invalid page_range format for section {section}: {page_range}")
+
                     with open(pdf_path, "rb") as document:
-                        poller = document_analysis_client.begin_analyze_document(mapped_model, document, pages=page_range)
+                        poller = document_analysis_client.begin_analyze_document(mapped_model, document, pages=pages)
                         result = poller.result()
 
                     if mapped_model == "prebuilt-layout":
@@ -296,8 +307,10 @@ def extract_with_azure(
                         if section_outputs.get(key):
                             outputs[key] = section_outputs[key]
 
+                except HttpResponseError as e:
+                    logger.error(f"Error processing section {section}: {e}")
                 except Exception as section_error:
-                    logger.error(f"Error processing section {section}: {section_error}")
+                    logger.error(f"Unexpected error processing section {section}: {section_error}")
 
         else:
             # If no page config is provided, process the entire document
@@ -371,10 +384,8 @@ def extract_with_azure(
         }
 
     except Exception as e:
-        logger.error(f"Azure extraction failed for {filename}, section={section if 'section' in locals() else 'N/A'}: {e}")
+        logger.error(f"Azure extraction failed for {filename}: {e}")
         return {'filename': filename, 'error': str(e)}
-
-
 
 def parse_page_ranges(page_ranges):
     """
