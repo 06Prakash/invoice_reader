@@ -4,6 +4,7 @@ from azure.ai.formrecognizer import DocumentAnalysisClient
 from azure.core.credentials import AzureKeyCredential
 from .data_processing import process_field, flatten_nested_field
 from .logging_util import setup_logger
+import csv
 import json
 from concurrent.futures import ThreadPoolExecutor
 
