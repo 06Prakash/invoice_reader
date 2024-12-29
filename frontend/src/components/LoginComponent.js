@@ -1,22 +1,41 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Button, TextField, Grid } from '@mui/material';
+import { Button, TextField, Grid, Snackbar, Alert } from '@mui/material';
 import './styles/LoginComponent.css';
 
 const LoginComponent = ({ setToken }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [showSnackbar, setShowSnackbar] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [snackbarSeverity, setSnackbarSeverity] = useState('success'); // 'success' or 'error'
 
     const handleLogin = async () => {
+        if (!username || !password) {
+            showMessage('Please fill in all fields', 'error');
+            return;
+        }
+
         try {
             const response = await axios.post('/user/login', { username, password });
-            const token = response.data.access_token
+            const token = response.data.access_token;
             setToken(token);
             localStorage.setItem('jwt_token', token);
-            alert('Login successful');
+            showMessage('Login successful', 'success');
         } catch (error) {
             console.error('Error logging in:', error);
+            showMessage('Invalid username or password', 'error');
         }
+    };
+
+    const showMessage = (message, severity) => {
+        setSnackbarMessage(message);
+        setSnackbarSeverity(severity);
+        setShowSnackbar(true);
+    };
+
+    const handleSnackbarClose = () => {
+        setShowSnackbar(false);
     };
 
     return (
@@ -46,6 +65,22 @@ const LoginComponent = ({ setToken }) => {
                     </Button>
                 </Grid>
             </Grid>
+
+            {/* Snackbar for success or error messages */}
+            <Snackbar
+                open={showSnackbar}
+                autoHideDuration={4000}
+                onClose={handleSnackbarClose}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert
+                    onClose={handleSnackbarClose}
+                    severity={snackbarSeverity}
+                    sx={{ width: '100%' }}
+                >
+                    {snackbarMessage}
+                </Alert>
+            </Snackbar>
         </div>
     );
 };

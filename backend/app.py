@@ -3,6 +3,7 @@ import logging
 import os
 from flask import Flask, send_from_directory
 from flask_cors import CORS
+from flask_migrate import Migrate 
 from extensions import db, bcrypt, login_manager, jwt
 from modules.routes import register_routes
 
@@ -21,8 +22,13 @@ def create_app():
     login_manager.init_app(app)
     jwt.init_app(app)
 
+    # Initialize Flask-Migrate
+    migrate = Migrate(app, db)  # Attach Flask-Migrate to the app and database
+
+    # Register routes
     register_routes(app)
 
+    # Static file serving for frontend
     @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
     def serve(path):

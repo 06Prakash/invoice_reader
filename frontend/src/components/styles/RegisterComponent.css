@@ -53,3 +53,7 @@
 .register-container button:hover {
     background-color: #00332d;
 }
+
+.register-container .MuiSnackbar-root {
+    z-index: 1400;
+}
