@@ -185,9 +185,10 @@ def process_field_extraction(result, filename, output_folder, progress_tracker, 
                 else:
                     extracted_data[name] = field_value
 
-    # Extract original lines from pages
-    if hasattr(result, 'pages'):
-        original_lines = extract_original_lines(result)
+    # Create original lines from extracted data
+    if extracted_data:
+        for key, value in extracted_data.items():
+            original_lines.append(f"{key}: {value}")
 
     # Update progress after processing fields
     progress_tracker.update_progress(progress_file, 1, total_pages)
@@ -278,6 +279,8 @@ def extract_with_azure(
                         pages = ",".join(map(str, page_range))  # Convert [1, 3, 5] -> "1,3,5"
                     elif isinstance(page_range, str):
                         pages = page_range.replace(" ", "").strip()# Use the string directly if already in correct format
+                        if '-' in pages:
+                            pages = parse_page_ranges(pages)
                     else:
                         raise ValueError(f"Invalid page_range format for section {section}: {page_range}")
 
