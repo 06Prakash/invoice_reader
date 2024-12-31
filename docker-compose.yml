@@ -5,6 +5,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "5001:5000"
+    volumes:
+      - ./migrations:/app/migrations  # Mount the migrations directory
+      - ./logs:/app/logs  # Optional: persist logs
     env_file:
       - .env
     networks:

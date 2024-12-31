@@ -1,11 +1,23 @@
 # backend/app.py
 import logging
 import os
+import importlib
+import pkgutil
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from flask_migrate import Migrate 
 from extensions import db, bcrypt, login_manager, jwt
 from modules.routes import register_routes
+
+def import_all_models(package_name):
+    """
+    Dynamically imports all modules in the specified package.
+    This ensures all models are registered with Flask-Migrate.
+    """
+    package = importlib.import_module(package_name)
+    for _, module_name, is_pkg in pkgutil.walk_packages(package.__path__, package.__name__ + "."):
+        if not is_pkg:
+            importlib.import_module(module_name)
 
 def create_app():
     app = Flask(__name__, static_folder='static', static_url_path='')
@@ -17,6 +29,8 @@ def create_app():
 
     app.config.from_object('config')
 
+    # In `create_app()` function, just call:
+    import_all_models('modules.models')
     db.init_app(app)
     bcrypt.init_app(app)
     login_manager.init_app(app)

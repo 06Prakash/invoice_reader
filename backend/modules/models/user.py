@@ -6,7 +6,8 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(150), unique=True, nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-    role = db.Column(db.String(50), nullable=False, default='user')
+    role = db.Column(db.String(50), nullable=False, default='user')  # Roles like 'admin', 'manager', etc.
+    special_admin = db.Column(db.Boolean, default=False)  # For special administrators
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)
     company = db.relationship('Company', backref=db.backref('users', lazy=True))
 
