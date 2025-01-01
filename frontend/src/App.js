@@ -8,6 +8,7 @@ import LoginComponent from './components/LoginComponent';
 import NavBar from './components/NavBar';
 import LinearProgress from '@mui/material/LinearProgress';
 import PageBasedExtractionComponent from './components/PageBasedExtractionComponent';
+import CreditUpdateComponent from './components/CreditUpdateComponent';
 
 import './App.css';
 
@@ -22,6 +23,9 @@ const App = () => {
     const [originalLines, setOriginalLines] = useState([]);
     const [progress, setProgress] = useState(0);
     const [token, setToken] = useState(localStorage.getItem('jwt_token') || '');
+    const [userRole, setUserRole] = useState(
+        JSON.parse(localStorage.getItem('special_admin')) ? 'special_admin' : 'user'
+    );
 
     // Update Axios headers on token change
     useEffect(() => {
@@ -82,7 +86,9 @@ const App = () => {
 
     const handleLogout = () => {
         setToken('');
+        setUserRole('user');
         localStorage.removeItem('jwt_token');
+        localStorage.removeItem('special_admin');
         axios.defaults.headers.common['Authorization'] = null;
     };
 
@@ -194,6 +200,16 @@ const App = () => {
                                 </>
                             ) : (
                                 <Redirect to="/login" />
+                            )
+                        }
+                    />
+                    <Route
+                        path="/credit-update"
+                        render={() =>
+                            token && userRole === 'special_admin' ? (
+                                <CreditUpdateComponent />
+                            ) : (
+                                <Redirect to="/" />
                             )
                         }
                     />

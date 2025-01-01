@@ -2,9 +2,9 @@ from flask import request, jsonify, send_from_directory
 from flask_jwt_extended import jwt_required
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from .logging_util import setup_logger
-from .azure_extraction import extract_with_azure
-from .progress_tracker import ProgressTracker
+from modules.logging_util import setup_logger
+from modules.azure_extraction import extract_with_azure
+from modules.progress_tracker import ProgressTracker
 import os
 import json
 import csv

@@ -1,0 +1,17 @@
+from flask import Blueprint
+from .upload import register_upload_routes
+from .extract import register_extract_routes
+from .user_routes import user_bp
+from .credit_routes import credit_routes
+
+def register_routes(app):
+    """
+    Register all application routes and blueprints.
+    """
+    # Register individual route modules
+    register_upload_routes(app)
+    register_extract_routes(app)
+
+    # Register blueprints for users and credits
+    app.register_blueprint(user_bp, url_prefix='/user')
+    app.register_blueprint(credit_routes, url_prefix='/credit')

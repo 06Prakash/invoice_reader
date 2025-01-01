@@ -3,7 +3,7 @@ from extensions import db, bcrypt
 from modules.models.user import User
 from modules.models.company import Company
 from sqlalchemy.orm import joinedload
-
+from flask_jwt_extended import create_access_token
 
 def create_user(username, email, password, company_name):
     if User.query.filter_by(username=username).first():
@@ -44,3 +44,4 @@ def authenticate_user(username, password):
     if user and bcrypt.check_password_hash(user.password_hash, password):
         return user
     return None
+

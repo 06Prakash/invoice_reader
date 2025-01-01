@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Button, TextField, Grid, Snackbar, Alert } from '@mui/material';
+import { useHistory } from 'react-router-dom'; // Replace useNavigate with useHistory
 import './styles/LoginComponent.css';
 
 const LoginComponent = ({ setToken }) => {
@@ -8,7 +9,8 @@ const LoginComponent = ({ setToken }) => {
     const [password, setPassword] = useState('');
     const [showSnackbar, setShowSnackbar] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
-    const [snackbarSeverity, setSnackbarSeverity] = useState('success'); // 'success' or 'error'
+    const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+    const history = useHistory(); // Initialize useHistory
 
     const handleLogin = async () => {
         if (!username || !password) {
@@ -19,9 +21,16 @@ const LoginComponent = ({ setToken }) => {
         try {
             const response = await axios.post('/user/login', { username, password });
             const token = response.data.access_token;
+            const isSpecialAdmin = response.data.special_admin;
+
+            // Save token and special_admin status to localStorage
             setToken(token);
             localStorage.setItem('jwt_token', token);
+            localStorage.setItem('special_admin', JSON.stringify(isSpecialAdmin));
+            localStorage.setItem('username', username);
+
             showMessage('Login successful', 'success');
+            history.push('/'); // Navigate to home after login
         } catch (error) {
             console.error('Error logging in:', error);
             showMessage('Invalid username or password', 'error');
