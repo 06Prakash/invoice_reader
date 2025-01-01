@@ -1,12 +1,12 @@
 # backend/modules/user_routes.py
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required
-from modules.services.user_service import create_user, get_all_users, authenticate_user
+from modules.services.user_service import create_user, get_all_users, authenticate_user, search_user_service
 from modules.middleware.admin_middleware import special_admin_required
 
-import logging
+from modules.logging_util import setup_logger
 
-logging.basicConfig(level=logging.INFO)
+logger = setup_logger()
 
 user_bp = Blueprint('user', __name__)
 
@@ -25,7 +25,7 @@ def register():
     if isinstance(result, dict) and 'error' in result:
         return jsonify({'message': result['error']}), 400
 
-    logging.info(f"New user registered: {username}")
+    logger.info(f"New user registered: {username}")
     return jsonify({'message': 'User registered successfully'}), 201
 
 @user_bp.route('/login', methods=['POST'])
@@ -56,35 +56,32 @@ def login():
 
     return jsonify({'message': 'Invalid credentials'}), 401
 
-
-@user_bp.route('/users', methods=['GET'])
-@jwt_required()
-def get_users():
-    users_list = get_all_users()
-    return jsonify(users_list), 200
-
-@user_bp.route('/user/search', methods=['GET'])
+@user_bp.route('/search', methods=['GET'])
 @jwt_required()
 def search_user():
     """
     Search for a user by username or email.
     """
     query = request.args.get('query', '').strip()
+    logger.info(f"Query collected: {query}")
 
-    if not query:
-        return jsonify({'error': 'Search query is required'}), 400
+    # Use the service to perform the search
+    result = search_user_service(query)
+    logger.info(f"Result Obtained: {result}")
 
-    user = User.query.filter(
-        (User.username.ilike(f'%{query}%')) | (User.email.ilike(f'%{query}%'))
-    ).first()
+    # If the result is a dictionary with an 'error' key, return an error response
+    if 'error' in result:
+        logger.error(f"Error: {result['error']}")
+        return jsonify(result), 400 if result['error'] == 'Search query is required' else 404
 
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
+    # Otherwise, return the user data
+    logger.info(f"User Found: {result}")
+    return jsonify(result), 200
 
-    return jsonify({
-        'id': user.id,
-        'username': user.username,
-        'email': user.email,
-        'credit_count': sum(credit.credit_count for credit in user.credits),
-        'is_special_admin': user.special_admin
-    }), 200
+
+
+@user_bp.route('/users', methods=['GET'])
+@jwt_required()
+def get_users():
+    users_list = get_all_users()
+    return jsonify(users_list), 200

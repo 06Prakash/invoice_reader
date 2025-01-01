@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Button, TextField, Grid, Snackbar, Alert } from '@mui/material';
+import { Button, TextField, Grid, Snackbar, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import { useHistory } from 'react-router-dom';
+import './styles/CreditUpdateComponent.css'; // Import the updated CSS
 
 const CreditUpdateComponent = () => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -9,12 +11,15 @@ const CreditUpdateComponent = () => {
     const [message, setMessage] = useState('');
     const [showSnackbar, setShowSnackbar] = useState(false);
     const [snackbarType, setSnackbarType] = useState('success');
+    const history = useHistory();
 
     const handleSearch = async () => {
         try {
             const response = await axios.get(`/user/search?query=${searchQuery}`);
+            console.log('User Data:', response.data);
             setUserData(response.data);
-            setCreditCount(response.data.credit_count); // Display current credit count
+            setCreditCount(response.data.credit_count || ''); // Display current credit count
+            showMessage('User found successfully', 'success');
         } catch (error) {
             console.error('Error fetching user data:', error);
             showMessage('User not found', 'error');
@@ -23,11 +28,10 @@ const CreditUpdateComponent = () => {
 
     const handleUpdateCredit = async () => {
         try {
-            // Determine if it's a personal user or a company user based on the presence of company_id
-            const isUser = !userData.company_id;
+            const isUser = !userData.company_id; // Determine if it's a personal user or a company user
 
             await axios.put(`/credit/update`, {
-                entityId: isUser ? userData.id : userData.company_id, // Send user_id or company_id
+                entityId: isUser ? userData.id : userData.company_id,
                 creditCount: parseInt(creditCount, 10),
             });
             showMessage('Credit updated successfully', 'success');
@@ -47,67 +51,94 @@ const CreditUpdateComponent = () => {
         setShowSnackbar(false);
     };
 
-    return (
-        <div>
-            <h2>Credit Update</h2>
-            <Grid container spacing={2}>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        label="Search by Username or Email"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <Button variant="contained" color="primary" onClick={handleSearch}>
-                        Search
-                    </Button>
-                </Grid>
-                {userData && (
-                    <>
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                label="Username"
-                                value={userData.username}
-                                disabled
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                label="Email"
-                                value={userData.email}
-                                disabled
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                label="Credit Count"
-                                value={creditCount}
-                                onChange={(e) => setCreditCount(e.target.value)}
-                                type="number"
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <Button variant="contained" color="secondary" onClick={handleUpdateCredit}>
-                                Update Credit
-                            </Button>
-                        </Grid>
-                    </>
-                )}
-            </Grid>
+    const handleBack = () => {
+        history.push('/'); // Navigate back to the PDF extraction page
+    };
 
-            {/* Snackbar for feedback */}
+    return (
+        <div className="credit-update-container">
+            <h2 className="page-title">Credit Update</h2>
+            <div className="search-section">
+                <TextField
+                    fullWidth
+                    label="Search by Username or Email"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    variant="outlined"
+                    className="text-field"
+                />
+                <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleSearch}
+                    className="primary-button"
+                >
+                    Search
+                </Button>
+            </div>
+            {userData && (
+                <>
+                    <TableContainer component={Paper} className="user-table">
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell><strong>Field</strong></TableCell>
+                                    <TableCell><strong>Value</strong></TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                <TableRow>
+                                    <TableCell>Username</TableCell>
+                                    <TableCell>{userData.username}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                    <TableCell>Email</TableCell>
+                                    <TableCell>{userData.email}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                    <TableCell>Current Credit</TableCell>
+                                    <TableCell>
+                                        <TextField
+                                            fullWidth
+                                            value={creditCount}
+                                            onChange={(e) => setCreditCount(e.target.value)}
+                                            type="number"
+                                            variant="outlined"
+                                            className="text-field"
+                                        />
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                    <Button
+                        fullWidth
+                        variant="contained"
+                        color="secondary"
+                        onClick={handleUpdateCredit}
+                        className="secondary-button"
+                    >
+                        Update Credit
+                    </Button>
+                </>
+            )}
+            <Button
+                fullWidth
+                variant="contained"
+                onClick={handleBack}
+                className="back-button"
+            >
+                Back to PDF Extraction
+            </Button>
             <Snackbar
                 open={showSnackbar}
                 autoHideDuration={4000}
                 onClose={handleSnackbarClose}
                 anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
             >
-                <Alert severity={snackbarType}>{message}</Alert>
+                <Alert onClose={handleSnackbarClose} severity={snackbarType}>
+                    {message}
+                </Alert>
             </Snackbar>
         </div>
     );

@@ -1,7 +1,8 @@
 from flask import request, jsonify, send_from_directory
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from modules.services.user_service import reduce_credits_for_user
 from modules.logging_util import setup_logger
 from modules.azure_extraction import extract_with_azure
 from modules.progress_tracker import ProgressTracker
@@ -22,6 +23,8 @@ def register_extract_routes(app):
         or template-based methods based on client requirements.
         """
         data = request.json
+        # Retrieve user ID from JWT token
+        user_id = get_jwt_identity()
 
         # Create a tracker instance
         progress_tracker = ProgressTracker()
@@ -43,12 +46,20 @@ def register_extract_routes(app):
         azure_endpoint = app.config['AZURE_ENDPOINT']
         azure_key = app.config['AZURE_KEY']
 
-        # Initialize progress tracking
-        progress_tracker.initialize_progress(progress_file)
 
         # Determine total pages for progress tracking
         total_pages = progress_tracker.calculate_total_pages(filenames, upload_folder)
 
+        # Deduct credits based on the total pages processed
+        try:
+            reduce_credits_for_user(user_id, total_pages)
+        except ValueError as e:
+            logger.error(f"Credit utilization failed: {e}")
+            return jsonify({'message': str(e)}), 400
+
+        # Initialize progress tracking
+        progress_tracker.initialize_progress(progress_file)
+        
         # Perform extraction
         results = perform_extraction(
             filenames, upload_folder, total_pages,
@@ -208,4 +219,3 @@ def register_extract_routes(app):
                 results.append(future.result())
 
         return results
-

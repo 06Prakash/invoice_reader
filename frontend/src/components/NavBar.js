@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
-import { Link, useHistory } from 'react-router-dom'; // Replace useNavigate with useHistory
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useHistory } from 'react-router-dom';
 import axios from 'axios';
 import './styles/NavBar.css';
-import newLogo from './../assets/logo192.png'; 
+import newLogo from './../assets/logo192.png';
 
 const NavBar = ({ token, setToken }) => {
     const [remainingCredits, setRemainingCredits] = useState(0);
     const [dropdownVisible, setDropdownVisible] = useState(false);
-    const history = useHistory(); // Use useHistory instead of useNavigate
+    const history = useHistory();
+    const dropdownRef = useRef(null); // Reference for the dropdown
     const username = localStorage.getItem('username');
     const isSpecialAdmin = JSON.parse(localStorage.getItem('special_admin'));
 
@@ -15,8 +16,8 @@ const NavBar = ({ token, setToken }) => {
         try {
             const response = await axios.get('/credit/remaining', {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
-                }
+                    Authorization: `Bearer ${localStorage.getItem('jwt_token')}`,
+                },
             });
             setRemainingCredits(response.data.remaining_credits || 0);
         } catch (error) {
@@ -30,7 +31,13 @@ const NavBar = ({ token, setToken }) => {
         localStorage.removeItem('special_admin');
         setToken('');
         axios.defaults.headers.common['Authorization'] = '';
-        history.push('/login'); // Use history.push instead of navigate
+        setDropdownVisible(false); // Close the dropdown
+        history.push('/login');
+    };
+
+    const navigateToCreditUpdate = () => {
+        setDropdownVisible(false); // Close the dropdown
+        history.push('/credit-update');
     };
 
     const toggleDropdown = () => {
@@ -40,6 +47,37 @@ const NavBar = ({ token, setToken }) => {
         setDropdownVisible(!dropdownVisible);
     };
 
+    const handleClickOutside = (event) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+            setDropdownVisible(false); // Close dropdown if clicked outside
+        }
+    };
+
+    // Add event listener for clicks outside the dropdown
+    useEffect(() => {
+        if (dropdownVisible) {
+            document.addEventListener('click', handleClickOutside);
+        } else {
+            document.removeEventListener('click', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+        };
+    }, [dropdownVisible]);
+
+    // Fetch credits every 5 minutes (300,000 ms)
+    useEffect(() => {
+        if (token) {
+            fetchCredits(); // Fetch credits immediately on login
+
+            const interval = setInterval(() => {
+                fetchCredits(); // Fetch credits every 5 minutes
+            }, 300000); // 300,000 milliseconds = 5 minutes
+
+            return () => clearInterval(interval); // Clear interval on component unmount
+        }
+    }, [token]);
+
     return (
         <nav className="navbar">
             <div className="navbar-brand">
@@ -48,7 +86,7 @@ const NavBar = ({ token, setToken }) => {
             </div>
             <div className="user-section">
                 {token ? (
-                    <div className="user-menu">
+                    <div className="user-menu" ref={dropdownRef}>
                         <span onClick={toggleDropdown} className="username">
                             {username} ({remainingCredits} Credits)
                         </span>
@@ -57,11 +95,7 @@ const NavBar = ({ token, setToken }) => {
                                 {isSpecialAdmin && (
                                     <div
                                         className="dropdown-item"
-                                        onClick={(event) => {
-                                            // event.stopPropagation(); // Prevent event bubbling
-                                            console.log('Navigating to /credit-update');
-                                            history.push('/credit-update'); // Navigate to Credit Update page
-                                        }}
+                                        onClick={navigateToCreditUpdate}
                                     >
                                         Credit Update
                                     </div>

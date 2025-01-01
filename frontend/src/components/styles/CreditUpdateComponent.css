@@ -1,0 +1,132 @@
+/* Container Styling */
+.credit-update-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 30px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    font-family: 'Arial', sans-serif;
+    color: #004d40;
+}
+
+/* Title Styling */
+.page-title {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 1.8rem;
+    font-weight: bold;
+}
+
+/* Search Section */
+.search-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.search-section .text-field {
+    flex: 1;
+}
+
+.search-section .primary-button {
+    flex-shrink: 0;
+    padding: 12px 20px;
+}
+
+/* Table Styling */
+.user-table {
+    margin: 20px 0;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.user-table th {
+    background-color: #004d40;
+    color: white;
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: bold;
+}
+
+.user-table td {
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    color: #333;
+    border-top: 1px solid #ddd;
+}
+
+/* Input Fields */
+.text-field {
+    padding: 10px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.text-field:focus {
+    border-color: #004d40;
+    box-shadow: 0 0 5px rgba(0, 77, 64, 0.4);
+}
+
+/* Unified Button Styling */
+.primary-button,
+.secondary-button,
+.back-button {
+    margin-top: 20px;
+    padding: 12px 20px;
+    font-size: 1rem;
+    font-weight: bold;
+    border-radius: 8px;
+    transition: background-color 0.3s, transform 0.2s;
+    color: white;
+    border: none;
+    cursor: pointer;
+    background-color: #004d40; /* Unified green color */
+}
+
+.primary-button:hover,
+.secondary-button:hover,
+.back-button:hover {
+    background-color: #00332d; /* Unified hover color */
+    transform: scale(1.02);
+}
+
+/* Snackbar Styling */
+.snackbar .MuiSnackbar-root {
+    z-index: 1400;
+}
+
+/* Responsive Styling */
+@media (max-width: 768px) {
+    .credit-update-container {
+        padding: 20px;
+    }
+
+    .page-title {
+        font-size: 1.5rem;
+    }
+
+    .primary-button,
+    .secondary-button,
+    .back-button {
+        font-size: 0.9rem;
+        padding: 10px 16px;
+    }
+
+    .search-section {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .user-table td,
+    .user-table th {
+        font-size: 0.85rem;
+        padding: 8px 12px;
+    }
+}

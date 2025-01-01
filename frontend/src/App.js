@@ -9,6 +9,8 @@ import NavBar from './components/NavBar';
 import LinearProgress from '@mui/material/LinearProgress';
 import PageBasedExtractionComponent from './components/PageBasedExtractionComponent';
 import CreditUpdateComponent from './components/CreditUpdateComponent';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
 
 import './App.css';
 
@@ -16,6 +18,8 @@ const App = () => {
     const [uploadedFiles, setUploadedFiles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [snackbarType, setSnackbarType] = useState('success');
     const [extractedData, setExtractedData] = useState(null);
     const [extractionModels, setExtractionModels] = useState([]);
     const [pageConfig, setPageConfig] = useState({});
@@ -42,6 +46,9 @@ const App = () => {
                 if (error.response?.status === 401) {
                     // Token expired or unauthorized access
                     handleLogout();
+                } else if (error.response?.status === 400 && error.response?.data?.message) {
+                    // Show toast for credit-related issues
+                    showToast("Ensure you have enough credits before performing extraction.", 'error');
                 }
                 return Promise.reject(error);
             }
@@ -51,6 +58,18 @@ const App = () => {
             axios.interceptors.response.eject(axiosInterceptor);
         };
     }, []);
+
+    // Show a toast/snackbar
+    const showToast = (msg, type) => {
+        setMessage(msg);
+        setSnackbarType(type);
+        setSnackbarOpen(true);
+    };
+
+    // Close the snackbar
+    const handleSnackbarClose = () => {
+        setSnackbarOpen(false);
+    };
 
     // Simulate progress update
     useEffect(() => {
@@ -124,11 +143,13 @@ const App = () => {
                 console.log('Data extracted successfully:', response.data);
                 setExtractedData(response.data);
                 setOriginalLines(response.data.lines_data || {});
+                showToast('Data extracted successfully.', 'success');
                 setMessage('Data extracted successfully.');
             })
             .catch((error) => {
                 console.error('Error extracting data:', error);
-                setMessage('Failed to extract data.');
+                const errorMessage = error.response?.data?.message || 'An unexpected error occurred.';
+                setMessage(errorMessage);
             })
             .finally(() => {
                 setLoading(false);
@@ -138,6 +159,19 @@ const App = () => {
     const handleExtractionMethodChange = (event) => {
         setSelectedModel(event.target.value);
     };
+
+    const ProtectedRoute = ({ component: Component, token, userRole, ...rest }) => (
+        <Route
+            {...rest}
+            render={(props) =>
+                token && userRole === 'special_admin' ? (
+                    <Component {...props} />
+                ) : (
+                    <Redirect to="/" />
+                )
+            }
+        />
+    );    
 
     return (
         <Router>
@@ -158,6 +192,7 @@ const App = () => {
                             token ? <Redirect to="/" /> : <LoginComponent setToken={setToken} />
                         }
                     />
+                    <ProtectedRoute path="/credit-update" component={CreditUpdateComponent} token={token} userRole={userRole} />
                     {/* Home */}
                     <Route
                         path="/"
@@ -203,17 +238,25 @@ const App = () => {
                             )
                         }
                     />
-                    <Route
-                        path="/credit-update"
-                        render={() =>
-                            token && userRole === 'special_admin' ? (
-                                <CreditUpdateComponent />
-                            ) : (
-                                <Redirect to="/" />
-                            )
-                        }
-                    />
+                   <Route path="*">
+                        <div>
+                            <h1>404: Route Not Found</h1>
+                            <p>Current URL: {window.location.pathname}</p>
+                        </div>
+                    </Route>
                 </Switch>
+
+                {/* Snackbar for notifications */}
+                <Snackbar
+                    open={snackbarOpen}
+                    autoHideDuration={5000}
+                    onClose={handleSnackbarClose}
+                    anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                >
+                    <Alert onClose={handleSnackbarClose} severity={snackbarType}>
+                        {message}
+                    </Alert>
+                </Snackbar>
             </div>
         </Router>
     );
