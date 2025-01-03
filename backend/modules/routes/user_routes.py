@@ -18,10 +18,10 @@ def register():
     password = data.get('password')
     company_name = data.get('company', '').strip()
 
-    if not username or not email or not password or not company_name:
+    if not username or not email or not password:
         return jsonify({'message': 'All fields are required'}), 400
 
-    result = create_user(username, email, password, company_name)
+    result = create_user(username, email, password)
     if isinstance(result, dict) and 'error' in result:
         return jsonify({'message': result['error']}), 400
 

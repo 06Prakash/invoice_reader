@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Button, TextField, Grid, Snackbar, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import { Button, TextField, Grid, Snackbar, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Typography } from '@mui/material';
 import { useHistory } from 'react-router-dom';
 import './styles/CreditUpdateComponent.css'; // Import the updated CSS
 
@@ -94,6 +94,20 @@ const CreditUpdateComponent = () => {
                                 <TableRow>
                                     <TableCell>Email</TableCell>
                                     <TableCell>{userData.email}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                    <TableCell>Account Type</TableCell>
+                                    <TableCell>
+                                        {userData.company_id ? (
+                                            <Typography variant="body2" color="textSecondary">
+                                                Business Account for <strong>{userData.company || 'Unknown Company'}</strong>
+                                            </Typography>
+                                        ) : (
+                                            <Typography variant="body2" color="textSecondary">
+                                                Personal Account
+                                            </Typography>
+                                        )}
+                                    </TableCell>
                                 </TableRow>
                                 <TableRow>
                                     <TableCell>Current Credit</TableCell>

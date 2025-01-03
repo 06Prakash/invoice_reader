@@ -48,7 +48,7 @@ const App = () => {
                     handleLogout();
                 } else if (error.response?.status === 400 && error.response?.data?.message) {
                     // Show toast for credit-related issues
-                    showToast("Ensure you have enough credits before performing extraction.", 'error');
+                    showToast(error.response.data.message, 'error');
                 }
                 return Promise.reject(error);
             }

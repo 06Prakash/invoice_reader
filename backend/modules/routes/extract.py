@@ -6,10 +6,9 @@ from modules.services.user_service import reduce_credits_for_user
 from modules.logging_util import setup_logger
 from modules.azure_extraction import extract_with_azure
 from modules.progress_tracker import ProgressTracker
+from modules.services.credit_service import validate_credits, reduce_credits
+from modules.services.page_service import calculate_pages_to_process
 import os
-import json
-import csv
-import io
 
 logger = setup_logger()
 
@@ -23,48 +22,61 @@ def register_extract_routes(app):
         or template-based methods based on client requirements.
         """
         data = request.json
-        # Retrieve user ID from JWT token
         user_id = get_jwt_identity()
-
-        # Create a tracker instance
         progress_tracker = ProgressTracker()
-        page_config = data.get('page_config')
-        logger.info(f"Page Config: {page_config}")  # Ensure page_config is being received
-        
+        page_config = data.get('page_config', {})
+        logger.info(f"Page Config: {page_config}")
+
         # Validate input data
         is_valid, error_response, status_code = validate_input(data)
         if not is_valid:
             return error_response, status_code
 
-        # Get configurations from app.config
         upload_folder = app.config['UPLOAD_FOLDER']
         progress_file = os.path.join(upload_folder, 'progress.txt')
 
-        # Extract filenames and template details
         filenames = data['filenames']
         extraction_model = data.get('extraction_model', 'NIRA AI - Printed Text (PB)').strip()
         azure_endpoint = app.config['AZURE_ENDPOINT']
         azure_key = app.config['AZURE_KEY']
 
-
-        # Determine total pages for progress tracking
+        # Calculate total pages in the PDF
         total_pages = progress_tracker.calculate_total_pages(filenames, upload_folder)
+        logger.info(f"Total Pages in PDF: {total_pages}")
 
-        # Deduct credits based on the total pages processed
+        # Calculate pages to process
+        pages_to_process = calculate_pages_to_process(page_config, total_pages)
+        logger.info(f"Pages to Process: {pages_to_process}")
+
+        if pages_to_process == 0:
+            return jsonify({'message': 'No pages to process based on the configuration.'}), 400
+
+        # Validate credit availability
         try:
-            reduce_credits_for_user(user_id, total_pages)
+            validate_credits(user_id, pages_to_process)
         except ValueError as e:
-            logger.error(f"Credit utilization failed: {e}")
+            logger.error(f"Credit validation failed: {e}")
             return jsonify({'message': str(e)}), 400
 
         # Initialize progress tracking
         progress_tracker.initialize_progress(progress_file)
-        
+
         # Perform extraction
-        results = perform_extraction(
-            filenames, upload_folder, total_pages,
-            progress_file, extraction_model, azure_endpoint, azure_key, progress_tracker, page_config
-        )
+        try:
+            results = perform_extraction(
+                filenames, upload_folder, pages_to_process,
+                progress_file, extraction_model, azure_endpoint, azure_key, progress_tracker, page_config
+            )
+        except Exception as e:
+            logger.error(f"Extraction failed: {e}")
+            return jsonify({'message': 'Extraction process failed. Please try again later.'}), 500
+
+        # Deduct credits after successful extraction
+        try:
+            reduce_credits(user_id, pages_to_process)
+        except ValueError as e:
+            logger.error(f"Credit deduction failed: {e}")
+            return jsonify({'message': 'Credit deduction failed after successful extraction.'}), 500
 
         # Process results
         response_data, lines_data, csv_data, text_data, excel_paths = process_results(results)
@@ -73,15 +85,13 @@ def register_extract_routes(app):
         with open(progress_file, 'w') as pf:
             pf.write('100')
 
-        # Return extracted data in multiple formats
         return jsonify({
-            'json_data': response_data,  # Only the JSON content
-            'lines_data': lines_data,    # Original lines
-            'csv_data': csv_data,        # Combined CSV
-            'text_data': text_data,      # Combined text
-            'excel_paths': excel_paths  # List of Excel paths for downloads
+            'json_data': response_data,
+            'lines_data': lines_data,
+            'csv_data': csv_data,
+            'text_data': text_data,
+            'excel_paths': excel_paths
         }), 200
-
 
     @app.route('/progress', methods=['GET'])
     @jwt_required()
@@ -219,3 +229,5 @@ def register_extract_routes(app):
                 results.append(future.result())
 
         return results
+
+

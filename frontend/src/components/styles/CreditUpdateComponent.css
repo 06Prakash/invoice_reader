@@ -83,7 +83,7 @@
     font-size: 1rem;
     font-weight: bold;
     border-radius: 8px;
-    transition: background-color 0.3s, transform 0.2s;
+    transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
     color: white;
     border: none;
     cursor: pointer;
@@ -94,7 +94,22 @@
 .secondary-button:hover,
 .back-button:hover {
     background-color: #00332d; /* Unified hover color */
-    transform: scale(1.02);
+    transform: scale(1.05);
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+}
+
+.primary-button:active,
+.secondary-button:active,
+.back-button:active {
+    transform: scale(0.98);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.primary-button:focus,
+.secondary-button:focus,
+.back-button:focus {
+    outline: 2px solid #80cbc4;
+    outline-offset: 2px;
 }
 
 /* Snackbar Styling */
@@ -129,4 +144,22 @@
         font-size: 0.85rem;
         padding: 8px 12px;
     }
+}
+
+/* Additional Effects */
+.primary-button:hover:focus,
+.secondary-button:hover:focus,
+.back-button:hover:focus {
+    box-shadow: 0 6px 12px rgba(0, 77, 64, 0.3);
+    transform: scale(1.08);
+}
+
+.primary-button:disabled,
+.secondary-button:disabled,
+.back-button:disabled {
+    background-color: #b2dfdb;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    color: #ffffff;
 }
