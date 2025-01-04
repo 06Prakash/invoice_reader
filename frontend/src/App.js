@@ -218,11 +218,6 @@ const App = () => {
                         }
                     />
                     <ProtectedRoute path="/credit-update" component={CreditUpdateComponent} token={token} userRole={userRole} />
-                    {/* Home */}
-                    <Route
-                            path="/upi-payment"
-                            render={() => token ? <UPIPayment userId={123 /* Pass logged-in user's ID */} /> : <Redirect to="/login" />}
-                        />
                     <Route
                         path="/payment"
                         render={() =>
