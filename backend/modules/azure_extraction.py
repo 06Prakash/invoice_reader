@@ -280,8 +280,9 @@ def extract_with_azure(
                         pages = ",".join(map(str, page_range))  # Convert [1, 3, 5] -> "1,3,5"
                     elif isinstance(page_range, str):
                         pages = page_range.replace(" ", "").strip()# Use the string directly if already in correct format
-                        if '-' in pages:
-                            pages = parse_page_ranges(pages)
+                        if "-" in pages:
+                            pages = ",".join(map(str, parse_page_ranges(pages)))
+                        logger.info(f"Test Data:{pages}")
                     else:
                         raise ValueError(f"Invalid page_range format for section {section}: {page_range}")
 
