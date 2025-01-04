@@ -1,4 +1,3 @@
-pytesseract==0.3.8
 pdf2image==1.16.0
 opencv-python-headless==4.5.3.56
 azure-ai-formrecognizer==3.2.0

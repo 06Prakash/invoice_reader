@@ -33,7 +33,8 @@ def register_extract_routes(app):
             return error_response, status_code
 
         upload_folder = app.config['UPLOAD_FOLDER']
-        progress_file = os.path.join(upload_folder, 'progress.txt')
+        # Create a user-specific progress file
+        progress_file = os.path.join(upload_folder, f'progress_{user_id}.txt')
 
         filenames = data['filenames']
         extraction_model = data.get('extraction_model', 'NIRA AI - Printed Text (PB)').strip()
@@ -99,8 +100,9 @@ def register_extract_routes(app):
         """
         Fetches the progress of ongoing extractions.
         """
+        user_id = get_jwt_identity()
         upload_folder = app.config['UPLOAD_FOLDER']
-        progress_file = os.path.join(upload_folder, 'progress.txt')
+        progress_file = os.path.join(upload_folder, f'progress_{user_id}.txt')
         try:
             with open(progress_file, 'r') as f:
                 progress = f.read()
@@ -218,6 +220,7 @@ def register_extract_routes(app):
             futures = []
             for filename in filenames:
                 specified_pages = page_config.get(filename) if page_config else None
+                logger.info(specified_pages)
                 futures.append(
                     executor.submit(
                         extract_with_azure, filename, upload_folder, upload_folder, total_pages, progress_file, progress_tracker,

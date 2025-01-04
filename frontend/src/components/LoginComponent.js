@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Button, TextField, Grid, Snackbar, Alert } from '@mui/material';
-import { useHistory } from 'react-router-dom'; // Replace useNavigate with useHistory
+import { useHistory } from 'react-router-dom';
 import './styles/LoginComponent.css';
 
 const LoginComponent = ({ setToken }) => {
@@ -10,32 +10,32 @@ const LoginComponent = ({ setToken }) => {
     const [showSnackbar, setShowSnackbar] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [snackbarSeverity, setSnackbarSeverity] = useState('success');
-    const history = useHistory(); // Initialize useHistory
+    const history = useHistory();
 
     const handleLogin = async () => {
         if (!username || !password) {
             showMessage('Please fill in all fields', 'error');
             return;
         }
-
+    
         try {
             const response = await axios.post('/user/login', { username, password });
-            const token = response.data.access_token;
-            const isSpecialAdmin = response.data.special_admin;
-
-            // Save token and special_admin status to localStorage
-            setToken(token);
-            localStorage.setItem('jwt_token', token);
-            localStorage.setItem('special_admin', JSON.stringify(isSpecialAdmin));
+            const { access_token, refresh_token, special_admin } = response.data;
+    
+            // Save tokens and user details in localStorage
+            setToken(access_token);
+            localStorage.setItem('jwt_token', access_token);
+            localStorage.setItem('refresh_token', refresh_token);
+            localStorage.setItem('special_admin', special_admin); // Store as boolean
             localStorage.setItem('username', username);
-
+    
             showMessage('Login successful', 'success');
             history.push('/'); // Navigate to home after login
         } catch (error) {
             console.error('Error logging in:', error);
             showMessage('Invalid username or password', 'error');
         }
-    };
+    };    
 
     const showMessage = (message, severity) => {
         setSnackbarMessage(message);

@@ -13,6 +13,8 @@ JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'default_jwt_secret_key')
 SQLALCHEMY_POOL_SIZE = 20  # Increase pool size
 SQLALCHEMY_MAX_OVERFLOW = 10
 SQLALCHEMY_POOL_TIMEOUT = 30
+RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET')
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)

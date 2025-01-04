@@ -5,6 +5,7 @@ import UploadComponent from './components/UploadComponent';
 import DataReview from './components/DataReview';
 import RegisterComponent from './components/RegisterComponent';
 import LoginComponent from './components/LoginComponent';
+import PaymentPageComponent from "./components/PaymentPageComponent";
 import NavBar from './components/NavBar';
 import LinearProgress from '@mui/material/LinearProgress';
 import PageBasedExtractionComponent from './components/PageBasedExtractionComponent';
@@ -28,8 +29,8 @@ const App = () => {
     const [progress, setProgress] = useState(0);
     const [token, setToken] = useState(localStorage.getItem('jwt_token') || '');
     const [userRole, setUserRole] = useState(
-        JSON.parse(localStorage.getItem('special_admin')) ? 'special_admin' : 'user'
-    );
+        localStorage.getItem('special_admin') === 'true' ? 'special_admin' : 'user'
+    );    
 
     // Update Axios headers on token change
     useEffect(() => {
@@ -101,6 +102,30 @@ const App = () => {
                 console.error('Error fetching extraction models:', error);
                 setExtractionModels(['NIRA AI - Printed Text (PB)']); // Default on error
             });
+    }, []);
+
+    useEffect(() => {
+        const refreshTokenInterval = setInterval(async () => {
+            try {
+                const refreshResponse = await axios.post('/user/refresh-token', null, {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem('refresh_token')}`,
+                    },
+                });
+    
+                const { access_token } = refreshResponse.data;
+    
+                // Update the token in localStorage and Axios headers
+                localStorage.setItem('jwt_token', access_token);
+                axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+                console.log('Token refreshed successfully.');
+            } catch (error) {
+                console.error('Failed to refresh token:', error);
+                handleLogout(); // Logout user if token refresh fails
+            }
+        }, 2 * 60 * 1000); // Refresh every 2 minutes
+    
+        return () => clearInterval(refreshTokenInterval); // Cleanup on unmount
     }, []);
 
     const handleLogout = () => {
@@ -175,8 +200,8 @@ const App = () => {
 
     return (
         <Router>
-            <div className="App">
-                <NavBar token={token} setToken={setToken} />
+            <div className="App" key={userRole}>
+                <NavBar token={token} setToken={setToken} userRole={userRole} />
                 <Switch>
                     {/* Registration */}
                     <Route
@@ -194,6 +219,21 @@ const App = () => {
                     />
                     <ProtectedRoute path="/credit-update" component={CreditUpdateComponent} token={token} userRole={userRole} />
                     {/* Home */}
+                    <Route
+                            path="/upi-payment"
+                            render={() => token ? <UPIPayment userId={123 /* Pass logged-in user's ID */} /> : <Redirect to="/login" />}
+                        />
+                    <Route
+                        path="/payment"
+                        render={() =>
+                            token ? (
+                            <PaymentPageComponent userId={123 /* Pass logged-in user ID dynamically */} />
+                            ) : (
+                            <Redirect to="/login" />
+                            )
+                        }
+                    />
+
                     <Route
                         path="/"
                         render={() =>

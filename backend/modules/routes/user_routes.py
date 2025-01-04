@@ -1,6 +1,6 @@
 # backend/modules/user_routes.py
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required
+from flask_jwt_extended import create_access_token, jwt_required, create_refresh_token, get_jwt_identity
 from modules.services.user_service import create_user, get_all_users, authenticate_user, search_user_service
 from modules.middleware.admin_middleware import special_admin_required
 
@@ -31,7 +31,7 @@ def register():
 @user_bp.route('/login', methods=['POST'])
 def login():
     """
-    Handles user login, generating an access token and returning user details.
+    Handles user login, generating access and refresh tokens, and returning user details.
     """
     data = request.json
     username = data.get('username')
@@ -40,7 +40,7 @@ def login():
     # Authenticate the user
     user = authenticate_user(username, password)
     if user:
-        # Create a JWT token with additional claims
+        # Create the access token with additional claims
         access_token = create_access_token(
             identity=str(user.id),  # Convert user ID to string explicitly
             additional_claims={
@@ -48,8 +48,13 @@ def login():
                 'company': user.company.name if user.company else None  # Add company name if available
             }
         )
+
+        # Create the refresh token
+        refresh_token = create_refresh_token(identity=str(user.id))
+
         return jsonify({
             'access_token': access_token,
+            'refresh_token': refresh_token,  # Include refresh token in the response
             'special_admin': user.special_admin,  # Include special_admin in the response
             'username': user.username  # Include username for personalization
         }), 200
@@ -85,3 +90,19 @@ def search_user():
 def get_users():
     users_list = get_all_users()
     return jsonify(users_list), 200
+
+@user_bp.route('/refresh-token', methods=['POST'])
+@jwt_required(refresh=True)  # Ensure only refresh tokens can access this route
+def refresh_token():
+    """
+    Generates a new access token using a valid refresh token.
+    """
+    current_user = get_jwt_identity()
+
+    # Generate a new access token
+    new_access_token = create_access_token(identity=current_user)
+    logger.info(f"Refreshing Token for user {current_user}..")
+
+    return jsonify({
+        "access_token": new_access_token
+    }), 200

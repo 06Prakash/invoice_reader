@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useHistory } from 'react-router-dom';
+import { Link, useHistory, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import './styles/NavBar.css';
 import newLogo from './../assets/logo192.png';
 
-const NavBar = ({ token, setToken }) => {
+const NavBar = ({ token, setToken, userRole }) => {
     const [remainingCredits, setRemainingCredits] = useState(0);
     const [dropdownVisible, setDropdownVisible] = useState(false);
+    const location = useLocation();
     const history = useHistory();
+    const currentPath = location.pathname;
     const dropdownRef = useRef(null); // Reference for the dropdown
     const username = localStorage.getItem('username');
-    const isSpecialAdmin = JSON.parse(localStorage.getItem('special_admin'));
+    const isSpecialAdmin = userRole && userRole === 'special_admin';
+    const excludedPaths = ['/login', '/register', '/forgot-password'];
 
     const fetchCredits = async () => {
         try {
@@ -19,7 +22,7 @@ const NavBar = ({ token, setToken }) => {
                     Authorization: `Bearer ${localStorage.getItem('jwt_token')}`,
                 },
             });
-            setRemainingCredits(response.data.remaining_credits || 0);
+            setRemainingCredits(response.data.remaining_credits || 0.00);
         } catch (error) {
             console.error('Error fetching remaining credits:', error);
         }
@@ -38,6 +41,11 @@ const NavBar = ({ token, setToken }) => {
     const navigateToCreditUpdate = () => {
         setDropdownVisible(false); // Close the dropdown
         history.push('/credit-update');
+    };
+
+    const navigateToPurchaseCredits = () => {
+        setDropdownVisible(false); // Close the dropdown
+        history.push('/payment');
     };
 
     const toggleDropdown = () => {
@@ -67,16 +75,17 @@ const NavBar = ({ token, setToken }) => {
 
     // Fetch credits every 5 minutes (300,000 ms)
     useEffect(() => {
-        if (token) {
+        // Exclude login and registration pages
+        if (token && !excludedPaths.includes(currentPath)) {
             fetchCredits(); // Fetch credits immediately on login
 
             const interval = setInterval(() => {
-                fetchCredits(); // Fetch credits every 5 minutes
-            }, 300000); // 300,000 milliseconds = 5 minutes
+                fetchCredits(); // Fetch credits every 1 minute
+            }, 60000); // 60,000 milliseconds = 1 minute
 
             return () => clearInterval(interval); // Clear interval on component unmount
         }
-    }, [token]);
+    }, [token, currentPath]);
 
     return (
         <nav className="navbar">
@@ -92,6 +101,7 @@ const NavBar = ({ token, setToken }) => {
                         </span>
                         {dropdownVisible && (
                             <div className="dropdown-menu">
+                                {/* Special admin menu */}
                                 {isSpecialAdmin && (
                                     <div
                                         className="dropdown-item"
@@ -100,6 +110,14 @@ const NavBar = ({ token, setToken }) => {
                                         Credit Update
                                     </div>
                                 )}
+                                {/* Purchase Credits menu */}
+                                <div
+                                    className="dropdown-item"
+                                    onClick={navigateToPurchaseCredits}
+                                >
+                                    Purchase Credits
+                                </div>
+                                {/* Logout menu */}
                                 <div className="dropdown-item" onClick={handleLogout}>
                                     Logout
                                 </div>

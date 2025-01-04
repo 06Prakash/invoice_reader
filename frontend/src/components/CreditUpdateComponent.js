@@ -1,8 +1,22 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Button, TextField, Grid, Snackbar, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Typography } from '@mui/material';
+import {
+    Button,
+    TextField,
+    Grid,
+    Snackbar,
+    Alert,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    Typography,
+} from '@mui/material';
 import { useHistory } from 'react-router-dom';
-import './styles/CreditUpdateComponent.css'; // Import the updated CSS
+import './styles/CreditUpdateComponent.css';
 
 const CreditUpdateComponent = () => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -18,7 +32,9 @@ const CreditUpdateComponent = () => {
             const response = await axios.get(`/user/search?query=${searchQuery}`);
             console.log('User Data:', response.data);
             setUserData(response.data);
-            setCreditCount(response.data.credit_count || ''); // Display current credit count
+            setCreditCount(
+                parseFloat(response.data.credit_count || 0).toFixed(2) // Parse credit count as decimal
+            );
             showMessage('User found successfully', 'success');
         } catch (error) {
             console.error('Error fetching user data:', error);
@@ -32,7 +48,7 @@ const CreditUpdateComponent = () => {
 
             await axios.put(`/credit/update`, {
                 entityId: isUser ? userData.id : userData.company_id,
-                creditCount: parseInt(creditCount, 10),
+                creditCount: parseFloat(creditCount).toFixed(2), // Send decimal value
             });
             showMessage('Credit updated successfully', 'success');
         } catch (error) {
@@ -115,8 +131,10 @@ const CreditUpdateComponent = () => {
                                         <TextField
                                             fullWidth
                                             value={creditCount}
-                                            onChange={(e) => setCreditCount(e.target.value)}
-                                            type="number"
+                                            onChange={(e) =>
+                                                setCreditCount(e.target.value.replace(/[^0-9.]/g, '')) // Allow only numbers and decimals
+                                            }
+                                            type="text"
                                             variant="outlined"
                                             className="text-field"
                                         />

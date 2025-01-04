@@ -11,11 +11,14 @@ COPY frontend/package*.json ./
 # Install frontend dependencies with no optional packages
 RUN npm install --omit=optional
 
+# Expose the React development server port
+EXPOSE 3000
+
 # Copy the rest of the frontend code and build it
 COPY frontend/ .
 RUN npm run build
 
-# Step 2: Build the backend and create the final image
+# Step 2: Backend and runtime setup
 FROM python:3.9-slim
 WORKDIR /app
 
@@ -27,22 +30,13 @@ RUN pip install --no-cache-dir -r app-requirements.txt
 COPY backend/base-requirements.txt .
 RUN pip install --no-cache-dir -r base-requirements.txt
 
-# We don't need this if we have Azure
-# Create EasyOCR model directory and download models during build
-# RUN mkdir -p /root/.EasyOCR/model && \
-# python -c "import easyocr; easyocr.Reader(['en'], model_storage_directory='/root/.EasyOCR', download_enabled=True)"
-
-# Verify if models are downloaded correctly
-# RUN ls -lh /root/.EasyOCR/model  # This should list the downloaded models
-
-# Install necessary packages for PDF processing, OpenCV, and PostgreSQL client (psql)
+# Install additional tools and libraries
 RUN apt-get update && apt-get install -y \
-    tesseract-ocr \
-    libtesseract-dev \
     poppler-utils \
     libgl1-mesa-glx \
     postgresql-client \
     dos2unix \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -55,6 +49,7 @@ COPY --from=build-frontend /frontend/build /app/static
 # Copy the entrypoint script
 COPY entrypoint.sh /app/entrypoint.sh
 
+# Convert entrypoint to Unix format
 RUN dos2unix /app/entrypoint.sh
 
 # Create the logs directory

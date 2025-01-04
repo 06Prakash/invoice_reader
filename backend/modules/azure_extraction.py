@@ -267,6 +267,7 @@ def extract_with_azure(
         # Initialize a dictionary to store section-specific data and outputs
         section_data = {}
         outputs = {"json": None, "csv": None, "text": None, "excel": None, "text_data": "", "original_lines": ""}
+        logger.info(page_config)
 
         if page_config:
             # Process each section's page range

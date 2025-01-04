@@ -1,18 +1,49 @@
+version: "3.9"
+
 services:
-  app:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile  # Single Dockerfile in the root folder
+    ports:
+      - "5001:5000"  # Expose backend on port 5001
+    volumes:
+      - ./backend:/app  # Mount the backend folder for live updates
+      - ./migrations:/app/migrations  # Persist database migrations
+      - ./logs:/app/logs  # Persist logs locally
+      - ./resources:/app/resources  # Mount resources folder (e.g., templates)
+      - ./uploads:/app/uploads  # Mount uploads folder
+    env_file:
+      - .env  # Use environment variables from .env file
+    networks:
+      - shared_network
+    command: ["python", "app.py"]  # Run Flask app in development
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health/check"]
+      start_period: 10s  # Wait 10 seconds before starting health checks
+      interval: 2m  # Perform subsequent health checks every 2 minutes
+      timeout: 10s
+      retries: 3
+
+
+  frontend:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "5001:5000"
+      target: build-frontend
+    image: node:18-alpine
+    working_dir: /frontend
     volumes:
-      - ./migrations:/app/migrations  # Mount the migrations directory
-      - ./logs:/app/logs  # Optional: persist logs
-    env_file:
-      - .env
+      - ./frontend:/frontend  # Mount the frontend folder for live updates
+      - /frontend/node_modules  # Ensure `node_modules` is container-specific
+    ports:
+      - "3000:3000"  # Expose React development server port
+    command: ["npm", "start"]  # Run React development server
     networks:
       - shared_network
-    entrypoint: ["python", "app.py"]
+    depends_on:
+      backend:
+        condition: service_healthy  # Wait for backend to be healthy
 
 networks:
   shared_network:
