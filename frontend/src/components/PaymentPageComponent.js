@@ -37,7 +37,7 @@ const PaymentPageComponent = () => {
     // Calculate transaction fee and credits
     const handleAmountChange = (e) => {
         const enteredAmount = parseFloat(e.target.value) || 0;
-        const fee = parseFloat((enteredAmount * 2) / 100).toFixed(2); // 2% transaction fee
+        const fee = parseFloat((enteredAmount * 2.36) / 100).toFixed(2); // 2% transaction fee
         const credits = parseFloat((enteredAmount - fee) / 10).toFixed(2); // ₹10 = 1 credit
 
         setAmount(enteredAmount);
@@ -153,7 +153,7 @@ const PaymentPageComponent = () => {
             </div>
 
             <div className="payment-summary">
-                <p>Transaction Fee (2%): ₹{transactionFee.toFixed(2)}</p>
+                <p>Transaction Fee including GST (2.36 %): ₹{transactionFee.toFixed(2)}</p>
                 <p>Credits You Will Receive: {finalCredits.toFixed(2)}</p>
             </div>
 

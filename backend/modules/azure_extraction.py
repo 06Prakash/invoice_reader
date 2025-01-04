@@ -7,6 +7,7 @@ from .logging_util import setup_logger
 import csv
 import json
 from concurrent.futures import ThreadPoolExecutor
+from azure.core.exceptions import HttpResponseError
 
 logger = setup_logger()
 
@@ -65,7 +66,7 @@ def process_table_extraction(result, filename, output_folder, progress_tracker, 
             excel_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_tables.xlsx")
             with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
                 for idx, table in enumerate(tables):
-                    table.to_excel(writer, sheet_name=f"Table_{idx + 1}", index=False)
+                    table.to_excel(writer, sheet_name=f"_{idx + 1}", index=False)
             logger.info(f"Tables extracted and saved to {excel_path}")
             outputs['excel'] = excel_path
         except Exception as e:
@@ -249,10 +250,11 @@ def extract_with_azure(
 ):
     """
     Extracts data from a PDF using Azure Form Recognizer and processes it based on the extraction type.
-    Handles section-specific page configurations when provided.
+    Handles section-specific page configurations when provided, with support for chunked page processing.
     """
-    from azure.core.exceptions import HttpResponseError
-
+    # Retrieve chunk size from environment variables (default to 2 if not set)
+    chunk_size = int(os.getenv("AZURE_CHUNK_SIZE", 2))
+    
     document_analysis_client = DocumentAnalysisClient(
         endpoint=azure_endpoint,
         credential=AzureKeyCredential(azure_key)
@@ -269,6 +271,11 @@ def extract_with_azure(
         outputs = {"json": None, "csv": None, "text": None, "excel": None, "text_data": "", "original_lines": ""}
         logger.info(page_config)
 
+        def split_pages(pages, chunk_size):
+            """Splits a list of pages into chunks of a given size."""
+            for i in range(0, len(pages), chunk_size):
+                yield pages[i:i + chunk_size]
+
         if page_config:
             # Process each section's page range
             for section, page_range in page_config.items():
@@ -277,41 +284,42 @@ def extract_with_azure(
 
                     # Ensure the page_range is properly formatted for Azure
                     if isinstance(page_range, list):
-                        pages = ",".join(map(str, page_range))  # Convert [1, 3, 5] -> "1,3,5"
+                        page_list = page_range
                     elif isinstance(page_range, str):
-                        pages = page_range.replace(" ", "").strip()# Use the string directly if already in correct format
-                        if "-" in pages:
-                            pages = ",".join(map(str, parse_page_ranges(pages)))
-                        logger.info(f"Test Data:{pages}")
+                        page_list = list(parse_page_ranges(page_range.replace(" ", "").strip()))
                     else:
                         raise ValueError(f"Invalid page_range format for section {section}: {page_range}")
 
-                    with open(pdf_path, "rb") as document:
-                        poller = document_analysis_client.begin_analyze_document(mapped_model, document, pages=pages)
-                        result = poller.result()
+                    for chunk in split_pages(page_list, chunk_size):
+                        pages = ",".join(map(str, chunk))
+                        logger.info(f"Processing chunk for section {section}: {pages}")
+                        
+                        with open(pdf_path, "rb") as document:
+                            poller = document_analysis_client.begin_analyze_document(mapped_model, document, pages=pages)
+                            result = poller.result()
 
-                    if mapped_model == "prebuilt-layout":
-                        section_outputs = process_table_extraction(
-                            result, f"{filename}_{section}", output_folder, progress_tracker, progress_file, total_pages
-                        )
-                        section_data[section] = section_outputs.get("raw_tables", [])
-                    elif mapped_model == 'MutualFundModelSundaramFinance':
-                        section_outputs = process_field_extraction(
-                            result, f"{filename}_{section}", output_folder, progress_tracker, progress_file, total_pages
-                        )
-                        section_data[section] = section_outputs.get("json_data", {})
-                    else:
-                        section_outputs = process_text_extraction(
-                            result, f"{filename}_{section}", output_folder, progress_tracker, progress_file, total_pages
-                        )
-                        section_data[section] = {"text_data": section_outputs.get("text_data", "")}
+                        if mapped_model == "prebuilt-layout":
+                            section_outputs = process_table_extraction(
+                                result, f"{filename}_{section}", output_folder, progress_tracker, progress_file, total_pages
+                            )
+                            section_data.setdefault(section, []).extend(section_outputs.get("raw_tables", []))
+                        elif mapped_model == 'MutualFundModelSundaramFinance':
+                            section_outputs = process_field_extraction(
+                                result, f"{filename}_{section}", output_folder, progress_tracker, progress_file, total_pages
+                            )
+                            section_data.setdefault(section, {}).update(section_outputs.get("json_data", {}))
+                        else:
+                            section_outputs = process_text_extraction(
+                                result, f"{filename}_{section}", output_folder, progress_tracker, progress_file, total_pages
+                            )
+                            section_data.setdefault(section, {"text_data": ""})["text_data"] += section_outputs.get("text_data", "")
 
-                    # Aggregate outputs
-                    outputs["text_data"] += f"\n{section_outputs.get('text_data', '')}"
-                    outputs["original_lines"] += f"\n{section_outputs.get('original_lines', '')}"
-                    for key in ["json", "csv", "excel", "text"]:
-                        if section_outputs.get(key):
-                            outputs[key] = section_outputs[key]
+                        # Aggregate outputs
+                        outputs["text_data"] += f"\n{section_outputs.get('text_data', '')}"
+                        outputs["original_lines"] += f"\n{section_outputs.get('original_lines', '')}"
+                        for key in ["json", "csv", "excel", "text"]:
+                            if section_outputs.get(key):
+                                outputs[key] = section_outputs[key]
 
                 except HttpResponseError as e:
                     logger.error(f"Error processing section {section}: {e}")
@@ -319,35 +327,36 @@ def extract_with_azure(
                     logger.error(f"Unexpected error processing section {section}: {section_error}")
 
         else:
-            # If no page config is provided, process the entire document
-            with open(pdf_path, "rb") as document:
-                poller = document_analysis_client.begin_analyze_document(mapped_model, document)
-                result = poller.result()
+            # If no page config is provided, process the entire document in chunks
+            all_pages = list(range(1, total_pages + 1))
+            for chunk in split_pages(all_pages, chunk_size):
+                pages = ",".join(map(str, chunk))
+                logger.info(f"Processing chunk: {pages}")
 
-            if mapped_model == "prebuilt-layout":
-                full_outputs = process_table_extraction(
-                    result, filename, output_folder, progress_tracker, progress_file, total_pages
-                )
-                section_data["Full Document"] = full_outputs.get("raw_tables", [])
-                outputs.update(full_outputs)
-            elif mapped_model == 'MutualFundModelSundaramFinance':
-                full_outputs = process_field_extraction(
-                    result, filename, output_folder, progress_tracker, progress_file, total_pages
-                )
-                section_data["Full Document"] = full_outputs.get("json_data", {})
-                outputs["original_lines"] = full_outputs.get("original_lines", "")
-            else:
-                full_outputs = process_text_extraction(
-                    result, filename, output_folder, progress_tracker, progress_file, total_pages
-                )
-                section_data["Full Document"] = {"text_data": full_outputs.get("text_data", "")}
-                outputs["text_data"] = full_outputs.get("text_data", "")
-                outputs["original_lines"] = full_outputs.get("original_lines", "")
+                with open(pdf_path, "rb") as document:
+                    poller = document_analysis_client.begin_analyze_document(mapped_model, document, pages=pages)
+                    result = poller.result()
 
-            # Aggregate outputs
-            outputs.update(full_outputs)
+                if mapped_model == "prebuilt-layout":
+                    full_outputs = process_table_extraction(
+                        result, filename, output_folder, progress_tracker, progress_file, total_pages
+                    )
+                    section_data.setdefault("Full Document", []).extend(full_outputs.get("raw_tables", []))
+                elif mapped_model == 'MutualFundModelSundaramFinance':
+                    full_outputs = process_field_extraction(
+                        result, filename, output_folder, progress_tracker, progress_file, total_pages
+                    )
+                    section_data.setdefault("Full Document", {}).update(full_outputs.get("json_data", {}))
+                    outputs["original_lines"] += full_outputs.get("original_lines", "")
+                else:
+                    full_outputs = process_text_extraction(
+                        result, filename, output_folder, progress_tracker, progress_file, total_pages
+                    )
+                    section_data.setdefault("Full Document", {"text_data": ""})["text_data"] += full_outputs.get("text_data", "")
+                    outputs["text_data"] += full_outputs.get("text_data", "")
+                    outputs["original_lines"] += full_outputs.get("original_lines", "")
 
-        # Save section data to an Excel file
+        # Save outputs (JSON, CSV, Text, Excel)
         excel_path = save_sections_to_excel(section_data, filename, output_folder)
         outputs["excel"] = excel_path
 
@@ -355,8 +364,12 @@ def extract_with_azure(
         json_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_sections.json")
         serializable_section_data = {}
         for section, content in section_data.items():
-            if isinstance(content, list):  # Handle list of DataFrames for tables
-                serializable_section_data[section] = [table.to_dict(orient="records") for table in content if isinstance(table, pd.DataFrame)]
+            if isinstance(content, list):  # Handle lists of DataFrames (e.g., tables)
+                serializable_section_data[section] = [
+                    table.to_dict(orient="records") for table in content if isinstance(table, pd.DataFrame)
+                ]
+            elif isinstance(content, pd.DataFrame):  # Handle single DataFrame
+                serializable_section_data[section] = content.to_dict(orient="records")
             else:
                 serializable_section_data[section] = content  # Include non-DataFrame content as is
 
@@ -365,19 +378,7 @@ def extract_with_azure(
         logger.info(f"Section data saved as JSON at {json_path}")
         outputs["json"] = json_path
 
-        # Save CSV data
-        csv_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_sections.csv")
-        with open(csv_path, "w", newline="", encoding="utf-8") as csv_file:
-            for section, tables in section_data.items():
-                for idx, table in enumerate(tables):
-                    if isinstance(table, pd.DataFrame):
-                        csv_file.write(f"Section: {section}, Table {idx + 1}\n")
-                        table.to_csv(csv_file, index=False)
-                        csv_file.write("\n")  # Separate tables with a newline
-        logger.info(f"Section data saved as CSV at {csv_path}")
-        outputs["csv"] = csv_path
 
-        # Save Text data
         text_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_text.txt")
         with open(text_path, "w", encoding="utf-8") as text_file:
             text_file.write(outputs["text_data"].strip())
