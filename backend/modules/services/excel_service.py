@@ -12,13 +12,14 @@ def convert_parentheses_to_negative(df):
     """
     Converts values in parentheses (e.g., "(10)") to negative numbers (e.g., -10).
     Handles values with commas like "(3,140)" as well.
-    Includes safeguards for unexpected data formats.
+    Restores commas for thousands separators after conversion for readability.
+    Ensures integers are stored without decimals.
 
     Args:
         df (pd.DataFrame): Input DataFrame to process.
 
     Returns:
-        pd.DataFrame: DataFrame with parentheses-converted values.
+        pd.DataFrame: DataFrame with converted values and formatted numbers.
     """
     logger.info("Attempting to convert parentheses to negative numbers..")
     try:
@@ -27,11 +28,29 @@ def convert_parentheses_to_negative(df):
             if isinstance(value, str) and value.startswith('(') and value.endswith(')'):
                 try:
                     # Remove commas, strip parentheses, and convert to negative float
-                    return -float(value.replace(',', '').strip('()'))
+                    converted_value = -float(value.replace(',', '').strip('()'))
+                    return format_number_with_commas(converted_value)
                 except ValueError as e:
                     logger.error(f"Failed to convert value: {value} with error: {e}")
                     return value  # Return original value if conversion fails
+            elif isinstance(value, (int, float)):
+                # Format numeric values with commas
+                return format_number_with_commas(value)
             return value
+
+        def format_number_with_commas(number):
+            """
+            Formats a number with commas for thousands separators.
+            Retains numeric type for compatibility with Excel storage.
+            """
+            if isinstance(number, (int, float)):
+                # Check if the number is effectively an integer
+                if isinstance(number, float) and number.is_integer():
+                    return "{:,}".format(int(number))  # Format as integer with commas
+                elif isinstance(number, float):
+                    return "{:,.2f}".format(number)  # Format float with two decimal places
+                return "{:,}".format(number)  # Format integer with commas
+            return number
 
         # Apply the conversion safely to the DataFrame
         return df.applymap(safe_convert)
@@ -39,37 +58,42 @@ def convert_parentheses_to_negative(df):
         logger.error(f"Unexpected error in convert_parentheses_to_negative: {e}")
         raise  # Propagate exception for visibility
 
-def remove_columns(df, columns_to_remove):
+def remove_columns(df, texts_to_match):
     """
-    Promotes the first row of the DataFrame to column headers (if required) and removes specified columns.
-    
+    Removes columns from the DataFrame that match any of the specified texts in the first row.
+
     Args:
         df (pd.DataFrame): Input DataFrame to process.
-        columns_to_remove (list): List of column names to remove.
+        texts_to_match (list): List of texts to match in the first row.
 
     Returns:
-        pd.DataFrame: Processed DataFrame with specified columns removed.
+        pd.DataFrame: Processed DataFrame with the matching columns removed.
     """
     try:
-        logger.info("Promoting the first row to column headers.")
-        # Promote the 0th row to column headers
-        df.columns = df.iloc[0]  # Set the first row as the header
-        df = df[1:]  # Drop the first row since it's now the header
-        
+        logger.info(f"Attempting to remove columns with any of the texts {texts_to_match} in the first row.")
+
         # Normalize column names
-        df.columns = df.columns.str.strip()  # Strip spaces from column names
-        df.columns = df.columns.str.lower()  # Convert to lowercase for case-insensitive matching
+        df.columns = df.columns.map(str).str.strip().str.lower()
+
+        # Normalize first-row values
+        first_row_normalized = df.iloc[0].astype(str).str.strip().str.lower()
+
+        # Normalize texts_to_match
+        texts_to_match = [text.strip().lower() for text in texts_to_match]
+
+        # Find matching columns
+        matching_columns = first_row_normalized[first_row_normalized.isin(texts_to_match)].index.tolist()
         
-        logger.info(f"Attempting to remove columns: {', '.join(columns_to_remove)}")
-        columns_to_remove = [col.lower() for col in columns_to_remove]  # Normalize target columns
-        
-        # Remove specified columns
-        df = df.drop(columns=[col for col in columns_to_remove if col in df.columns], errors='ignore')
-        
-        logger.info(f"DataFrame after removing columns:\n{df.head()}")
+        if matching_columns:
+            logger.info(f"Found matching columns {matching_columns}. Removing them.")
+            df = df.drop(columns=matching_columns, errors='ignore')
+        else:
+            logger.warning(f"No matching texts {texts_to_match} found in the first row.")
+
+        logger.info(f"DataFrame after column removal:\n{df.head()}")
         return df
     except Exception as e:
-        logger.error(f"Error in remove_columns: {e}")
+        logger.error(f"Error in remove_columns_by_row_values: {e}")
         raise
 
 
@@ -227,6 +251,10 @@ def process_table_data(df, config):
 
     if columns := config.get("columnsToRemove", []):
         df = remove_columns(df, columns)
+    
+    if len(config.get("rowsToRemove", [])) > 0:
+        rowsToRemove = config.get("rowsToRemove", [])
+        df = remove_rows(df, rowsToRemove)
     logger.info(f"Data Frame after processing: {df}")
     return df
 
@@ -265,6 +293,7 @@ def save_sections_to_excel(section_data, filename, output_folder, config=None):
                 section_config = config.get(section, {}).get('excel', {})
                 columns_to_remove = section_config.get('columnsToRemove', [])
                 grid_lines_removal = section_config.get('gridLinesRemoval', False)
+                rows_to_remove = section_config.get('rowsToRemove', [])
 
                 logger.info(f"Processing section: {section} with config: {section_config}, Content Type: {type(content)}")
 
@@ -278,7 +307,7 @@ def save_sections_to_excel(section_data, filename, output_folder, config=None):
                             # Process table data with section-specific configuration
                             table = process_table_data(
                                 table,
-                                {"columnsToRemove": columns_to_remove, "gridLinesRemoval": grid_lines_removal}
+                                {"columnsToRemove": columns_to_remove, "gridLinesRemoval": grid_lines_removal, 'rowsToRemove': rows_to_remove}
                             )
                             save_sheet(
                                 writer,

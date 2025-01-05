@@ -7,6 +7,7 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
     const [section, setSection] = useState('');
     const [pageRange, setPageRange] = useState('');
     const [columnsToRemove, setColumnsToRemove] = useState('');
+    const [rowsToRemove, setRowsToRemove] = useState('');
     const [gridLinesRemoval, setGridLinesRemoval] = useState(false);
     const [notification, setNotification] = useState('');
     const [isExpanded, setIsExpanded] = useState(false);
@@ -42,6 +43,7 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
                     pageRange,
                     excel: {
                         columnsToRemove: columnsToRemove.split(',').map((col) => col.trim()), // Convert to array
+                        rowsToRemove: rowsToRemove.split(',').map((row) => row.trim()), // Convert to array
                         gridLinesRemoval,
                     },
                 },
@@ -50,6 +52,7 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
         setSection('');
         setPageRange('');
         setColumnsToRemove('');
+        setRowsToRemove('');
     };
 
     const handleRemoveSection = (file, sectionToRemove) => {
@@ -69,6 +72,7 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
         setSection('');
         setPageRange('');
         setColumnsToRemove('');
+        setRowsToRemove('');
         setGridLinesRemoval(false);
     };
 
@@ -122,6 +126,20 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
                                                 )
                                             }
                                         />
+                                        <input
+                                            type="text"
+                                            placeholder="Rows to remove (comma-separated)"
+                                            value={config.excel?.rowsToRemove?.join(', ') || ''}
+                                            onChange={(e) =>
+                                                handleInputChange(
+                                                    file,
+                                                    section,
+                                                    'excel',
+                                                    'rowsToRemove',
+                                                    e.target.value.split(',').map((row) => row.trim())
+                                                )
+                                            }
+                                        />
                                         <button onClick={() => handleRemoveSection(file, section)}>Remove Section</button>
                                     </div>
                                 ))}
@@ -162,6 +180,12 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
                             placeholder="Columns to remove (comma-separated)"
                             value={columnsToRemove}
                             onChange={(e) => setColumnsToRemove(e.target.value)}
+                        />
+                        <input
+                            type="text"
+                            placeholder="Rows to remove (comma-separated)"
+                            value={rowsToRemove}
+                            onChange={(e) => setRowsToRemove(e.target.value)}
                         />
                         <label>
                             <input
