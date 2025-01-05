@@ -6,15 +6,23 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
     const [filename, setFilename] = useState('');
     const [section, setSection] = useState('');
     const [pageRange, setPageRange] = useState('');
+    const [columnsToRemove, setColumnsToRemove] = useState('');
+    const [gridLinesRemoval, setGridLinesRemoval] = useState(false);
     const [notification, setNotification] = useState('');
     const [isExpanded, setIsExpanded] = useState(false);
 
-    const handleInputChange = (file, section, value) => {
+    const handleInputChange = (file, section, category, key, value) => {
         setPageConfig((prevConfig) => ({
             ...prevConfig,
             [file]: {
                 ...prevConfig[file],
-                [section]: value,
+                [section]: {
+                    ...prevConfig[file][section],
+                    [category]: {
+                        ...prevConfig[file][section]?.[category],
+                        [key]: value,
+                    },
+                },
             },
         }));
     };
@@ -30,11 +38,18 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
             ...prevConfig,
             [sanitizedFilename]: {
                 ...prevConfig[sanitizedFilename],
-                [section]: pageRange,
+                [section]: {
+                    pageRange,
+                    excel: {
+                        columnsToRemove: columnsToRemove.split(',').map((col) => col.trim()), // Convert to array
+                        gridLinesRemoval,
+                    },
+                },
             },
         }));
         setSection('');
         setPageRange('');
+        setColumnsToRemove('');
     };
 
     const handleRemoveSection = (file, sectionToRemove) => {
@@ -53,6 +68,8 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
         setFilename('');
         setSection('');
         setPageRange('');
+        setColumnsToRemove('');
+        setGridLinesRemoval(false);
     };
 
     const handleSubmit = () => {
@@ -80,14 +97,30 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
                         {Object.entries(pageConfig).map(([file, sections]) => (
                             <div key={file} className="file-config">
                                 <h4>{file}</h4>
-                                {Object.entries(sections).map(([section, range]) => (
+                                {Object.entries(sections).map(([section, config]) => (
                                     <div key={section} className="section-config">
                                         <label>{section}:</label>
                                         <input
                                             type="text"
                                             placeholder="e.g., 1,3-4"
-                                            value={range || ''}
-                                            onChange={(e) => handleInputChange(file, section, e.target.value)}
+                                            value={config.pageRange || ''}
+                                            onChange={(e) =>
+                                                handleInputChange(file, section, 'general', 'pageRange', e.target.value)
+                                            }
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Columns to remove (comma-separated)"
+                                            value={config.excel?.columnsToRemove?.join(', ') || ''}
+                                            onChange={(e) =>
+                                                handleInputChange(
+                                                    file,
+                                                    section,
+                                                    'excel',
+                                                    'columnsToRemove',
+                                                    e.target.value.split(',').map((col) => col.trim())
+                                                )
+                                            }
                                         />
                                         <button onClick={() => handleRemoveSection(file, section)}>Remove Section</button>
                                     </div>
@@ -124,6 +157,20 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
                             value={pageRange}
                             onChange={(e) => setPageRange(e.target.value)}
                         />
+                        <input
+                            type="text"
+                            placeholder="Columns to remove (comma-separated)"
+                            value={columnsToRemove}
+                            onChange={(e) => setColumnsToRemove(e.target.value)}
+                        />
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={gridLinesRemoval}
+                                onChange={(e) => setGridLinesRemoval(e.target.checked)}
+                            />
+                            Remove Gridlines
+                        </label>
                         <button onClick={handleAddSectionConfig}>Add Section</button>
                     </div>
 
