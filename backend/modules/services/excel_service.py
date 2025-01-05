@@ -3,26 +3,75 @@ import os
 from openpyxl import load_workbook
 from modules.logging_util import setup_logger
 logger = setup_logger()
+import re
+
+def sanitize_sheet_name(sheet_name):
+    return re.sub(r'[\\/*?:\[\]]', '', sheet_name)[:31]
 
 def convert_parentheses_to_negative(df):
     """
     Converts values in parentheses (e.g., "(10)") to negative numbers (e.g., -10).
     Handles values with commas like "(3,140)" as well.
+    Includes safeguards for unexpected data formats.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame to process.
+
+    Returns:
+        pd.DataFrame: DataFrame with parentheses-converted values.
     """
     logger.info("Attempting to convert parentheses to negative numbers..")
-    return df.applymap(lambda x: 
-        -float(str(x).replace(',', '').strip('()')) if isinstance(x, str) and x.startswith('(') and x.endswith(')') 
-        else x)
+    try:
+        # Apply conversion with error handling
+        def safe_convert(value):
+            if isinstance(value, str) and value.startswith('(') and value.endswith(')'):
+                try:
+                    # Remove commas, strip parentheses, and convert to negative float
+                    return -float(value.replace(',', '').strip('()'))
+                except ValueError as e:
+                    logger.error(f"Failed to convert value: {value} with error: {e}")
+                    return value  # Return original value if conversion fails
+            return value
+
+        # Apply the conversion safely to the DataFrame
+        return df.applymap(safe_convert)
+    except Exception as e:
+        logger.error(f"Unexpected error in convert_parentheses_to_negative: {e}")
+        raise  # Propagate exception for visibility
 
 def remove_columns(df, columns_to_remove):
     """
-    Removes specified columns from the DataFrame.
+    Promotes the first row of the DataFrame to column headers (if required) and removes specified columns.
+    
+    Args:
+        df (pd.DataFrame): Input DataFrame to process.
+        columns_to_remove (list): List of column names to remove.
+
+    Returns:
+        pd.DataFrame: Processed DataFrame with specified columns removed.
     """
-    logger.info(f"Attempting to remove columns {', '.join(columns_to_remove)}")
-    df.columns = df.columns.str.strip()  # Strip spaces from column names
-    df.columns = df.columns.str.lower()  # Normalize column names to lowercase
-    columns_to_remove = [col.lower() for col in columns_to_remove]  # Normalize target columns
-    return df.drop(columns=[col for col in columns_to_remove if col in df.columns], errors='ignore')
+    try:
+        logger.info("Promoting the first row to column headers.")
+        # Promote the 0th row to column headers
+        df.columns = df.iloc[0]  # Set the first row as the header
+        df = df[1:]  # Drop the first row since it's now the header
+        
+        # Normalize column names
+        df.columns = df.columns.str.strip()  # Strip spaces from column names
+        df.columns = df.columns.str.lower()  # Convert to lowercase for case-insensitive matching
+        
+        logger.info(f"Attempting to remove columns: {', '.join(columns_to_remove)}")
+        columns_to_remove = [col.lower() for col in columns_to_remove]  # Normalize target columns
+        
+        # Remove specified columns
+        df = df.drop(columns=[col for col in columns_to_remove if col in df.columns], errors='ignore')
+        
+        logger.info(f"DataFrame after removing columns:\n{df.head()}")
+        return df
+    except Exception as e:
+        logger.error(f"Error in remove_columns: {e}")
+        raise
+
 
 def consolidate_tables(tables):
     """
@@ -76,6 +125,7 @@ def process_excel(input_excel_path, output_excel_path, config=None):
 
                 # Step 1: Convert parentheses to negative numbers
                 df = convert_parentheses_to_negative(df)
+                logger.info("Crossed the paranthesis to negative numbers conversion")
 
                 # Step 2: Remove specified columns
                 if columns_to_remove:
@@ -119,9 +169,48 @@ def save_sheet(writer, df, sheet_name, config):
     Saves a DataFrame to a specific sheet in the Excel writer.
     Applies configurations like gridline removal.
     """
-    df.to_excel(writer, sheet_name=sheet_name[:31], index=False, header=False)
-    if config.get("gridLinesRemoval", False):
-        remove_gridlines(writer, sheet_name)
+    import re
+    safe_sheet_name = re.sub(r'[\\/*?:\[\]]', '', sheet_name)[:31]
+    if len(sheet_name) > 31:
+        logger.warning(f"Sheet name '{sheet_name}' exceeds 31 characters. Truncated to '{safe_sheet_name}'.")
+    if df.empty:
+        logger.warning(f"Skipping empty DataFrame for sheet: {safe_sheet_name}")
+        return
+    try:
+        df.to_excel(writer, sheet_name=safe_sheet_name, index=False, header=False)
+        if config.get("gridLinesRemoval", False) and safe_sheet_name in writer.sheets:
+            remove_gridlines(writer, safe_sheet_name)
+    except Exception as e:
+        logger.error(f"Failed to save sheet '{safe_sheet_name}': {e}")
+
+def remove_rows(df, identity_to_remove_row):
+    """
+    Removes rows from the DataFrame based on specific identifiers.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame to process.
+        identity_to_remove_row (list): List of identifiers to remove from the DataFrame.
+                                       These identifiers can be present in any column.
+
+    Returns:
+        pd.DataFrame: The DataFrame after removing the specified rows.
+    """
+    if not identity_to_remove_row:
+        logger.info("No identifiers provided to remove rows. Returning the original DataFrame.")
+        return df
+
+    logger.info(f"Attempting to remove rows with identifiers: {identity_to_remove_row}")
+
+    # Normalize the identifiers to a set for faster lookups
+    identifiers_set = set(identity_to_remove_row)
+
+    # Apply a filter to keep only rows that do not match any identifier
+    filtered_df = df[~df.apply(lambda row: any(item in identifiers_set for item in row.astype(str)), axis=1)]
+
+    logger.info(f"Removed rows. Original shape: {df.shape}, New shape: {filtered_df.shape}")
+
+    return filtered_df
+
 
 def process_table_data(df, config):
     """
@@ -130,10 +219,11 @@ def process_table_data(df, config):
     - Removing specific columns
     - Converting parentheses to negatives
     """
-    if config.get("numericHeaderRemoval", False):
-        df = remove_numeric_headers(df)
 
+    logger.info(f"Data Frame : {df}")
     df = convert_parentheses_to_negative(df)
+    logger.info("Crossed the paranthesis update function")
+    logger.info(f"Current config: {config}")
 
     if columns := config.get("columnsToRemove", []):
         df = remove_columns(df, columns)
@@ -151,20 +241,19 @@ def consolidate_and_save(writer, consolidated_data, config):
 def save_sections_to_excel(section_data, filename, output_folder, config=None):
     """
     Saves processed section-specific data to an Excel file.
-    Ensures at least one visible sheet exists, even if no data is extracted.
+    Incorporates section-specific Excel configurations.
 
     Args:
-        section_data (dict): Data for each section.
-        filename (str): Name of the file being processed.
-        output_folder (str): Folder to save the output file.
-        config (dict): Configuration options for processing.
+        section_data (dict): Section data containing tables or other information.
+        filename (str): Name of the input file.
+        output_folder (str): Path to save the processed Excel file.
+        config (dict, optional): Configuration dictionary containing per-section settings.
 
     Returns:
-        dict: A dictionary with the result ('success' or 'failure') and either the Excel path or an error message.
+        dict: Result dictionary with 'success' or 'failure' status and relevant messages.
     """
     config = config or {}
     excel_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_sections_processed.xlsx")
-    consolidated_data = []
     logger.info(f"====section_data====={section_data}")
 
     try:
@@ -172,24 +261,48 @@ def save_sections_to_excel(section_data, filename, output_folder, config=None):
             has_data = False
 
             for section, content in section_data.items():
-                logger.info(f"Processing section: {section}, Content Type: {type(content)}")
+                # Extract section-specific Excel configuration
+                section_config = config.get(section, {}).get('excel', {})
+                columns_to_remove = section_config.get('columnsToRemove', [])
+                grid_lines_removal = section_config.get('gridLinesRemoval', False)
+
+                logger.info(f"Processing section: {section} with config: {section_config}, Content Type: {type(content)}")
+
                 if isinstance(content, list):  # Process tables
                     for idx, table in enumerate(content):
                         if isinstance(table, pd.DataFrame) and not table.empty:
                             logger.info(f"Writing table {idx + 1} for section {section}, shape: {table.shape}")
-                            table = process_table_data(table, config)
-                            if config.get("Merge tables to one sheet", False):
-                                consolidated_data.append(table)
-                            else:
-                                save_sheet(writer, table, f"{section}_Table_{idx + 1}", config)
+                            safe_sheet_name = sanitize_sheet_name(f"{section}_Table_{idx + 1}")
+                            logger.info(f"Sheet name: {safe_sheet_name}")
+
+                            # Process table data with section-specific configuration
+                            table = process_table_data(
+                                table,
+                                {"columnsToRemove": columns_to_remove, "gridLinesRemoval": grid_lines_removal}
+                            )
+                            save_sheet(
+                                writer,
+                                table,
+                                safe_sheet_name,
+                                {"gridLinesRemoval": grid_lines_removal}
+                            )
                             has_data = True
                         else:
                             logger.warning(f"Skipping empty or invalid table for section: {section}")
                 elif isinstance(content, dict):  # Process field-based data
                     df = pd.DataFrame(content.items(), columns=["Field", "Value"])
                     if not df.empty:
-                        df = process_table_data(df, config)
-                        save_sheet(writer, df, section, config)
+                        safe_sheet_name = sanitize_sheet_name(section)
+                        df = process_table_data(
+                            df,
+                            {"columnsToRemove": columns_to_remove, "gridLinesRemoval": grid_lines_removal}
+                        )
+                        save_sheet(
+                            writer,
+                            df,
+                            safe_sheet_name,
+                            {"gridLinesRemoval": grid_lines_removal}
+                        )
                         has_data = True
                     else:
                         logger.warning(f"Generated empty DataFrame for section: {section}")
@@ -197,18 +310,22 @@ def save_sections_to_excel(section_data, filename, output_folder, config=None):
                     rows = [row.split() for row in content.split("\n") if row.strip()]
                     df = pd.DataFrame(rows)
                     if not df.empty:
-                        df = process_table_data(df, config)
-                        save_sheet(writer, df, section, config)
+                        safe_sheet_name = sanitize_sheet_name(section)
+                        df = process_table_data(
+                            df,
+                            {"columnsToRemove": columns_to_remove, "gridLinesRemoval": grid_lines_removal}
+                        )
+                        save_sheet(
+                            writer,
+                            df,
+                            safe_sheet_name,
+                            {"gridLinesRemoval": grid_lines_removal}
+                        )
                         has_data = True
                     else:
                         logger.warning(f"Generated empty DataFrame for section: {section}")
                 else:
                     logger.warning(f"Unsupported content type for section: {section}. Skipping.")
-
-            if config.get("Merge tables to one sheet", False) and consolidated_data:
-                consolidate_and_save(writer, consolidated_data, config)
-            elif config.get("Merge tables to one sheet", False):
-                logger.warning("No consolidated data available to save.")
 
             if not has_data:
                 logger.warning("No valid data found. Adding default placeholder sheet.")

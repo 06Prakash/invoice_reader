@@ -30,7 +30,7 @@ def extraction_model_mapping(model_name):
     }
     return model_mapping.get(clean_model_name, "prebuilt-read")  # Default to "prebuilt-read"
 
-def process_table_extraction(result, filename, output_folder, progress_tracker, progress_file, total_pages, extra_requirements=None):
+def process_table_extraction(result, filename, output_folder, progress_tracker, progress_file, total_pages):
     """
     Processes the Azure Form Recognizer result for table extraction and generates outputs.
     Includes raw table data and original lines in the return value.
@@ -143,7 +143,7 @@ def process_text_extraction(result, filename, output_folder, progress_tracker, p
 
     return outputs
 
-def process_field_extraction(result, filename, output_folder, progress_tracker, progress_file, total_pages, extra_requirements = None):
+def process_field_extraction(result, filename, output_folder, progress_tracker, progress_file, total_pages):
     """
     Processes field-based extraction results and updates progress.
 
@@ -231,7 +231,7 @@ def extract_original_lines(result):
 
 def extract_with_azure(
     filename, upload_folder, output_folder, total_pages, progress_file, progress_tracker,
-    extraction_model, azure_endpoint, azure_key, page_config=None, extra_requirements=None
+    extraction_model, azure_endpoint, azure_key, page_config=None
 ):
     """
     Extracts data from a PDF using Azure Form Recognizer and processes it based on the extraction type.
@@ -248,7 +248,7 @@ def extract_with_azure(
     logger.info(f"Starting Azure extraction for {filename} at {pdf_path} with model {extraction_model}")
 
     # Ensure extra_requirements is not None
-    extra_requirements = extra_requirements or {}
+    extra_requirements = page_config or {}
 
     try:
         mapped_model = extraction_model_mapping(extraction_model)
@@ -283,9 +283,6 @@ def extract_with_azure(
                     else:
                         raise ValueError(f"Invalid page_range format for section {section}: {page_range}")
 
-                    # Extract additional requirements like Excel processing
-                    section_extra_requirements = config
-
                     for chunk in split_pages(page_list, chunk_size):
                         pages = ",".join(map(str, chunk))
                         logger.info(f"Processing chunk for section {section}: {pages}")
@@ -298,7 +295,7 @@ def extract_with_azure(
                         if mapped_model == "prebuilt-layout":
                             section_outputs = process_table_extraction(
                                 result, f"{filename}_{section}", output_folder, progress_tracker, progress_file,
-                                total_pages, section_extra_requirements
+                                total_pages
                             )
                             # section_data["csv"] = section_outputs.get("csv")
                             # section_data["text_data"] = section_outputs.get("text_data", "No original text")
@@ -306,7 +303,7 @@ def extract_with_azure(
                         elif mapped_model == 'MutualFundModelSundaramFinance':
                             section_outputs = process_field_extraction(
                                 result, f"{filename}_{section}", output_folder, progress_tracker, progress_file,
-                                total_pages, section_extra_requirements
+                                total_pages
                             )
                             section_data.setdefault(section, {}).update(section_outputs.get("json_data", {}))
                             # section_data["csv"] = section_outputs.get("csv", "NO CSV Data")
@@ -314,7 +311,7 @@ def extract_with_azure(
                         else:
                             section_outputs = process_text_extraction(
                                 result, f"{filename}_{section}", output_folder, progress_tracker, progress_file,
-                                total_pages, section_extra_requirements
+                                total_pages
                             )
                             section_data.setdefault(section, {"text_data": ""})["text_data"] += section_outputs.get("text_data", "")
                             # section_data["csv"] = section_outputs.get("csv", "No CSV DATA")
@@ -345,7 +342,7 @@ def extract_with_azure(
 
                 if mapped_model == "prebuilt-layout":
                     full_outputs = process_table_extraction(
-                        result, filename, output_folder, progress_tracker, progress_file, total_pages, extra_requirements
+                        result, filename, output_folder, progress_tracker, progress_file, total_pages
                     )
                     logger.info(full_outputs)
                     outputs["csv"] = full_outputs.get("csv")
@@ -359,7 +356,7 @@ def extract_with_azure(
 
                 elif mapped_model == 'MutualFundModelSundaramFinance':
                     full_outputs = process_field_extraction(
-                        result, filename, output_folder, progress_tracker, progress_file, total_pages, extra_requirements
+                        result, filename, output_folder, progress_tracker, progress_file, total_pages
                     )
                     section_data.setdefault("Full Document", {}).update(full_outputs.get("json_data", {}))
                     outputs["csv"] = full_outputs.get("csv", "No CSV Data")
@@ -367,7 +364,7 @@ def extract_with_azure(
                     outputs["text_data"] += full_outputs.get("text_data", "No text Data")
                 else:
                     full_outputs = process_text_extraction(
-                        result, filename, output_folder, progress_tracker, progress_file, total_pages, extra_requirements
+                        result, filename, output_folder, progress_tracker, progress_file, total_pages
                     )
                     section_data.setdefault("Full Document", {"text_data": ""})["text_data"] += full_outputs.get("text_data", "")
                     outputs["csv"] = full_outputs.get("csv", "No CSV Data")
@@ -381,7 +378,8 @@ def extract_with_azure(
 
 
         # Save the processed Excel file
-        excel_save_result = save_sections_to_excel(section_data, filename, output_folder, extra_requirements.get("excel", {}))
+        logger.info(f"extra_requirements: {extra_requirements}")
+        excel_save_result = save_sections_to_excel(section_data, filename, output_folder, extra_requirements)
         if excel_save_result['result'] == 'success':
             logger.info("Got the excel path successfully..")
             outputs["excel"] = excel_save_result['excel_path']
