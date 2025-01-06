@@ -2,12 +2,13 @@ from flask import request, jsonify, send_from_directory
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from PyPDF2 import PdfReader
 from modules.services.user_service import reduce_credits_for_user
 from modules.logging_util import setup_logger
 from modules.azure_extraction import extract_with_azure
 from modules.progress_tracker import ProgressTracker
 from modules.services.credit_service import validate_credits, reduce_credits
-from modules.services.page_service import calculate_pages_to_process
+from modules.services.page_service import calculate_pages_to_process, calculate_file_pages_to_process
 import os
 
 logger = setup_logger()
@@ -63,36 +64,68 @@ def register_extract_routes(app):
         progress_tracker.initialize_progress(progress_file)
 
         # Perform extraction
+        results = []
         try:
-            results = perform_extraction(
-                filenames, upload_folder, pages_to_process,
-                progress_file, extraction_model, azure_endpoint, azure_key, progress_tracker, page_config
+            results, file_page_counts = perform_extraction(
+                filenames, upload_folder, progress_file, extraction_model, azure_endpoint, azure_key, progress_tracker, page_config
             )
         except Exception as e:
             logger.error(f"Extraction failed: {e}")
             return jsonify({'message': 'Extraction process failed. Please try again later.'}), 500
 
-        # Deduct credits after successful extraction
-        try:
-            reduce_credits(user_id, pages_to_process)
-        except ValueError as e:
-            logger.error(f"Credit deduction failed: {e}")
-            return jsonify({'message': 'Credit deduction failed after successful extraction.'}), 500
+        # Separate successful and failed extractions
+        successful_results = []
+        failed_files = []
+        for result in results:
+            if 'error' in result:
+                failed_files.append(result['filename'])
+                logger.error(f"Extraction failed for file: {result['filename']}, Error: {result['error']}")
+            else:
+                successful_results.append(result)
 
-        # Process results
-        response_data, lines_data, csv_data, text_data, excel_paths = process_results(results)
+        # Log failed files
+        if failed_files:
+            logger.warning(f"The following files failed during extraction: {failed_files}")
+
+        # Deduct credits for successfully processed files only
+        successful_pages = 0
+        for result in successful_results:
+            filename = result['filename']
+            if filename in file_page_counts:
+                logger.info("-=-=-=-=-==")
+                logger.info(file_page_counts[filename])
+                logger.info("-=-=-=-=-==")
+                pages_to_process = calculate_file_pages_to_process(page_config.get(filename, None), file_page_counts[filename])
+                successful_pages += pages_to_process
+
+        if successful_pages > 0:
+            try:
+                reduce_credits(user_id, successful_pages)
+                logger.info(f"Deducted {successful_pages} credits for user {user_id}.")
+            except ValueError as e:
+                logger.error(f"Credit deduction failed: {e}")
+                return jsonify({'message': 'Credit deduction failed after successful extraction.'}), 500
+
+        # Process results for successful extractions
+        response_data, lines_data, csv_data, text_data, excel_paths = process_results(successful_results)
 
         # Mark progress as 100%
         with open(progress_file, 'w') as pf:
             pf.write('100')
 
-        return jsonify({
+        # Prepare response
+        response = {
             'json_data': response_data,
             'lines_data': lines_data,
             'csv_data': csv_data,
             'text_data': text_data,
-            'excel_paths': excel_paths
-        }), 200
+            'excel_paths': excel_paths,
+        }
+        if failed_files:
+            response['failed_files'] = failed_files
+
+        return jsonify(response), 200 if successful_results else 500
+
 
     @app.route('/progress', methods=['GET'])
     @jwt_required()
@@ -210,27 +243,41 @@ def register_extract_routes(app):
             lines_data[filename] = original_lines  # Set lines_data using original lines
         return response_data, lines_data, csv_paths, text_paths, excel_paths
 
-    def perform_extraction(filenames, upload_folder, total_pages, progress_file, extraction_model, azure_endpoint, azure_key, progress_tracker, page_config=None):
-        """
-        Performs extraction concurrently using Azure or template-based logic.
-        Handles page-specific extraction based on page_config.
-        """
+    def perform_extraction(
+        filenames, upload_folder, progress_file, extraction_model,
+        azure_endpoint, azure_key, progress_tracker, page_config=None
+    ):
         results = []
+        file_page_counts = {}  # Track page count for each file
         with ThreadPoolExecutor(max_workers=2) as executor:
             futures = []
             for filename in filenames:
+                pdf_path = os.path.join(upload_folder, filename)
+
+                # Calculate total pages for the current file
+                try:
+                    reader = PdfReader(pdf_path)
+                    total_pages = len(reader.pages)
+                    logger.info(f"Total pages for {filename}: {total_pages}")
+                    file_page_counts[filename] = total_pages
+                except Exception as e:
+                    logger.error(f"Error calculating total pages for {filename}: {e}")
+                    results.append({"filename": filename, "error": f"Failed to calculate total pages: {e}"})
+                    continue
+
+                # Get page config for the current file
                 specified_pages = page_config.get(filename) if page_config else None
-                logger.info(specified_pages)
+                logger.info(f"Specified pages for {filename}: {specified_pages}")
+
+                # Submit extraction task
                 futures.append(
                     executor.submit(
-                        extract_with_azure, filename, upload_folder, upload_folder, total_pages, progress_file, progress_tracker,
-                        extraction_model, azure_endpoint, azure_key, specified_pages
+                        extract_with_azure, filename, upload_folder, upload_folder, total_pages, progress_file,
+                        progress_tracker, extraction_model, azure_endpoint, azure_key, specified_pages
                     )
                 )
 
             for future in as_completed(futures):
                 results.append(future.result())
 
-        return results
-
-
+        return results, file_page_counts

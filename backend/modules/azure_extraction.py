@@ -260,9 +260,14 @@ def extract_with_azure(
         logger.info(f"Page Config: {page_config}")
 
         def split_pages(pages, chunk_size):
-            """Splits a list of pages into chunks of a given size."""
+            """Splits a list of pages into valid chunks."""
             for i in range(0, len(pages), chunk_size):
-                yield pages[i:i + chunk_size]
+                chunk = pages[i:i + chunk_size]
+                if max(chunk) <= total_pages:  # Ensure valid page range
+                    yield chunk
+                else:
+                    logger.warning(f"Skipping invalid chunk: {chunk}")
+
 
         if page_config:
             # Process each section's page range
