@@ -15,6 +15,17 @@ SQLALCHEMY_MAX_OVERFLOW = 10
 SQLALCHEMY_POOL_TIMEOUT = 30
 RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET')
+MAIL_SERVER = 'smtp.zoho.com'  # SMTP server for Zoho
+MAIL_PORT = 587               # TLS port
+MAIL_USE_TLS = True           # Enable TLS
+MAIL_USE_SSL = False          # Do not use SSL
+MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+MAIL_DEFAULT_SENDER = os.getenv('MAIL_USERNAME')  # Default sender address
+MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'False').lower() in ['true', '1', 'yes']  # Convert to boolean
+MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'False').lower() in ['true', '1', 'yes']  # Convert to boolean
+MAIL_SERVER = os.getenv('MAIL_SERVER')
+MAIL_PORT = os.getenv('MAIL_PORT')
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)

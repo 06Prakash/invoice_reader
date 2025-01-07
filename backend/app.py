@@ -6,7 +6,7 @@ import pkgutil
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from flask_migrate import Migrate 
-from extensions import db, bcrypt, login_manager, jwt
+from extensions import db, bcrypt, login_manager, jwt, mail
 from modules.routes import register_routes
 
 def import_all_models(package_name):
@@ -35,6 +35,7 @@ def create_app():
     bcrypt.init_app(app)
     login_manager.init_app(app)
     jwt.init_app(app)
+    mail.init_app(app)
 
     # Initialize Flask-Migrate
     migrate = Migrate(app, db)  # Attach Flask-Migrate to the app and database

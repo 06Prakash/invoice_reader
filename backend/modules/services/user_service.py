@@ -168,3 +168,23 @@ def search_user_service(query):
         'company_id': user.company.id if user.company else None,
         'is_special_admin': user.special_admin
     }
+
+def is_email_registered(email):
+    """
+    Check if the email exists in the database.
+
+    :param email: The email to check.
+    :return: True if the email exists, False otherwise.
+    """
+    user = get_user_by_email(email)
+    return user is not None
+
+def get_user_by_email(email):
+    """
+    Retrieve a user by their email address.
+
+    :param email: The email of the user.
+    :return: The User object if found, otherwise None.
+    """
+    return User.query.filter_by(email=email).first()
+

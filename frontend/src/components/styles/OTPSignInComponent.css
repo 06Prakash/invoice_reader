@@ -1,28 +1,32 @@
-.login-container {
+.otp-signin-container {
     max-width: 500px;
     margin: 0 auto;
     padding: 20px;
     background-color: #fff;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
+    font-family: 'Arial', sans-serif;
 }
 
-.login-container h2 {
+.otp-signin-container h2 {
     text-align: center;
     margin-bottom: 20px;
+    font-size: 24px;
+    color: #004d40;
 }
 
-.login-container .form-group {
+.otp-signin-container .form-group {
     margin-bottom: 20px;
 }
 
-.login-container .form-group label {
+.otp-signin-container .form-group label {
     display: block;
     margin-bottom: 5px;
     font-weight: bold;
+    color: #333;
 }
 
-.login-container .form-group input {
+.otp-signin-container .form-group input {
     width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
@@ -32,12 +36,13 @@
     transition: border-color 0.3s;
 }
 
-.login-container .form-group input:hover,
-.login-container .form-group input:focus {
+.otp-signin-container .form-group input:hover,
+.otp-signin-container .form-group input:focus {
     border-color: #004d40;
+    outline: none;
 }
 
-.login-container button {
+.otp-signin-container button {
     width: 100%;
     background-color: #004d40;
     color: white;
@@ -50,11 +55,11 @@
     transition: background-color 0.3s;
 }
 
-.login-container button:hover {
+.otp-signin-container button:hover {
     background-color: #00332d;
 }
 
-.login-container .secondary-button {
+.otp-signin-container .resend-button {
     width: 100%;
     background-color: #e0f2f1;
     color: #004d40;
@@ -67,7 +72,7 @@
     transition: background-color 0.3s, color 0.3s;
 }
 
-.login-container .secondary-button:hover {
+.otp-signin-container .resend-button:hover {
     background-color: #b2dfdb;
     color: #002a26;
 }

@@ -13,6 +13,11 @@ class User(db.Model, UserMixin):
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)  # Soft delete flag
     deleted_at = db.Column(db.DateTime, nullable=True)  # Soft delete timestamp
 
+    # OTP fields
+    otp_code = db.Column(db.String(6), nullable=True)
+    otp_created_at = db.Column(db.DateTime, nullable=True)
+    otp_attempts = db.Column(db.Integer, default=0, nullable=False)
+
     company = db.relationship('Company', backref=db.backref('users', lazy=True))
 
     @property
