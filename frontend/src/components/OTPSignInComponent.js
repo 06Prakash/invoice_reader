@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Button, TextField, Grid, Snackbar, Alert } from '@mui/material';
+import { Button, TextField, Grid, Snackbar, Alert, CircularProgress } from '@mui/material';
 import { useHistory } from 'react-router-dom';
 import './styles/OTPSignInComponent.css';
 
 const OTPSignInComponent = ({ onBack, setToken }) => {
     const [email, setEmail] = useState('');
-    const [username, setUsername] = useState('');
     const [otp, setOTP] = useState('');
     const [isOTPSent, setIsOTPSent] = useState(false);
+    const [isLoading, setIsLoading] = useState(false); // State to manage loading state of Send OTP
     const [showSnackbar, setShowSnackbar] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [snackbarSeverity, setSnackbarSeverity] = useState('success');
@@ -20,6 +20,7 @@ const OTPSignInComponent = ({ onBack, setToken }) => {
             return;
         }
 
+        setIsLoading(true); // Start loading
         try {
             await axios.post('/auth/send-otp', { email });
             showMessage('OTP sent to your email', 'success');
@@ -27,6 +28,8 @@ const OTPSignInComponent = ({ onBack, setToken }) => {
         } catch (error) {
             console.error('Error sending OTP:', error);
             showMessage('Failed to send OTP. Please try again.', 'error');
+        } finally {
+            setIsLoading(false); // Stop loading
         }
     };
 
@@ -40,6 +43,7 @@ const OTPSignInComponent = ({ onBack, setToken }) => {
             const response = await axios.post('/auth/verify-otp', { email, otp });
             const { username, access_token, refresh_token, special_admin } = response.data;
 
+            showMessage('OTP verified successfully', 'success');
             // Save tokens and user details in localStorage
             setToken(access_token);
             localStorage.setItem('jwt_token', access_token);
@@ -48,7 +52,6 @@ const OTPSignInComponent = ({ onBack, setToken }) => {
             localStorage.setItem('email', email);
             localStorage.setItem('username', username);
 
-            showMessage('OTP verified successfully', 'success');
             history.push('/'); // Navigate to home after verification
         } catch (error) {
             console.error('Error verifying OTP:', error);
@@ -76,7 +79,7 @@ const OTPSignInComponent = ({ onBack, setToken }) => {
                         label="Email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        disabled={isOTPSent}
+                        disabled={isOTPSent || isLoading}
                     />
                 </Grid>
                 {isOTPSent && (
@@ -91,8 +94,14 @@ const OTPSignInComponent = ({ onBack, setToken }) => {
                 )}
                 <Grid item xs={12}>
                     {!isOTPSent ? (
-                        <Button variant="contained" color="primary" onClick={handleSendOTP}>
-                            Send OTP
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={handleSendOTP}
+                            disabled={isLoading} // Disable button while loading
+                            startIcon={isLoading && <CircularProgress size={20} />} // Show loader
+                        >
+                            {isLoading ? 'Sending...' : 'Send OTP'}
                         </Button>
                     ) : (
                         <Button variant="contained" color="primary" onClick={handleVerifyOTP}>
