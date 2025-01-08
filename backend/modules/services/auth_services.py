@@ -37,7 +37,8 @@ def generate_and_store_otp(email):
     :return: The generated OTP.
     :raises ValueError: If the user is not found.
     """
-    user = User.query.filter_by(email=email).first()
+    from modules.services.user_service import get_user_by_email  # Import user service
+    user = get_user_by_email(email)
     if not user:
         raise ValueError("User not found")
 
@@ -50,3 +51,26 @@ def generate_and_store_otp(email):
     db.session.commit()
 
     return otp
+
+def set_password(email, new_password):
+    """
+    Update the user's password.
+
+    :param email: The email of the user.
+    :param new_password: The new password to set.
+    :raises ValueError: If the user is not found.
+    """
+    from modules.services.user_service import get_user_by_email  # Import user service
+    user = get_user_by_email(email)
+    if not user:
+        raise ValueError("User not found")
+
+    # Hash and update the password
+    user.password_hash = bcrypt.generate_password_hash(new_password).decode('utf-8')
+
+    # Reset OTP fields
+    user.otp_code = None
+    user.otp_created_at = None
+
+    # Commit changes to the database
+    db.session.commit()

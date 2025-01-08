@@ -3,12 +3,14 @@ import axios from 'axios';
 import { Button, TextField, Grid, Snackbar, Alert } from '@mui/material';
 import { useHistory } from 'react-router-dom';
 import OTPSignInComponent from './OTPSignInComponent';
+import ResetPasswordComponent from './ResetPasswordComponent'; // Import Reset Password Component
 import './styles/LoginComponent.css';
 
 const LoginComponent = ({ setToken }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [isOTPSignIn, setIsOTPSignIn] = useState(false); // Toggle OTP sign-in view
+    const [isResetPassword, setIsResetPassword] = useState(false); // Toggle Reset Password view
     const [showSnackbar, setShowSnackbar] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [snackbarSeverity, setSnackbarSeverity] = useState('success');
@@ -28,11 +30,11 @@ const LoginComponent = ({ setToken }) => {
             setToken(access_token);
             localStorage.setItem('jwt_token', access_token);
             localStorage.setItem('refresh_token', refresh_token);
-            localStorage.setItem('special_admin', special_admin); // Store as boolean
+            localStorage.setItem('special_admin', special_admin);
             localStorage.setItem('username', username);
 
             showMessage('Login successful', 'success');
-            history.push('/'); // Navigate to home after login
+            history.push('/');
         } catch (error) {
             console.error('Error logging in:', error);
             showMessage('Invalid username or password', 'error');
@@ -53,9 +55,11 @@ const LoginComponent = ({ setToken }) => {
         <div className="login-container">
             {isOTPSignIn ? (
                 <OTPSignInComponent
-                    onBack={() => setIsOTPSignIn(false)} // Back to regular login
+                    onBack={() => setIsOTPSignIn(false)}
                     setToken={setToken}
                 />
+            ) : isResetPassword ? (
+                <ResetPasswordComponent onBack={() => setIsResetPassword(false)} />
             ) : (
                 <>
                     <h2>Login</h2>
@@ -86,16 +90,24 @@ const LoginComponent = ({ setToken }) => {
                             <Button
                                 variant="outlined"
                                 color="secondary"
-                                onClick={() => setIsOTPSignIn(true)} // Navigate to OTP sign-in
+                                onClick={() => setIsOTPSignIn(true)}
                             >
                                 Sign in with OTP
+                            </Button>
+                        </Grid>
+                        <Grid item xs={12}>
+                            <Button
+                                variant="text"
+                                color="secondary"
+                                onClick={() => setIsResetPassword(true)} // Navigate to Reset Password
+                            >
+                                Forgot Password?
                             </Button>
                         </Grid>
                     </Grid>
                 </>
             )}
 
-            {/* Snackbar for success or error messages */}
             <Snackbar
                 open={showSnackbar}
                 autoHideDuration={4000}

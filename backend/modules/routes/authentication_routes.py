@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify
 from flask_mail import Mail, Message
 from flask_jwt_extended import create_access_token, create_refresh_token
-
+from modules.logging_util import setup_logger
+logger = setup_logger()
 import os
-from modules.services.auth_services import generate_and_store_otp, is_otp_valid
+from modules.services.auth_services import generate_and_store_otp, is_otp_valid, set_password
 from modules.services.user_service import is_email_registered, get_user_by_email  # Import the new function
 
 # Initialize the Blueprint
@@ -84,3 +85,35 @@ def verify_otp():
 
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
+@auth_bp.route('/reset-password', methods=['POST'])
+def reset_password():
+    data = request.json
+    logger.info(f"Received data:{data}")
+    email = data.get('email')
+    otp = data.get('otp')
+    new_password = data.get('newPassword')
+
+    if not email or not otp or not new_password:
+        return jsonify({"error": "All fields are required"}), 400
+
+    try:
+        # Fetch user details
+        from modules.services.user_service import get_user_by_email
+        user = get_user_by_email(email)
+
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        # Validate OTP
+        if not is_otp_valid(user.otp_code, user.otp_created_at, otp):
+            return jsonify({"error": "Invalid or expired OTP"}), 400
+
+        # Update password
+        set_password(email, new_password)
+        return jsonify({"message": "Password updated successfully"}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": "Failed to reset password"}), 500
+
