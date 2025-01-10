@@ -26,6 +26,8 @@ MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'False').lower() in ['true', '1', 'yes'
 MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'False').lower() in ['true', '1', 'yes']  # Convert to boolean
 MAIL_SERVER = os.getenv('MAIL_SERVER')
 MAIL_PORT = os.getenv('MAIL_PORT')
+AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+AZURE_CONTAINER = os.getenv("AZURE_STORAGE_CONTAINER")
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)

@@ -1,12 +1,15 @@
 from flask import request, jsonify
 from werkzeug.utils import secure_filename
 import os
+from flask_jwt_extended import jwt_required, get_jwt_identity
+
 
 def register_upload_routes(app):
     def allowed_file(filename):
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
     @app.route('/upload', methods=['POST'])
+    @jwt_required()
     def upload_file():
         if 'files' not in request.files:
             return jsonify({'message': 'No files part'}), 400

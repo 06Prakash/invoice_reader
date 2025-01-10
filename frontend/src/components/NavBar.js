@@ -4,7 +4,7 @@ import axios from 'axios';
 import './styles/NavBar.css';
 import newLogo from './../assets/logo192.png';
 
-const NavBar = ({ token, setToken, userRole }) => {
+const NavBar = ({ token, setToken, userRole, setUserRole }) => {
     const [remainingCredits, setRemainingCredits] = useState(0);
     const [dropdownVisible, setDropdownVisible] = useState(false);
     const location = useLocation();
@@ -12,7 +12,6 @@ const NavBar = ({ token, setToken, userRole }) => {
     const currentPath = location.pathname;
     const dropdownRef = useRef(null); // Reference for the dropdown
     const username = localStorage.getItem('username');
-    const isSpecialAdmin = userRole && userRole === 'special_admin';
     const excludedPaths = ['/login', '/register', '/forgot-password'];
 
     const fetchCredits = async () => {
@@ -33,6 +32,7 @@ const NavBar = ({ token, setToken, userRole }) => {
         localStorage.removeItem('username');
         localStorage.removeItem('special_admin');
         setToken('');
+        setUserRole('user'); // Reset user role to default
         axios.defaults.headers.common['Authorization'] = '';
         setDropdownVisible(false); // Close the dropdown
         history.push('/login');
@@ -73,19 +73,22 @@ const NavBar = ({ token, setToken, userRole }) => {
         };
     }, [dropdownVisible]);
 
-    // Fetch credits every 5 minutes (300,000 ms)
+    // Fetch credits and user role on mount or token change
     useEffect(() => {
-        // Exclude login and registration pages
         if (token && !excludedPaths.includes(currentPath)) {
-            fetchCredits(); // Fetch credits immediately on login
+            fetchCredits();
+
+            // Update userRole dynamically if localStorage changes
+            const specialAdmin = localStorage.getItem('special_admin') === 'true';
+            setUserRole(specialAdmin ? 'special_admin' : 'user');
 
             const interval = setInterval(() => {
                 fetchCredits(); // Fetch credits every 1 minute
-            }, 60000); // 60,000 milliseconds = 1 minute
+            }, 60000); // 60 seconds
 
-            return () => clearInterval(interval); // Clear interval on component unmount
+            return () => clearInterval(interval); // Cleanup on component unmount
         }
-    }, [token, currentPath]);
+    }, [token, currentPath, setUserRole]);
 
     return (
         <nav className="navbar">
@@ -101,8 +104,8 @@ const NavBar = ({ token, setToken, userRole }) => {
                         </span>
                         {dropdownVisible && (
                             <div className="dropdown-menu">
-                                {/* Special admin menu */}
-                                {isSpecialAdmin && (
+                                {/* Show Special admin menu only if userRole is special_admin */}
+                                {userRole === 'special_admin' && (
                                     <div
                                         className="dropdown-item"
                                         onClick={navigateToCreditUpdate}

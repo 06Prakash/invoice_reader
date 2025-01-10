@@ -6,7 +6,7 @@ import OTPSignInComponent from './OTPSignInComponent';
 import ResetPasswordComponent from './ResetPasswordComponent'; // Import Reset Password Component
 import './styles/LoginComponent.css';
 
-const LoginComponent = ({ setToken }) => {
+const LoginComponent = ({ setToken, setUserRole }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [isOTPSignIn, setIsOTPSignIn] = useState(false); // Toggle OTP sign-in view
@@ -16,6 +16,7 @@ const LoginComponent = ({ setToken }) => {
     const [snackbarSeverity, setSnackbarSeverity] = useState('success');
     const history = useHistory();
 
+    // After successful login
     const handleLogin = async () => {
         if (!username || !password) {
             showMessage('Please fill in all fields', 'error');
@@ -32,6 +33,9 @@ const LoginComponent = ({ setToken }) => {
             localStorage.setItem('refresh_token', refresh_token);
             localStorage.setItem('special_admin', special_admin);
             localStorage.setItem('username', username);
+
+            // Update user role state dynamically
+            setUserRole(special_admin ? 'special_admin' : 'user');
 
             showMessage('Login successful', 'success');
             history.push('/');

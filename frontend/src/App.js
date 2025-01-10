@@ -201,7 +201,7 @@ const App = () => {
     return (
         <Router>
             <div className="App" key={userRole}>
-                <NavBar token={token} setToken={setToken} userRole={userRole} />
+            <NavBar token={token} setToken={setToken} userRole={userRole} setUserRole={setUserRole} />
                 <Switch>
                     {/* Registration */}
                     <Route
@@ -214,7 +214,7 @@ const App = () => {
                     <Route
                         path="/login"
                         render={() =>
-                            token ? <Redirect to="/" /> : <LoginComponent setToken={setToken} />
+                            token ? <Redirect to="/" /> : <LoginComponent setToken={setToken} setUserRole={setUserRole} />
                         }
                     />
                     <ProtectedRoute path="/credit-update" component={CreditUpdateComponent} token={token} userRole={userRole} />
