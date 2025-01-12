@@ -9,8 +9,43 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
     const [columnsToRemove, setColumnsToRemove] = useState('');
     const [rowsToRemove, setRowsToRemove] = useState('');
     const [gridLinesRemoval, setGridLinesRemoval] = useState(false);
+    const [errors, setErrors] = useState({ section: '', pageRange: '' });
     const [notification, setNotification] = useState('');
     const [isExpanded, setIsExpanded] = useState(false);
+
+    const validateSectionName = (name) => {
+        const sectionNameRegex = /^[a-zA-Z0-9_-]{1,50}$/; // Only letters, digits, '-', '_', max 50 characters
+        return sectionNameRegex.test(name);
+    };
+
+    const validatePageRange = (range) => {
+        const pageRangeRegex = /^(\d+(-\d+)?)(,\d+(-\d+)?)*$/; // Valid patterns: 1, 1-3, 1-3,4
+        return pageRangeRegex.test(range);
+    };
+
+    const handleSectionChange = (value) => {
+        setSection(value);
+        if (!validateSectionName(value)) {
+            setErrors((prevErrors) => ({
+                ...prevErrors,
+                section: 'Invalid section name. Only letters, digits, "-", and "_" are allowed (max 50 characters).',
+            }));
+        } else {
+            setErrors((prevErrors) => ({ ...prevErrors, section: '' }));
+        }
+    };
+
+    const handlePageRangeChange = (value) => {
+        setPageRange(value);
+        if (!validatePageRange(value)) {
+            setErrors((prevErrors) => ({
+                ...prevErrors,
+                pageRange: 'Invalid page range. Use formats like "1", "1-3", or "1-3,4".',
+            }));
+        } else {
+            setErrors((prevErrors) => ({ ...prevErrors, pageRange: '' }));
+        }
+    };
 
     const handleInputChange = (file, section, category, key, value) => {
         setPageConfig((prevConfig) => ({
@@ -31,6 +66,16 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
     const handleAddSectionConfig = () => {
         if (!filename || !section || !pageRange) {
             alert('Please provide a filename, section, and page range.');
+            return;
+        }
+
+        if (!validateSectionName(section)) {
+            alert('Section name is invalid. Only letters, digits, "-", "_" are allowed, with a max length of 50.');
+            return;
+        }
+
+        if (!validatePageRange(pageRange)) {
+            alert('Page range is invalid. Use formats like "1", "1-3", "1-3,4".');
             return;
         }
 
@@ -74,12 +119,24 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
         setColumnsToRemove('');
         setRowsToRemove('');
         setGridLinesRemoval(false);
+        setErrors({ section: '', pageRange: '' });
+
+        if (onPageExtractionConfigSubmit) {
+            onPageExtractionConfigSubmit({}); // Notify backend to clear configurations
+        }
+
+        setNotification('Configuration reset successfully!');
+        setTimeout(() => setNotification(''), 3000);
     };
 
     const handleSubmit = () => {
+        if (errors.section || errors.pageRange) {
+            alert('Please fix validation errors before submitting.');
+            return;
+        }
         onPageExtractionConfigSubmit(pageConfig);
         setNotification('Page configuration submitted successfully!');
-        setTimeout(() => setNotification(''), 3000); // Clear notification after 3 seconds
+        setTimeout(() => setNotification(''), 3000);
     };
 
     const toggleExpandCollapse = () => {
@@ -163,18 +220,26 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
                                     </option>
                                 ))}
                         </select>
-                        <input
-                            type="text"
-                            placeholder="Enter section name (e.g., Table 1)"
-                            value={section}
-                            onChange={(e) => setSection(e.target.value)}
-                        />
-                        <input
-                            type="text"
-                            placeholder="Enter page range (e.g., 1,3-4)"
-                            value={pageRange}
-                            onChange={(e) => setPageRange(e.target.value)}
-                        />
+                        <div className="input-wrapper">
+                            {errors.section && <p className="error-message">{errors.section}</p>}
+                            <input
+                                type="text"
+                                placeholder="Enter section name (e.g., Table_1)"
+                                value={section}
+                                onChange={(e) => handleSectionChange(e.target.value)}
+                                className={errors.section ? 'error' : ''}
+                            />
+                        </div>
+                        <div className="input-wrapper">
+                            {errors.pageRange && <p className="error-message">{errors.pageRange}</p>}
+                            <input
+                                type="text"
+                                placeholder="Enter page range (e.g., 1,3-4)"
+                                value={pageRange}
+                                onChange={(e) => handlePageRangeChange(e.target.value)}
+                                className={errors.pageRange ? 'error' : ''}
+                            />
+                        </div>
                         <input
                             type="text"
                             placeholder="Columns to remove (comma-separated)"
