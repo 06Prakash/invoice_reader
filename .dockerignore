@@ -1,6 +1,30 @@
-node_modules
-.git
+# Exclude Python cache and virtual environments
+backend/__pycache__/
+backend/.venv/
+backend/env/
+backend/*.pyc
+backend/*.pyo
+
+# Exclude Node.js dependencies
+frontend/node_modules/
+frontend/build/
+
+# Logs, temp, and unnecessary files
+logs/
 *.log
-*.pyc
-__pycache__/
+*.tmp
+*.swp
 uploads/
+test_pdfs/
+
+# Ignore version control and config files
+.git
+.gitignore
+.gitattributes
+.DS_Store
+.idea/
+.vscode/
+
+# Ignore test folders
+backend/tests/
+frontend/tests/

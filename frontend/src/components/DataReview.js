@@ -18,6 +18,8 @@ const DataReview = ({ extractedData, originalLines }) => {
             if (extractedData.csv_data[selectedFile]) formats.push('csv');
             if (extractedData.excel_paths[selectedFile]) formats.push('excel');
             if (extractedData.text_data[selectedFile]) formats.push('text');
+            // Safely handle combined_excel_paths
+            if (extractedData.combined_excel_paths[selectedFile]) formats.push('combined_excel');
             setAvailableFormats(formats);
             setCurrentFormat(formats[0] || ''); // Default to the first available format
         } else {
@@ -45,7 +47,8 @@ const DataReview = ({ extractedData, originalLines }) => {
             csv: extractedData.csv_data[selectedFile],
             excel: extractedData.excel_paths[selectedFile],
             text: extractedData.text_data[selectedFile],
-        };
+            combined_excel: extractedData.combined_excel_paths[selectedFile]
+        };     
 
         const path = formatPaths[currentFormat];
 

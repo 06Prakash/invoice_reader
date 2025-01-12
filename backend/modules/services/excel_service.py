@@ -1,6 +1,7 @@
 import pandas as pd
 import os
-from openpyxl import load_workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
 from modules.logging_util import setup_logger
 logger = setup_logger(__name__)
 import re
@@ -113,95 +114,23 @@ def remove_gridlines(writer, sheet_name):
     worksheet = writer.sheets[sheet_name]
     worksheet.sheet_view.showGridLines = False
 
-
-def process_excel(input_excel_path, output_excel_path, config=None):
-    """
-    Processes an Excel file based on the provided configuration.
-
-    Args:
-        input_excel_path (str): Path to the input Excel file.
-        output_excel_path (str): Path to save the processed Excel file.
-        config (dict, optional): Configuration dictionary with processing options.
-
-    Returns:
-        dict: Status and path to the processed file.
-    """
-    try:
-        # Load the Excel file
-        workbook = pd.ExcelFile(input_excel_path)
-        processed_sheets = {}
-
-        # Default configuration
-        config = config or {}
-        logger.info(f"Configuration provided: {config}")
-        columns_to_remove = config.get("columnsToRemove", [])
-        grid_lines_removal = config.get("gridLinesRemoval", False)
-        merge_to_one_sheet = config.get("Merge tables to one sheet", False)
-
-        consolidated_data = []
-
-        # Process each sheet in the workbook
-        with pd.ExcelWriter(output_excel_path, engine="openpyxl") as writer:
-            for sheet_name in workbook.sheet_names:
-                # Load sheet into DataFrame
-                logger.info(f"Processing excel data frame for sheet name {sheet_name}")
-                df = workbook.parse(sheet_name)
-
-                # Step 1: Convert parentheses to negative numbers
-                df = convert_parentheses_to_negative(df)
-                logger.info("Crossed the paranthesis to negative numbers conversion")
-
-                # Step 2: Remove specified columns
-                if columns_to_remove:
-                    df = remove_columns(df, columns_to_remove)
-                logger.info(f"After removing columns {','.join(columns_to_remove)} header {str(df)}")
-
-                # Step 3: Remove gridlines if required
-                if merge_to_one_sheet:
-                    consolidated_data.append(df)
-                else:
-                    # Save processed sheet to individual sheet
-                    df.to_excel(writer, sheet_name=sheet_name, index=False, header=False)
-                    if grid_lines_removal:
-                        remove_gridlines(writer, sheet_name)
-
-                processed_sheets[sheet_name] = df.shape
-
-            # Step 5: Merge all tables into one sheet if enabled
-            if merge_to_one_sheet and consolidated_data:
-                merged_df = consolidate_tables(consolidated_data)
-                merged_df.to_excel(writer, sheet_name="Consolidated", index=False, header=False)
-                if grid_lines_removal:
-                    remove_gridlines(writer, "Consolidated")
-
-        return {
-            "status": "success",
-            "message": f"Processed Excel file saved at {output_excel_path}",
-            "processed_sheets": processed_sheets,
-            "output_path": output_excel_path
-        }
-
-    except Exception as e:
-        logger.error(f"Error during Excel processing: {e}")
-        return {
-            "status": "error",
-            "message": str(e)
-        }
-
 def save_sheet(writer, df, sheet_name, config):
     """
-    Saves a DataFrame to a specific sheet in the Excel writer.
-    Applies configurations like gridline removal.
+    Saves a DataFrame to a specific sheet in the Excel writer with beautification.
+
+    Args:
+        writer (ExcelWriter): Excel writer object.
+        df (pd.DataFrame): DataFrame to save.
+        sheet_name (str): Name of the sheet.
+        config (dict): Configuration dictionary.
     """
-    import re
-    safe_sheet_name = re.sub(r'[\\/*?:\[\]]', '', sheet_name)[:31]
-    if len(sheet_name) > 31:
-        logger.warning(f"Sheet name '{sheet_name}' exceeds 31 characters. Truncated to '{safe_sheet_name}'.")
+    safe_sheet_name = sanitize_sheet_name(sheet_name)
     if df.empty:
         logger.warning(f"Skipping empty DataFrame for sheet: {safe_sheet_name}")
         return
     try:
         df.to_excel(writer, sheet_name=safe_sheet_name, index=False, header=False)
+        beautify_excel(writer, safe_sheet_name)  # Beautify the sheet
         if config.get("gridLinesRemoval", False) and safe_sheet_name in writer.sheets:
             remove_gridlines(writer, safe_sheet_name)
     except Exception as e:
@@ -256,14 +185,6 @@ def process_table_data(df, config):
         df = remove_rows(df, rowsToRemove)
     logger.info(f"Data Frame after processing: {df}")
     return df
-
-def consolidate_and_save(writer, consolidated_data, config):
-    """
-    Consolidates multiple DataFrames and saves them to a single sheet.
-    """
-    if consolidated_data:
-        merged_df = consolidate_tables(consolidated_data)
-        save_sheet(writer, merged_df, "Consolidated", config)
 
 def save_sections_to_excel_and_csv(section_data, filename, output_folder, config=None):
     """
@@ -408,3 +329,167 @@ def process_and_save_section(content, section, base_filename, output_folder, wri
         logger.warning(f"Unsupported content type for section: {section}. Skipping.")
 
     return section_dataframes
+
+def consolidate_excel_sheets(input_files, output_excel_path):
+    """
+    Consolidates multiple Excel files by matching rows in specified sheets
+    and creating a new consolidated Excel file with beautification.
+
+    Args:
+        input_files (list): List of input Excel file paths.
+        output_excel_path (str): Path to save the consolidated Excel file.
+
+    Returns:
+        dict: Status and path to the consolidated file.
+    """
+    try:
+        logger.info(f"Starting consolidation for files: {input_files}")
+        sheet_data = {}  # Dictionary to hold data for each sheet across files
+
+        # Read all input files and load the data for each sheet
+        for file in input_files:
+            workbook = pd.ExcelFile(file)
+            for sheet_name in workbook.sheet_names:
+                sanitized_name = sanitize_sheet_name(sheet_name)
+                if sanitized_name not in sheet_data:
+                    sheet_data[sanitized_name] = []
+                # Read the sheet and append its DataFrame to the list
+                df = workbook.parse(sheet_name)
+                logger.info(f"Loaded data for sheet {sanitized_name} from file {file}, shape: {df.shape}")
+                sheet_data[sanitized_name].append(df)
+
+        # Consolidate data for each sheet
+        with pd.ExcelWriter(output_excel_path, engine="openpyxl") as writer:
+            for sheet_name, dataframes in sheet_data.items():
+                logger.info(f"Consolidating sheet: {sheet_name}")
+                consolidated_df = consolidate_dataframes(dataframes)
+                if not consolidated_df.empty:
+                    consolidated_df.to_excel(writer, sheet_name=sheet_name, index=False, header=True)
+                    logger.info(f"Consolidated data written to sheet: {sheet_name}")
+                    # Apply beautification to the sheet
+                    beautify_excel(writer, sheet_name)
+                else:
+                    logger.warning(f"No data to consolidate for sheet: {sheet_name}")
+
+        logger.info(f"Consolidated Excel file saved at {output_excel_path}")
+        return {
+            "status": "success",
+            "message": f"Consolidated Excel file saved at {output_excel_path}",
+            "output_path": output_excel_path,
+        }
+
+    except Exception as e:
+        logger.error(f"Error during consolidation: {e}")
+        return {"status": "error", "message": str(e)}
+    
+def consolidate_dataframes(dataframes):
+    """
+    Consolidates a list of DataFrames by matching rows based on the first column.
+
+    Args:
+        dataframes (list): List of DataFrames to consolidate.
+
+    Returns:
+        pd.DataFrame: Consolidated DataFrame.
+    """
+    try:
+        if not dataframes:
+            logger.warning("No DataFrames to consolidate.")
+            return pd.DataFrame()
+
+        # Use the first DataFrame as the base
+        consolidated_df = dataframes[0].copy()
+        key_column = consolidated_df.columns[0]  # Assume the first column is the key
+
+        for df in dataframes[1:]:
+            # Merge DataFrames on the key column
+            df = df.copy()
+            consolidated_df = pd.merge(
+                consolidated_df,
+                df,
+                on=key_column,
+                how="outer",
+                suffixes=("", "_other")
+            )
+
+            # Sum numeric columns for matching rows
+            numeric_cols = consolidated_df.select_dtypes(include="number").columns
+            for col in numeric_cols:
+                if col.endswith("_other"):
+                    base_col = col.replace("_other", "")
+                    if base_col in consolidated_df:
+                        consolidated_df[base_col] += consolidated_df[col]
+                        consolidated_df.drop(columns=[col], inplace=True)
+
+            # Fill NaN with 0 for numeric columns
+            consolidated_df[numeric_cols] = consolidated_df[numeric_cols].fillna(0)
+
+        return consolidated_df
+
+    except Exception as e:
+        logger.error(f"Error during DataFrame consolidation: {e}")
+        return pd.DataFrame()
+
+def beautify_excel(writer, sheet_name, max_column_width=50):
+    """
+    Beautifies the specified Excel sheet.
+    - Formats headers with bold fonts, centered alignment, and a background color.
+    - Applies word wrapping to all cells.
+    - Restricts column widths to a maximum value.
+
+    Args:
+        writer (ExcelWriter): Excel writer object.
+        sheet_name (str): Name of the sheet to beautify.
+        max_column_width (int, optional): Maximum allowed column width. Default is 50.
+    """
+    try:
+        logger.info(f"Applying beautification to sheet: {sheet_name}")
+        workbook = writer.book
+        worksheet = writer.sheets[sheet_name]
+
+        # Header styling
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
+        alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+        # Apply header formatting
+        for row in worksheet.iter_rows(min_row=1, max_row=1):  # Format only the header row
+            for cell in row:
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = alignment
+
+        # Format content rows and adjust column widths
+        for col_idx, column_cells in enumerate(worksheet.columns, start=1):
+            # Calculate max content length
+            max_length = max(
+                len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells
+            )
+            adjusted_width = min(max_length + 2, max_column_width)  # Cap column width at max_column_width
+            column_letter = get_column_letter(col_idx)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+
+            # Apply word wrapping for all cells in the column
+            for cell in column_cells:
+                if cell.value:  # Apply alignment only if the cell has a value
+                    cell.alignment = Alignment(wrap_text=True)
+
+        logger.info(f"Beautification applied to sheet: {sheet_name} with max column width {max_column_width}")
+    except Exception as e:
+        logger.error(f"Error beautifying sheet '{sheet_name}': {e}")
+
+
+def consolidate_and_save(writer, consolidated_data, config):
+    """
+    Consolidates multiple DataFrames and saves them to a single sheet with beautification.
+
+    Args:
+        writer (ExcelWriter): Excel writer object.
+        consolidated_data (list): List of DataFrames to consolidate.
+        config (dict): Configuration dictionary.
+    """
+    if consolidated_data:
+        merged_df = consolidate_tables(consolidated_data)
+        sheet_name = "Consolidated"
+        save_sheet(writer, merged_df, sheet_name, config)
+        beautify_excel(writer, sheet_name)  # Beautify the consolidated sheet

@@ -9,6 +9,8 @@ from modules.progress_tracker import ProgressTracker
 from modules.services.credit_service import validate_credits, reduce_credits
 from modules.services.page_service import calculate_pages_to_process, calculate_file_pages_to_process
 from modules.services.azure_blob_service import AzureBlobService
+from modules.services.excel_service import consolidate_excel_sheets
+import copy
 import os
 logger = setup_logger(__name__)
 
@@ -26,12 +28,13 @@ def register_extract_routes(app):
 
         # Step 1: Validate Input and Initialize
         azure_blob_service, progress_tracker, page_config, filenames, extraction_model, upload_folder, azure_endpoint, azure_key, progress_file = initialize_extraction(data, user_id)
+        saved_config = copy.deepcopy(page_config)
 
         # Step 2: Download Files from Azure
         file_paths, local_file_paths = download_files_from_azure(filenames, azure_blob_service, user_id, upload_folder)
 
         # Step 3: Calculate Pages to Process
-        total_pages, pages_to_process = calculate_pages_and_validate_credits(file_paths, page_config, progress_tracker, user_id)
+        total_pages, pages_to_process = calculate_pages_and_validate_credits(file_paths, page_config, progress_tracker, user_id, upload_folder)
 
         # Step 4: Perform Extraction
         results, file_page_counts = perform_extraction_with_error_handling(
@@ -39,16 +42,121 @@ def register_extract_routes(app):
             azure_endpoint, azure_key, azure_blob_service, progress_tracker, page_config
         )
 
+        # Retrieve Excel files to combine
+        excel_files_to_combine = get_excel_files_to_combine(upload_folder, filenames, saved_config)
+        logger.info(f"Excel files to combine: {excel_files_to_combine}")
+        consolidated_file_path = None
+        # Perform combining logic (if needed)
+        if excel_files_to_combine:
+            consolidated_file_path = os.path.join(upload_folder, f"{filenames[0].split('.')[0]}_Combined_Sections.xlsx")
+            consolidate_excel_sheets(excel_files_to_combine, consolidated_file_path)
+            logger.info("Excel combining process completed.")
+            try:
+                uploaded_files = azure_blob_service.upload_file(user_id, consolidated_file_path, 'user_extract')
+                logger.info(f"Uploaded consolidated file to Azure: {uploaded_files}")
+            except Exception as e:
+                logger.error(f"Failed to upload consolidated file to Azure: {e}")
+            
+
         # Step 5: Upload Results to Azure
-        response, successful_results = upload_results_to_azure(results, file_page_counts, page_config, azure_blob_service, user_id)
+        response, successful_results = upload_results_to_azure(results, file_page_counts, page_config, azure_blob_service, user_id, consolidated_file_path)
 
         # Step 6: Deduct Credits for Successful Pages
         deduct_credits_for_successful_pages(successful_results, file_page_counts, page_config, user_id)
 
         # Step 7: Clean Up Local Files
-        cleanup_local_files(local_file_paths)
+        cleanup_local_files(upload_folder, filenames)
 
         return jsonify(response), 200 if successful_results else 500
+        
+    def get_excel_files_to_combine(user_folder, filenames, page_config):
+        """
+        Retrieves the list of Excel files to combine. These files:
+        - Have names prefixed with the filenames in the `filenames` list.
+        - Have the extension `.xlsx`.
+        - Contain the postfix `_sections_processed`.
+        - Have the 'combine' flag set to True in the page_config.
+
+        Args:
+            user_folder (str): The user's folder.
+            filenames (list): List of filenames (e.g., `file1.pdf`, `file2.pdf`).
+            page_config (dict): Configuration dictionary with combine flags.
+
+        Returns:
+            list: List of file paths for Excel files matching the criteria.
+        """
+        try:
+            if not os.path.exists(user_folder):
+                logger.warning(f"User folder {user_folder} does not exist. Returning empty list.")
+                return []
+
+            # Base names from filenames (strip paths and extensions)
+            base_filenames_with_ext = [os.path.basename(filename) for filename in filenames]  # Includes extension
+            base_filenames = [os.path.splitext(os.path.basename(filename))[0] for filename in filenames]  # Without extension
+            logger.info(f"File names base: {base_filenames}")
+            logger.info(f"Page Config as needed for combining excel: {page_config}")
+
+            # Check if the file's combine flag is True in the page_config
+            combine_enabled_files = {
+                base: section
+                for base_with_ext, base in zip(base_filenames_with_ext, base_filenames)
+                if base_with_ext in page_config  # Match with full filename in page_config
+                for section, config in page_config[base_with_ext].items()
+                if config.get("excel", {}).get("combine", False)
+            }
+
+            logger.info(f"Files eligible for combining based on page_config: {combine_enabled_files}")
+
+            # Filter Excel files matching the criteria
+            matching_files = []
+            for file in os.listdir(user_folder):
+                file_path = os.path.join(user_folder, file)
+                if os.path.isfile(file_path) and file.endswith(".xlsx"):
+                    # Check if the file starts with any base filename and ends with "_sections_processed.xlsx"
+                    if any(file.startswith(base) and file.endswith("_sections_processed.xlsx") for base in combine_enabled_files):
+                        matching_files.append(file_path)
+
+            logger.info(f"Found matching Excel files for combining: {matching_files}")
+            return matching_files
+
+        except Exception as e:
+            logger.error(f"Error while retrieving Excel files to combine: {e}")
+            return []
+
+
+
+    def cleanup_local_files(user_folder, filenames):
+        """
+        Cleans up only the files listed in the filenames variable and their related extracted files
+        from the user-specific folder.
+
+        Args:
+            user_folder (str): The path to the user's folder.
+            filenames (list): List of filenames (e.g., PDF files) to delete.
+        """
+        try:
+            if not os.path.exists(user_folder):
+                logger.warning(f"User folder {user_folder} does not exist. Skipping cleanup.")
+                return
+
+            # Extract base names without extensions from filenames
+            base_filenames = [os.path.splitext(os.path.basename(filename))[0] for filename in filenames]
+
+            # Define relevant extensions to match extracted files
+            extracted_file_extensions = ['.json', '.csv', '.xlsx', '.txt', 'pdf']
+
+            for file in os.listdir(user_folder):
+                file_path = os.path.join(user_folder, file)
+
+                # Check if the file matches any base filename with an extracted extension
+                if any(file.startswith(base) and file.endswith(ext) for base in base_filenames for ext in extracted_file_extensions):
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                        logger.info(f"Removed file: {file_path}")
+
+        except Exception as e:
+            logger.error(f"Error while cleaning up user-specific files: {e}")
+
 
 
     # Step 1: Initialize Extraction
@@ -61,7 +169,7 @@ def register_extract_routes(app):
         azure_blob_service = app.config["AZURE_BLOB_SERVICE"]
         azure_endpoint = app.config['AZURE_ENDPOINT']
         azure_key = app.config['AZURE_KEY']
-        upload_folder = app.config["UPLOAD_FOLDER"]
+        upload_folder = create_or_get_user_folder(user_id)
         progress_tracker = ProgressTracker()
 
         # Create progress file
@@ -79,6 +187,9 @@ def register_extract_routes(app):
 
     # Step 2: Download Files from Azure
     def download_files_from_azure(filenames, azure_blob_service, user_id, upload_folder):
+        """
+        Downloads files from Azure and stores them in the user-specific folder.
+        """
         logger.info("Downloading files from Azure.")
         file_paths = {}
         local_file_paths = []
@@ -99,9 +210,10 @@ def register_extract_routes(app):
         return file_paths, local_file_paths
 
 
+
     # Step 3: Calculate Pages and Validate Credits
-    def calculate_pages_and_validate_credits(file_paths, page_config, progress_tracker, user_id):
-        total_pages = progress_tracker.calculate_total_pages(list(file_paths.keys()), app.config["UPLOAD_FOLDER"])
+    def calculate_pages_and_validate_credits(file_paths, page_config, progress_tracker, user_id, upload_folder):
+        total_pages = progress_tracker.calculate_total_pages(list(file_paths.keys()), upload_folder)
         logger.info(f"Total Pages in PDF: {total_pages}")
 
         pages_to_process = calculate_pages_to_process(page_config, total_pages)
@@ -111,7 +223,6 @@ def register_extract_routes(app):
 
         validate_credits(user_id, pages_to_process)
         return total_pages, pages_to_process
-
 
     # Step 4: Perform Extraction with Error Handling
     def perform_extraction_with_error_handling(filenames, file_paths, user_id, upload_folder, extraction_model, azure_endpoint, azure_key, azure_blob_service, progress_tracker, page_config):
@@ -130,10 +241,25 @@ def register_extract_routes(app):
 
 
     # Step 5: Upload Results to Azure
-    def upload_results_to_azure(results, file_page_counts, page_config, azure_blob_service, user_id):
+    def upload_results_to_azure(results, file_page_counts, page_config, azure_blob_service, user_id, consolidated_file_path=None):
+        """
+        Uploads extraction results to Azure Blob Storage and updates the response.
+
+        Args:
+            results (list): List of extraction results.
+            file_page_counts (dict): File page counts for credit calculation.
+            page_config (dict): Configuration for page extraction.
+            azure_blob_service (AzureBlobService): Azure blob service instance.
+            user_id (str): User ID for organizing files.
+            consolidated_file_path (str, optional): Path to the consolidated Excel file.
+
+        Returns:
+            tuple: Response dictionary and list of successful results.
+        """
         response = {"extracted_files": {}, "failed_files": []}
         successful_results = []
 
+        # Process individual extraction results
         for result in results:
             filename = result["filename"]
             if "error" in result:
@@ -143,19 +269,38 @@ def register_extract_routes(app):
             if result['use_credit']:
                 successful_results.append(result)
 
+        # Upload successful extracted results
         for result in successful_results:
             filename = result["filename"]
             upload_extraction_results_to_azure(result["extracted_data"], filename, azure_blob_service, user_id)
 
-        response_data, lines_data, csv_data, text_data, excel_paths = process_results(successful_results)
+        # Process successful results into response components
+        # Handle consolidated Excel upload
+        if consolidated_file_path:
+            try:
+                # Use the prefix from one of the file names in the results
+                prefix = successful_results[0]["filename"].split(".")[0] if successful_results else "Consolidated"
+                consolidated_filename = f"{prefix}_Combined_Sections.xlsx"
+                consolidated_blob_path = azure_blob_service.upload_file(
+                    user_id, consolidated_file_path, folder_type='user_extract', destination_filename=consolidated_filename
+                )[0]  # Upload returns a list, take the first item
+                logger.info(f"Uploaded consolidated Excel file to Azure: {consolidated_blob_path}")
+            except Exception as e:
+                logger.error(f"Failed to upload consolidated Excel file to Azure: {e}")
+                combined_excel_paths = None
+        response_data, lines_data, csv_data, text_data, excel_paths, combined_excel_paths = process_results(successful_results, consolidated_file_path)
         response.update({
             'json_data': response_data,
             'lines_data': lines_data,
             'csv_data': csv_data,
             'text_data': text_data,
             'excel_paths': excel_paths,
+            'combined_excel_paths': combined_excel_paths
         })
+
+
         return response, successful_results
+
 
 
     # Step 6: Deduct Credits for Successful Pages
@@ -174,25 +319,15 @@ def register_extract_routes(app):
         else:
             raise ValueError("Extraction failed due to page config error.")
 
-
-    # Step 7: Clean Up Local Files
-    def cleanup_local_files(local_file_paths):
-        for local_path in local_file_paths:
-            try:
-                if os.path.exists(local_path):
-                    os.remove(local_path)
-                    logger.info(f"Removed file: {local_path} from local")
-            except Exception as e:
-                logger.error(f"Error while deleting the file {local_path}: {e}")
-
-        # Remove the progress file
-        progress_file = os.path.join(app.config["UPLOAD_FOLDER"], f"progress_{get_jwt_identity()}.txt")
-        if os.path.exists(progress_file):
-            try:
-                os.remove(progress_file)
-                logger.info(f"Removed progress file: {progress_file}")
-            except Exception as e:
-                logger.error(f"Error while deleting the progress file {progress_file}: {e}")
+    def create_or_get_user_folder(user_id):
+        """
+        Creates a user-specific subfolder under the UPLOAD_FOLDER.
+        """
+        upload_folder = app.config["UPLOAD_FOLDER"]
+        user_folder = os.path.join(upload_folder, user_id)
+        os.makedirs(user_folder, exist_ok=True)
+        logger.info(f"User-specific folder created: {user_folder}")
+        return user_folder
 
     @app.route('/progress', methods=['GET'])
     @jwt_required()
@@ -201,7 +336,7 @@ def register_extract_routes(app):
         Fetches the progress of ongoing extractions.
         """
         user_id = get_jwt_identity()
-        upload_folder = app.config['UPLOAD_FOLDER']
+        upload_folder = create_or_get_user_folder(user_id)
         progress_file = os.path.join(upload_folder, f'progress_{user_id}.txt')
         try:
             with open(progress_file, 'r') as f:
@@ -282,7 +417,7 @@ def register_extract_routes(app):
 
         return True, None, None
 
-    def process_results(results):
+    def process_results(results, consolidated_file_path = None):
         """
         Processes the results from concurrent extraction tasks.
         Dynamically handles table-based and other extractions.
@@ -295,6 +430,7 @@ def register_extract_routes(app):
         csv_paths = {}
         text_paths = {}
         excel_paths = {}
+        combined_excel_paths = {}
 
         for result in results:
             filename = result.get('filename')
@@ -307,6 +443,7 @@ def register_extract_routes(app):
                 "csv_data": None,
                 "excel_path": None,
                 "text_data": None,
+                "combined_excel_paths": None
             }
 
             # Store paths for JSON, CSV, and Excel files
@@ -314,6 +451,7 @@ def register_extract_routes(app):
             file_data["csv_data"] = extracted_data.get('csv')
             file_data["excel_path"] = extracted_data.get('excel')
             file_data["text_data"] = extracted_data.get('text')
+            file_data["combined_excel_paths"] = consolidated_file_path
 
             # Append paths to respective lists
             if file_data["csv_data"]:
@@ -322,11 +460,13 @@ def register_extract_routes(app):
                 excel_paths[filename] = file_data["excel_path"]
             if file_data["text_data"]:
                 text_paths[filename] = file_data["text_data"]
+            if file_data["combined_excel_paths"]:
+                combined_excel_paths[filename] = file_data["combined_excel_paths"]
 
             # Store extracted data and lines data
             response_data[filename] = file_data["json_data"]
             lines_data[filename] = original_lines  # Set lines_data using original lines
-        return response_data, lines_data, csv_paths, text_paths, excel_paths
+        return response_data, lines_data, csv_paths, text_paths, excel_paths, combined_excel_paths
 
     def perform_extraction(
         filenames, file_paths, user_id, upload_folder, progress_file, extraction_model,
