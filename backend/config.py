@@ -1,7 +1,7 @@
 import os
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-
+from modules.services.azure_blob_service import AzureBlobService
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'pdf'}
 OUTPUT_FOLDER = 'uploads' # we can change this later
@@ -41,6 +41,7 @@ secret_client = SecretClient(vault_url=KEY_VAULT_URL, credential=credential)
 # Azure Configuration
 AZURE_ENDPOINT = secret_client.get_secret("azure-form-recognizer-endpoint").value
 AZURE_KEY = secret_client.get_secret("azure-form-recognizer-key").value
+AZURE_BLOB_SERVICE = AzureBlobService(AZURE_STORAGE_CONNECTION_STRING, AZURE_STORAGE_CONTAINER)
 
 # Model Mappings
 MODEL_MAPPING = {

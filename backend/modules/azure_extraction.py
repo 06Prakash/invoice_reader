@@ -248,6 +248,7 @@ def extract_with_azure(
 
     # Generate user-specific file path for Azure Blob
     user_file_path = f"{user_id}/{filename}"
+    use_credit = False
 
     # Initialize Azure clients
     document_analysis_client = DocumentAnalysisClient(
@@ -302,6 +303,7 @@ def extract_with_azure(
                         raise ValueError(f"Invalid page_range format for section {section}: {page_range}")
 
                     for chunk in split_pages(page_list, chunk_size):
+                        use_credit = True
                         pages = ",".join(map(str, chunk))
                         logger.info(f"Processing chunk for section {section}: {pages}")
 
@@ -321,15 +323,13 @@ def extract_with_azure(
 
                         if "json" in section_outputs:
                             section_data.setdefault(section, {}).update(section_outputs["json"])
+                            outputs['json'] = section_outputs["json"]
 
                         outputs["text_data"] += f"\n{section_outputs.get('text_data', '')}"
                         outputs["original_lines"] += f"\n{section_outputs.get('original_lines', '')}"
 
                         if "csv" in section_outputs:
                             outputs["csv"] = section_outputs["csv"]
-                        
-                        if "json" in section_outputs:
-                            outputs['json'] = section_outputs[""]
 
                 except HttpResponseError as e:
                     logger.error(f"Error processing section {section}: {e}")
@@ -339,6 +339,7 @@ def extract_with_azure(
         else:
             all_pages = list(range(1, total_pages + 1))
             for chunk in split_pages(all_pages, chunk_size):
+                use_credit = True
                 pages = ",".join(map(str, chunk))
                 logger.info(f"Processing chunk: {pages}")
 
@@ -365,7 +366,7 @@ def extract_with_azure(
         outputs = save_extraction_results(section_data, filename, output_folder, outputs, extra_requirements)
 
         logger.info(f"Extraction completed successfully for {filename}")
-        return {"filename": filename, "extracted_data": outputs}
+        return {"filename": filename, "extracted_data": outputs, "use_credit": use_credit}
 
     except Exception as e:
         logger.error(f"Azure extraction failed for {filename}: {e}")
@@ -405,6 +406,7 @@ def process_table_section(result, section_name):
             rows.append(row)
         tables.append(pd.DataFrame(rows))
     return tables
+
 def upload_extraction_results_to_azure(section_data, filename, azure_blob_service, user_id):
     """
     Uploads extracted results to Azure Blob Storage using AzureBlobService.
@@ -497,3 +499,19 @@ def save_extraction_results(section_data, filename, output_folder, outputs, extr
     # Save Excel data
     logger.info(f"Output data : {outputs}")
     return outputs
+
+def delete_extracted_local_files(section_data):
+    """
+    Deletes local files listed in the section_data.
+
+    :param section_data: Dictionary containing file paths to delete.
+    """
+    for file_type, file_path in section_data.items():
+        if file_type in ['text_data', 'original_lines']:
+            continue
+        if file_path and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                logger.info(f"Deleted local file: {file_path}")
+            except Exception as e:
+                logger.error(f"Error while deleting file {file_path}: {e}")

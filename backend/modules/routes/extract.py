@@ -1,10 +1,10 @@
-from flask import request, jsonify, send_from_directory
+from flask import request, jsonify, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from PyPDF2 import PdfReader
 from modules.services.user_service import reduce_credits_for_user
 from modules.logging_util import setup_logger
-from modules.azure_extraction import extract_with_azure, upload_extraction_results_to_azure
+from modules.azure_extraction import extract_with_azure, upload_extraction_results_to_azure, delete_extracted_local_files
 from modules.progress_tracker import ProgressTracker
 from modules.services.credit_service import validate_credits, reduce_credits
 from modules.services.page_service import calculate_pages_to_process, calculate_file_pages_to_process
@@ -30,9 +30,7 @@ def register_extract_routes(app):
 
         # Validate input data
         # Azure-specific configurations
-        azure_container = app.config["AZURE_STORAGE_CONTAINER"]
-        azure_connection_string = app.config["AZURE_STORAGE_CONNECTION_STRING"]
-        azure_blob_service = AzureBlobService(azure_connection_string, azure_container)
+        azure_blob_service = app.config["AZURE_BLOB_SERVICE"]
         is_valid, error_response, status_code = validate_input(data, user_id, azure_blob_service)
         if not is_valid:
             return error_response, status_code
@@ -48,6 +46,8 @@ def register_extract_routes(app):
 
         # Download files from Azure
         file_paths = {}
+        local_file_paths = []
+        total_pages = 0
         try:
             for filename in filenames:
                 # Download file locally
@@ -58,11 +58,28 @@ def register_extract_routes(app):
                 with open(local_path, "wb") as local_file:
                     local_file.write(azure_blob_service.download_file(user_id, filename))
                 file_paths[exact_file_name] = local_path
+                local_file_paths.append(local_path)
                 logger.info(f"Downloaded {exact_file_name} to {local_path}")
-
         except Exception as e:
             logger.error(f"Failed to download files from Azure: {e}")
             return jsonify({"message": "Error downloading files from Azure"}), 500
+        
+        # Calculate total pages in the PDF
+        total_pages = progress_tracker.calculate_total_pages(filenames, upload_folder)
+        logger.info(f"Total Pages in PDF: {total_pages}")
+
+        # Calculate pages to process
+        pages_to_process = calculate_pages_to_process(page_config, total_pages)
+        logger.info(f"Pages to Process: {pages_to_process}")
+        if pages_to_process == 0:
+            return jsonify({'message': 'No pages to process based on the configuration.'}), 400
+        
+        # Validate credit availability
+        try:
+            validate_credits(user_id, pages_to_process)
+        except ValueError as e:
+            logger.error(f"Credit validation failed: {e}")
+            return jsonify({'message': str(e)}), 400
 
         # Perform extraction
         results = []
@@ -77,7 +94,6 @@ def register_extract_routes(app):
 
         # Upload extraction results to Azure
         response = {"extracted_files": {}, "failed_files": []}
-        file_upload_data = {}
         successful_results = []
         try:
             for result in results:
@@ -86,7 +102,8 @@ def register_extract_routes(app):
                     logger.error(f"Extraction failed for {filename}: {result['error']}")
                     response["failed_files"].append(filename)
                     continue
-                successful_results.append(result)
+                if result['use_credit']:
+                    successful_results.append(result)
             for result in successful_results:
                 filename = result["filename"]
                 logger.info("Inside the expected successful results files..")
@@ -101,6 +118,7 @@ def register_extract_routes(app):
                     upload_extraction_results_to_azure(result["extracted_data"], filename, azure_blob_service, user_id)
                     azure_file_path = azure_blob_service.generate_blob_name(user_id, filename.split("/")[-1], 'user_extract')
                     logger.info(f"Got the azure file path as {azure_file_path}")
+                    delete_extracted_local_files(result['extracted_data'])
                     # response["extracted_files"].setdefault(filename, {})[file_type] = local_file_path
             response_data, lines_data, csv_data, text_data, excel_paths = process_results(successful_results)
              # Log failed files
@@ -123,7 +141,9 @@ def register_extract_routes(app):
                 except ValueError as e:
                     logger.error(f"Credit deduction failed: {e}")
                     return jsonify({'message': 'Credit deduction failed after successful extraction.'}), 500
-
+            else:
+                logger.warning("Extraction Failed!!")
+                return jsonify({'message': "Extraction failed due to page config error!!"}), 500
         except Exception as e:
             logger.error(f"Failed to upload extracted results to Azure: {e}")
             return jsonify({"message": "Error uploading extraction results to Azure"}), 500
@@ -140,6 +160,16 @@ def register_extract_routes(app):
             'excel_paths': excel_paths,
         }
         logger.info(f"Final extracted data: {response}")
+        current_file = ""
+        try:
+            for local_path in local_file_paths:
+                current_file = local_path
+                if os.path.exists(local_path):
+                    os.remove(local_path)
+                    logger.info(f"Removed file: {local_path} from local")
+        except Exception as e:
+            logger.error(f"Error while deleting the file {current_file}")
+            
 
         return jsonify(response), 200 if successful_results else 500
 
@@ -184,10 +214,24 @@ def register_extract_routes(app):
     @jwt_required()
     def download_file(filename):
         """
-        Serves the Excel file for download.
+        Serves the file for download directly from Azure Blob Storage.
         """
-        output_folder = app.config['OUTPUT_FOLDER']  # Add OUTPUT_FOLDER to your config
-        return send_from_directory(output_folder, filename, as_attachment=True)
+        user_id = get_jwt_identity()  # Assuming JWT token contains user_id
+        azure_blob_service = app.config["AZURE_BLOB_SERVICE"]
+        folder_type = 'user_extract'  # Adjust folder_type as needed
+
+        try:
+            # Call the Azure Blob download method
+            content = azure_blob_service.download_file(user_id, filename, folder_type)
+
+            # Prepare the response for file download
+            response = Response(content, mimetype='application/octet-stream')
+            response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+            return response
+
+        except Exception as e:
+            logger.error(f"Error while downloading file {filename} for user {user_id}: {e}")
+            return {"error": f"Failed to download the file: {e}"}, 500
     
     ##############################################################
     ################ Non routing functions #######################

@@ -312,6 +312,10 @@ def save_sections_to_excel_and_csv(section_data, filename, output_folder, config
         return {"result": "success", "excel_path": excel_path, "csv_path": combined_csv_path}
     except Exception as e:
         logger.error(f"Failed to save sections to Excel and combined CSV: {e}")
+        if excel_path and os.path.exists(excel_path):
+            os.remove(excel_path)
+        if combined_csv_path and os.path.exists(combined_csv_path):
+            os.remove(combined_csv_path)
         return {"result": "failure", "error": str(e)}
 
 def process_and_save_section(content, section, base_filename, output_folder, writer, config):
