@@ -47,7 +47,7 @@ class AzureBlobService:
 
         date_folder = self._get_date_folder()
         filename = destination_filename or os.path.basename(local_file_path)
-        blob_name = f"uploads/{user_id}/{date_folder}/{folder_type}/{filename}"
+        blob_name = f"uploads/{date_folder}/{user_id}/{folder_type}/{filename}"
         try:
             blob_client = self.container_client.get_blob_client(blob_name)
             with open(local_file_path, 'rb') as data:
@@ -92,7 +92,7 @@ class AzureBlobService:
 
                 # Prepare blob name and upload file
                 filename = os.path.basename(local_file_path)
-                blob_name = f"uploads/{user_id}/{date_folder}/{folder_type}/{filename}"
+                blob_name = f"uploads/{date_folder}/{user_id}/{folder_type}/{filename}"
                 blob_client = self.container_client.get_blob_client(blob_name)
                 with open(local_file_path, 'rb') as data:
                     blob_client.upload_blob(data, overwrite=True)
@@ -123,7 +123,7 @@ class AzureBlobService:
         """
         if date_folder == None:
             date_folder = self._get_date_folder()
-        prefix = f"uploads/{user_id}/{date_folder}/{folder_type}/"
+        prefix = f"uploads/{date_folder}/{user_id}/{folder_type}/"
         logger.info(f"Listing files for user {user_id} in folder {prefix}...")
         try:
             files = [blob.name for blob in self.container_client.list_blobs(name_starts_with=prefix)]
@@ -145,7 +145,7 @@ class AzureBlobService:
         blob_name = filename
         logger.info(f"Inside download file function {user_id} => {filename}")
         if folder_type not in blob_name:
-            blob_name = f"uploads/{user_id}/{date_folder}/{folder_type}/{filename}"
+            blob_name = f"uploads/{date_folder}/{user_id}/{folder_type}/{filename}"
         logger.info(f"Downloading file {blob_name} for user {user_id}...")
         try:
             blob_client = self.container_client.get_blob_client(blob_name)
@@ -165,7 +165,7 @@ class AzureBlobService:
         :return: None.
         """
         date_folder = self._get_date_folder()
-        blob_name = f"uploads/{user_id}/{date_folder}/{folder_type}/{filename}"
+        blob_name = f"uploads/{date_folder}/{user_id}/{folder_type}/{filename}"
         logger.info(f"Deleting file {blob_name} for user {user_id}...")
         try:
             blob_client = self.container_client.get_blob_client(blob_name)
@@ -185,7 +185,7 @@ class AzureBlobService:
         logger.info(f"Creating folder structure for user {user_id} for date {date_folder}...")
         try:
             for folder_type in ['user_upload', 'user_extract']:
-                blob_name = f"uploads/{user_id}/{date_folder}/{folder_type}/.placeholder"
+                blob_name = f"uploads/{date_folder}/{user_id}/{folder_type}/.placeholder"
                 blob_client = self.container_client.get_blob_client(blob_name)
                 blob_client.upload_blob(b'', overwrite=True)  # Empty content for placeholder
                 logger.info(f"Created folder {folder_type} for user {user_id} under {date_folder}.")
@@ -200,7 +200,7 @@ class AzureBlobService:
         :return: None.
         """
         date_folder = self._get_date_folder()
-        prefix = f"uploads/{user_id}/{date_folder}/"
+        prefix = f"uploads/{date_folder}/{user_id}/"
         logger.info(f"Deleting folder structure for user {user_id} for date {date_folder}...")
         try:
             blobs_to_delete = [blob.name for blob in self.container_client.list_blobs(name_starts_with=prefix)]
@@ -215,7 +215,7 @@ class AzureBlobService:
     
     def generate_blob_name(self, user_id, blob_name, folder_type):
         date_folder = self._get_date_folder()
-        return f"uploads/{user_id}/{date_folder}/{folder_type}/{blob_name}"
+        return f"uploads/{date_folder}/{user_id}/{folder_type}/{blob_name}"
 
     def get_total_pages_from_azure(self, blob_name):
         """
