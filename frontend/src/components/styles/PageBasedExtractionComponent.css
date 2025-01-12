@@ -77,7 +77,7 @@
     cursor: pointer;
 }
 
-.add-section button:hover {
+.add-section button:hover, .json-actions button:hover {
     background-color: #004d00;
 }
 
@@ -174,3 +174,48 @@
     outline: none; /* Remove default focus outline */
 }
 
+/* Styles for Combine Sections checkbox and label */
+.combine-sections-label {
+    font-weight: bold;
+    color: #003300; /* Matches existing green theme */
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+}
+
+/* Multi-Select Dropdown Styles */
+.file-dropdown[multiple] {
+    height: auto; /* Automatically adjusts height based on options */
+    padding: 8px; /* Comfortable padding for better usability */
+    border: 1px solid #006400; /* Matches existing green theme */
+    border-radius: 4px;
+    background-color: #f5fff5; /* Light green for consistency with the theme */
+    color: #003300; /* Dark green text for readability */
+    font-family: 'Arial', sans-serif;
+}
+
+/* Individual Options in Multi-Select */
+.file-dropdown[multiple] option {
+    padding: 5px; /* Padding for each option */
+    font-size: 14px; /* Maintain consistency with other inputs */
+}
+
+/* Highlight Selected Options */
+.file-dropdown[multiple] option:checked {
+    background-color: #006400; /* Dark green for selected options */
+    color: white; /* White text for better contrast */
+}
+
+.file-dropdown {
+    padding: 8px;
+    border: 1px solid #006400; /* Dark green border for consistency */
+    border-radius: 4px;
+    background-color: #f5fff5; /* Light green background */
+    color: #003300;
+    font-family: 'Arial', sans-serif;
+}
+
+/* Checkbox Styling */
+label input[type="checkbox"] {
+    margin-right: 5px; /* Space between the checkbox and the label */
+}

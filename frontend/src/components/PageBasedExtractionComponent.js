@@ -9,19 +9,13 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
     const [columnsToRemove, setColumnsToRemove] = useState('');
     const [rowsToRemove, setRowsToRemove] = useState('');
     const [gridLinesRemoval, setGridLinesRemoval] = useState(false);
+    const [combineSections, setCombineSections] = useState(false); // Combine at the file level
     const [errors, setErrors] = useState({ section: '', pageRange: '' });
     const [notification, setNotification] = useState('');
     const [isExpanded, setIsExpanded] = useState(false);
 
-    const validateSectionName = (name) => {
-        const sectionNameRegex = /^[a-zA-Z0-9_-]{1,50}$/; // Only letters, digits, '-', '_', max 50 characters
-        return sectionNameRegex.test(name);
-    };
-
-    const validatePageRange = (range) => {
-        const pageRangeRegex = /^(\d+(-\d+)?)(,\d+(-\d+)?)*$/; // Valid patterns: 1, 1-3, 1-3,4
-        return pageRangeRegex.test(range);
-    };
+    const validateSectionName = (name) => /^[a-zA-Z0-9_-]{1,50}$/.test(name);
+    const validatePageRange = (range) => /^(\d+(-\d+)?)(,\d+(-\d+)?)*$/.test(range);
 
     const handleSectionChange = (value) => {
         setSection(value);
@@ -46,7 +40,7 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
             setErrors((prevErrors) => ({ ...prevErrors, pageRange: '' }));
         }
     };
-
+    
     const handleInputChange = (file, section, category, key, value) => {
         setPageConfig((prevConfig) => ({
             ...prevConfig,
@@ -80,24 +74,41 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
         }
 
         const sanitizedFilename = filename.replace(/\s+/g, '_'); // Replace spaces with underscores
-        setPageConfig((prevConfig) => ({
-            ...prevConfig,
-            [sanitizedFilename]: {
-                ...prevConfig[sanitizedFilename],
+
+        // Add configuration to the pageConfig object
+        setPageConfig((prevConfig) => {
+            const updatedConfig = { ...prevConfig };
+            updatedConfig[sanitizedFilename] = {
+                ...updatedConfig[sanitizedFilename],
                 [section]: {
                     pageRange,
                     excel: {
-                        columnsToRemove: columnsToRemove.split(',').map((col) => col.trim()), // Convert to array
-                        rowsToRemove: rowsToRemove.split(',').map((row) => row.trim()), // Convert to array
+                        columnsToRemove: columnsToRemove.split(',').map((col) => col.trim()),
+                        rowsToRemove: rowsToRemove.split(',').map((row) => row.trim()),
                         gridLinesRemoval,
+                        combine: combineSections, // File-level combine flag
                     },
                 },
-            },
-        }));
+            };
+
+            // Apply "combineSections" logic to all files with the same section name
+            if (combineSections) {
+                Object.keys(updatedConfig).forEach((file) => {
+                    if (file !== sanitizedFilename && updatedConfig[file][section]) {
+                        updatedConfig[file][section].combine = true;
+                    }
+                });
+            }
+
+            return updatedConfig;
+        });
+
+        // Reset input fields after adding the configuration
         setSection('');
         setPageRange('');
         setColumnsToRemove('');
         setRowsToRemove('');
+        setCombineSections(false);
     };
 
     const handleRemoveSection = (file, sectionToRemove) => {
@@ -119,6 +130,7 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
         setColumnsToRemove('');
         setRowsToRemove('');
         setGridLinesRemoval(false);
+        setCombineSections(false);
         setErrors({ section: '', pageRange: '' });
 
         if (onPageExtractionConfigSubmit) {
@@ -259,6 +271,14 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
                                 onChange={(e) => setGridLinesRemoval(e.target.checked)}
                             />
                             Remove Gridlines
+                        </label>
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={combineSections}
+                                onChange={(e) => setCombineSections(e.target.checked)}
+                            />
+                            Combine Sections
                         </label>
                         <button onClick={handleAddSectionConfig}>Add Section</button>
                     </div>
