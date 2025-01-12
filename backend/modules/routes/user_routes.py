@@ -6,7 +6,7 @@ from modules.middleware.admin_middleware import special_admin_required
 
 from modules.logging_util import setup_logger
 
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 user_bp = Blueprint('user', __name__)
 

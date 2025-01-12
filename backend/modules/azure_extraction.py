@@ -2,15 +2,18 @@ import os
 import pandas as pd
 from azure.ai.formrecognizer import DocumentAnalysisClient
 from azure.core.credentials import AzureKeyCredential
+from azure.storage.blob import BlobServiceClient
+import tempfile
 from .data_processing import process_field, flatten_nested_field
 from .logging_util import setup_logger
+from modules.services.excel_service import save_sections_to_excel_and_csv
+from modules.services.azure_blob_service import AzureBlobService  # Import the AzureBlobService
 import csv
 import json
 from concurrent.futures import ThreadPoolExecutor
 from azure.core.exceptions import HttpResponseError
-from modules.services.excel_service import process_excel, save_sections_to_excel
 
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 # Mapping function for user-friendly model names to Azure-recognized model names
 def extraction_model_mapping(model_name):
@@ -36,12 +39,7 @@ def process_table_extraction(result, filename, output_folder, progress_tracker, 
     Includes raw table data and original lines in the return value.
     """
     tables = []
-    original_lines = ''  # Collect raw lines for separate use
     outputs = {}
-
-    # Collect original lines from result.pages (if available)
-    if hasattr(result, 'pages'):
-        original_lines = extract_original_lines(result)
 
     # Extract tables directly from result.tables
     if hasattr(result, 'tables') and result.tables:
@@ -153,7 +151,7 @@ def process_field_extraction(result, filename, output_folder, progress_tracker, 
     :param progress_tracker: Progress tracker instance
     :param progress_file: Path to track extraction progress
     :param total_pages: Total number of pages to process
-    :return: Outputs dictionary including JSON, text, CSV, and Excel paths, and original lines
+    :return: Outputs dictionary including JSON, text, CSV, Excel paths, original lines, and raw_tables key
     """
     extracted_data = {}
     original_lines = []
@@ -191,7 +189,7 @@ def process_field_extraction(result, filename, output_folder, progress_tracker, 
     with open(text_path, "w", encoding="utf-8") as text_file:
         text_file.write(text_data)
     outputs['text'] = text_path
-    outputs['original_lines'] = "\n".join(original_lines)
+    outputs['original_lines'] = text_data
 
     outputs['text_data'] = text_data
 
@@ -213,11 +211,10 @@ def process_field_extraction(result, filename, output_folder, progress_tracker, 
             df.to_excel(writer, sheet_name="Fields", index=False)
         outputs['excel'] = excel_path
 
-    # Add original lines separately to the output
-    outputs['original_lines'] = text_data
+    # Add raw_tables key for further processing
+    outputs['raw_tables'] = csv_data
 
     return outputs
-
 
 
 def extract_original_lines(result):
@@ -229,23 +226,46 @@ def extract_original_lines(result):
 
     return "\n".join(original_lines)
 
+def process_based_on_model(result, filename, section, output_folder, progress_tracker, progress_file, total_pages, mapped_model):
+    if mapped_model == "prebuilt-layout":
+        return process_table_extraction(result, f"{filename}_{section}", output_folder, progress_tracker, progress_file, total_pages)
+    elif mapped_model == "MutualFundModelSundaramFinance":
+        return process_field_extraction(result, f"{filename}_{section}", output_folder, progress_tracker, progress_file, total_pages)
+    else:
+        return process_text_extraction(result, f"{filename}_{section}", output_folder, progress_tracker, progress_file, total_pages)
+
 def extract_with_azure(
-    filename, upload_folder, output_folder, total_pages, progress_file, progress_tracker,
+    filename, user_id, pdf_path, azure_blob_service, output_folder, total_pages, progress_file, progress_tracker,
     extraction_model, azure_endpoint, azure_key, page_config=None
 ):
     """
     Extracts data from a PDF using Azure Form Recognizer and processes it based on the extraction type.
     Handles section-specific page configurations and supports chunked page processing.
+    Also integrates with Azure Blob Storage for file download and upload.
     """
-    # Retrieve chunk size from environment variables (default to 2 if not set)
+    # Retrieve chunk size from environment variables or use default
     chunk_size = int(os.getenv("AZURE_CHUNK_SIZE", 2))
-    
+
+    # Generate user-specific file path for Azure Blob
+    user_file_path = f"{user_id}/{filename}"
+
+    # Initialize Azure clients
     document_analysis_client = DocumentAnalysisClient(
         endpoint=azure_endpoint,
         credential=AzureKeyCredential(azure_key)
     )
-    pdf_path = os.path.join(upload_folder, filename)
-    logger.info(f"Starting Azure extraction for {filename} at {pdf_path} with model {extraction_model}")
+
+    temp_pdf_path = ""
+    try:
+        # Download the file from Azure Blob Storage
+        logger.info(f"Downloading file {user_file_path} from Azure Blob Storage")
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file.write(azure_blob_service.download_file(user_id, filename.split("/")[-1]))
+            temp_pdf_path = temp_file.name
+        logger.info(f"File downloaded to temporary path: {temp_pdf_path}")
+    except Exception as e:
+        logger.error(f"Failed to download file {filename} from Azure: {e}")
+        return {"filename": filename, "error": f"Failed to download file from Azure: {e}"}
 
     # Ensure extra_requirements is not None
     extra_requirements = page_config or {}
@@ -254,33 +274,26 @@ def extract_with_azure(
         mapped_model = extraction_model_mapping(extraction_model)
         logger.info(f"Using Azure model: {mapped_model} for extraction")
 
-        # Initialize a dictionary to store section-specific data and outputs
         section_data = {}
         outputs = {"json": None, "csv": None, "text": None, "excel": None, "text_data": "", "original_lines": ""}
-        logger.info(f"Page Config: {page_config}")
 
         def split_pages(pages, chunk_size):
             """Splits a list of pages into valid chunks."""
             for i in range(0, len(pages), chunk_size):
                 chunk = pages[i:i + chunk_size]
-                if max(chunk) <= total_pages:  # Ensure valid page range
+                if max(chunk) <= total_pages:
                     yield chunk
                 else:
                     logger.warning(f"Skipping invalid chunk: {chunk}")
 
-
         if page_config:
-            # Process each section's page range
             for section, config in page_config.items():
                 try:
                     logger.info(f"Extracting section: {section} with config: {config}")
-
-                    # Extract pageRange from the section's configuration
                     page_range = config.get("pageRange")
                     if not page_range:
                         raise ValueError(f"Missing pageRange for section {section}")
 
-                    # Ensure the pageRange is properly formatted for Azure
                     if isinstance(page_range, list):
                         page_list = page_range
                     elif isinstance(page_range, str):
@@ -291,43 +304,32 @@ def extract_with_azure(
                     for chunk in split_pages(page_list, chunk_size):
                         pages = ",".join(map(str, chunk))
                         logger.info(f"Processing chunk for section {section}: {pages}")
-                        
-                        with open(pdf_path, "rb") as document:
+
+                        with open(temp_pdf_path, "rb") as document:
                             poller = document_analysis_client.begin_analyze_document(mapped_model, document, pages=pages)
                             result = poller.result()
 
-                        # Handle different model types
-                        if mapped_model == "prebuilt-layout":
-                            section_outputs = process_table_extraction(
-                                result, f"{filename}_{section}", output_folder, progress_tracker, progress_file,
-                                total_pages
-                            )
-                            # section_data["csv"] = section_outputs.get("csv")
-                            # section_data["text_data"] = section_outputs.get("text_data", "No original text")
-                            section_data.setdefault(section, []).extend(section_outputs.get("raw_tables", []))
-                        elif mapped_model == 'MutualFundModelSundaramFinance':
-                            section_outputs = process_field_extraction(
-                                result, f"{filename}_{section}", output_folder, progress_tracker, progress_file,
-                                total_pages
-                            )
-                            section_data.setdefault(section, {}).update(section_outputs.get("json_data", {}))
-                            # section_data["csv"] = section_outputs.get("csv", "NO CSV Data")
-                            # section_data["text_data"] = section_outputs.get("text_data", "No original text")
-                        else:
-                            section_outputs = process_text_extraction(
-                                result, f"{filename}_{section}", output_folder, progress_tracker, progress_file,
-                                total_pages
-                            )
-                            section_data.setdefault(section, {"text_data": ""})["text_data"] += section_outputs.get("text_data", "")
-                            # section_data["csv"] = section_outputs.get("csv", "No CSV DATA")
-                            # section_data["text_data"] = section_outputs.get("text_data", "No original text")
+                        section_outputs = process_based_on_model(
+                            result, filename, section, output_folder, progress_tracker, progress_file, total_pages, mapped_model
+                        )
 
-                        # Aggregate outputs
+                        # Process outputs and aggregate them
+                        if "raw_tables" in section_outputs:
+                            section_data.setdefault(section, {}).setdefault("raw_tables", []).extend(
+                                section_outputs["raw_tables"]
+                            )
+
+                        if "json" in section_outputs:
+                            section_data.setdefault(section, {}).update(section_outputs["json"])
+
                         outputs["text_data"] += f"\n{section_outputs.get('text_data', '')}"
                         outputs["original_lines"] += f"\n{section_outputs.get('original_lines', '')}"
-                        for key in ["json", "csv", "excel", "text"]:
-                            if section_outputs.get(key):
-                                outputs[key] = section_outputs[key]
+
+                        if "csv" in section_outputs:
+                            outputs["csv"] = section_outputs["csv"]
+                        
+                        if "json" in section_outputs:
+                            outputs['json'] = section_outputs[""]
 
                 except HttpResponseError as e:
                     logger.error(f"Error processing section {section}: {e}")
@@ -335,93 +337,44 @@ def extract_with_azure(
                     logger.error(f"Unexpected error processing section {section}: {section_error}")
 
         else:
-            # Process the entire document if no page config is provided
             all_pages = list(range(1, total_pages + 1))
             for chunk in split_pages(all_pages, chunk_size):
                 pages = ",".join(map(str, chunk))
                 logger.info(f"Processing chunk: {pages}")
 
-                with open(pdf_path, "rb") as document:
+                with open(temp_pdf_path, "rb") as document:
                     poller = document_analysis_client.begin_analyze_document(mapped_model, document, pages=pages)
                     result = poller.result()
 
-                if mapped_model == "prebuilt-layout":
-                    full_outputs = process_table_extraction(
-                        result, filename, output_folder, progress_tracker, progress_file, total_pages
-                    )
-                    logger.info(full_outputs)
-                    outputs["csv"] = full_outputs.get("csv")
-                    outputs["original_lines"] += full_outputs.get("original_lines", "")
-                    outputs["text_data"] += full_outputs.get("text_data", "")
-                    logger.info("-=-=-=-=-=-=-=")
-                    logger.info(f"Raw Tables Before Adding: {full_outputs.get('raw_tables', [])}")
-                    logger.info("-=-=-=-=-=-=-=")
-                    section_data.setdefault("Full Document", []).extend(full_outputs.get("raw_tables", []))
-                    logger.info(f"SECTION TABLE DATA: {section_data}")  # Safe log statement
+                full_outputs = process_based_on_model(
+                    result, filename, "Full Document", output_folder, progress_tracker, progress_file, total_pages, mapped_model
+                )
 
-                elif mapped_model == 'MutualFundModelSundaramFinance':
-                    full_outputs = process_field_extraction(
-                        result, filename, output_folder, progress_tracker, progress_file, total_pages
-                    )
-                    section_data.setdefault("Full Document", {}).update(full_outputs.get("json_data", {}))
+                section_data.setdefault("Full Document", {}).setdefault("raw_tables", []).extend(
+                    full_outputs.get("raw_tables", [])
+                )
+                if "json" in full_outputs:
+                    outputs['json'] = full_outputs.get("json")
+
+                outputs["text_data"] += full_outputs.get("text_data", "")
+                outputs["original_lines"] += full_outputs.get("original_lines", "")
+                if full_outputs.get("csv"):
                     outputs["csv"] = full_outputs.get("csv", "No CSV Data")
-                    outputs["original_lines"] += full_outputs.get("original_lines", "No Original Lines")
-                    outputs["text_data"] += full_outputs.get("text_data", "No text Data")
-                else:
-                    full_outputs = process_text_extraction(
-                        result, filename, output_folder, progress_tracker, progress_file, total_pages
-                    )
-                    section_data.setdefault("Full Document", {"text_data": ""})["text_data"] += full_outputs.get("text_data", "")
-                    outputs["csv"] = full_outputs.get("csv", "No CSV Data")
-                    outputs["original_lines"] += full_outputs.get("original_lines", "No Original Lines")
-                    outputs["text_data"] += full_outputs.get("text_data", "No text Data")
 
-            # Ensure Full Document has at least placeholder content
-            if not section_data.get("Full Document"):
-                logger.warning("Full Document is empty, adding placeholder.")
-                section_data["Full Document"] = [{"Field": "No Data", "Value": "No content extracted"}]
+        # Save results locally
+        outputs = save_extraction_results(section_data, filename, output_folder, outputs, extra_requirements)
 
-
-        # Save the processed Excel file
-        logger.info(f"extra_requirements: {extra_requirements}")
-        excel_save_result = save_sections_to_excel(section_data, filename, output_folder, extra_requirements)
-        if excel_save_result['result'] == 'success':
-            logger.info("Got the excel path successfully..")
-            outputs["excel"] = excel_save_result['excel_path']
-        else:
-            outputs["excel"] = None
-
-        # Save JSON data
-        json_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_sections.json")
-        serializable_section_data = {}
-        for section, content in section_data.items():
-            if isinstance(content, list):  # Handle lists of DataFrames (e.g., tables)
-                serializable_section_data[section] = [
-                    table.to_dict(orient="records") for table in content if isinstance(table, pd.DataFrame)
-                ]
-            elif isinstance(content, pd.DataFrame):  # Handle single DataFrame
-                serializable_section_data[section] = content.to_dict(orient="records")
-            else:
-                serializable_section_data[section] = content  # Include non-DataFrame content as is
-
-        with open(json_path, "w") as json_file:
-            json.dump(serializable_section_data, json_file, indent=2)
-        logger.info(f"Section data saved as JSON at {json_path}")
-        outputs["json"] = json_path
-
-        # Save text output
-        text_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_text.txt")
-        with open(text_path, "w", encoding="utf-8") as text_file:
-            text_file.write(outputs["text_data"].strip())
-        logger.info(f"Text data saved as Text at {text_path}")
-        outputs["text"] = text_path
-        logger.info(f"CSV data: {outputs}")
-
+        logger.info(f"Extraction completed successfully for {filename}")
         return {"filename": filename, "extracted_data": outputs}
 
     except Exception as e:
         logger.error(f"Azure extraction failed for {filename}: {e}")
         return {"filename": filename, "error": str(e)}
+
+    finally:
+        if os.path.exists(temp_pdf_path):
+            os.unlink(temp_pdf_path)
+            logger.info(f"Temporary file {temp_pdf_path} has been deleted.")
 
 def parse_page_ranges(page_ranges):
     """
@@ -452,54 +405,95 @@ def process_table_section(result, section_name):
             rows.append(row)
         tables.append(pd.DataFrame(rows))
     return tables
+def upload_extraction_results_to_azure(section_data, filename, azure_blob_service, user_id):
+    """
+    Uploads extracted results to Azure Blob Storage using AzureBlobService.
 
-# def save_sections_to_excel(section_data, filename, output_folder):
-#     """
-#     Saves section-specific data to separate sheets in an Excel file.
-#     Ensures at least one visible sheet exists, even if no data is extracted.
-#     """
-#     excel_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_sections.xlsx")
+    :param section_data: The extracted section data.
+    :param filename: The name of the file being processed.
+    :param azure_blob_service: Instance of AzureBlobService.
+    :param user_id: User ID to organize files in their specific folder.
+    """
+    for file_type, file_path in section_data.items():
+        if file_type in ['text_data', 'original_lines']:
+            continue
+        logger.info(f"File path: {file_path} for type {file_type}")
+        if not file_path or not os.path.exists(file_path):
+            logger.warning(f"File {file_path} does not exist and will not be uploaded.")
+            continue
 
-#     try:
-#         with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
-#             logger.info(section_data)
-#             if not section_data:
-#                 logger.warning("No section data available. Adding default sheet.")
-#                 # Create a default placeholder sheet
-#                 pd.DataFrame(["No data extracted"]).to_excel(writer, sheet_name="No_Data", index=False)
-#             else:
-#                 has_data = False  # Track if any valid sheet is added
-#                 for section, content in section_data.items():
-#                     if isinstance(content, list):  # Handle tables (list of DataFrames)
-#                         for idx, table in enumerate(content):
-#                             if isinstance(table, pd.DataFrame) and not table.empty:
-#                                 sheet_name = f"{section}_Table_{idx + 1}"
-#                                 logger.info(f"Writing table to sheet: {sheet_name}")
-#                                 table.to_excel(writer, sheet_name=sheet_name, index=False, header=False).drop(['unnamed 0'],axis=1)
-#                                 has_data = True
-#                             else:
-#                                 logger.warning(f"Empty or invalid table in section: {section}, Table {idx + 1}. Skipping.")
-#                     elif isinstance(content, dict):  # Handle field-based extractions
-#                         pd.DataFrame(content.items(), columns=["Field", "Value"]).to_excel(
-#                             writer, sheet_name=section, index=False, header=False
-#                         ).drop(['unnamed 0'],axis=1)
-#                         has_data = True
-#                     elif isinstance(content, str):  # Handle raw text data
-#                         rows = content.split("\n")
-#                         structured_rows = [row.split() for row in rows if row.strip()]  # Split rows into columns
-#                         pd.DataFrame(structured_rows).to_excel(writer, sheet_name=section, index=False, header=False).drop(['unnamed 0'],axis=1)
-#                         has_data = True
-#                     else:
-#                         logger.warning(f"Unsupported content type for section: {section}. Skipping.")
+        folder_type = "user_extract"
+        logger.info(f"Uploading the file type: {file_type} to cloud using {file_path} with file name: {filename}..")
+        try:
+            azure_blob_service.upload_file(user_id, file_path, folder_type)
+            logger.info(f"Uploaded {file_path} to Azure under folder type {folder_type}")
+        except Exception as e:
+            logger.error(f"Failed to upload {file_path} to Azure: {e}")
 
-#                 # Add a placeholder sheet if no valid data was found
-#                 if not has_data:
-#                     logger.warning("No valid data found. Adding default placeholder sheet.")
-#                     pd.DataFrame(["No data available"]).to_excel(writer, sheet_name="Placeholder", index=False)
+def save_extraction_results(section_data, filename, output_folder, outputs, extra_requirements = None):
+    """
+    Saves the extracted results locally in JSON, CSV, Excel, and Text formats.
 
-#         logger.info(f"Section data saved to Excel at {excel_path}")
-#     except Exception as e:
-#         logger.error(f"Failed to save sections to Excel: {e}")
-#         raise
-#     return excel_path
+    :param section_data: The extracted section data.
+    :param filename: The name of the file being processed.
+    :param output_folder: The folder to save extracted outputs.
+    :param outputs: The dictionary to update with output paths.
+    """
+    # Save JSON data
+    logger.info("Inside the save extraction results function..")
+    logger.info(f"filename: {filename}, output folder: {output_folder}")
+    # Save JSON data
+    json_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_sections.json")
+    serializable_section_data = {}
 
+    for section, content in section_data.items():
+        try:
+            if "raw_tables" in content and isinstance(content["raw_tables"], list):
+                serializable_section_data[section] = [
+                    table.to_dict(orient="records") for table in content["raw_tables"]
+                    if isinstance(table, pd.DataFrame) and not table.empty
+                ]
+            elif isinstance(content, pd.DataFrame):
+                if not content.empty:
+                    serializable_section_data[section] = content.to_dict(orient="records")
+                else:
+                    logger.warning(f"Skipping empty DataFrame in section: {section}")
+            else:
+                serializable_section_data[section] = content
+        except Exception as e:
+            logger.error(f"Error processing section '{section}': {e}")
+            serializable_section_data[section] = f"Error processing content: {str(e)}"
+
+    try:
+        logger.info(f"JSON data: {outputs['json']}")
+        if not(outputs['json'] and len(outputs['json']) > 0):
+            with open(json_path, "w") as json_file:
+                json.dump(serializable_section_data, json_file, indent=2)
+            logger.info(f"Section data saved as JSON at {json_path}")
+            outputs["json"] = json_path
+    except Exception as e:
+        logger.error(f"Failed to save JSON file: {e}")
+
+    # Save text output
+    text_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_text.txt")
+    try:
+        if not(outputs['text'] and len(outputs['text']) > 0):
+            with open(text_path, "w", encoding="utf-8") as text_file:
+                text_file.write(outputs["text_data"].strip())
+            logger.info(f"Text data saved as Text at {text_path}")
+            outputs["text"] = text_path
+    except Exception as e:
+        logger.error(f"Failed to save text file: {e}")
+    if not(outputs['excel'] and len(outputs['excel']) > 0) or not(outputs['csv'] and len(outputs['csv']) > 0):
+        excel_save_result = save_sections_to_excel_and_csv(section_data, filename, output_folder, extra_requirements)
+        if excel_save_result['result'] == 'success':
+            logger.info("Got the excel path successfully..")
+            if not(outputs['excel'] and len(outputs['excel']) > 0):
+                outputs["excel"] = excel_save_result['excel_path']
+            if not(outputs['csv'] and len(outputs['csv']) > 0):
+                outputs["csv"] = excel_save_result['csv_path']
+        else:
+            outputs["excel"] = None
+    # Save Excel data
+    logger.info(f"Output data : {outputs}")
+    return outputs

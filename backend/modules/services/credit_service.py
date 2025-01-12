@@ -6,7 +6,7 @@ from modules.models.user import User
 from modules.models.company import Company
 from modules.logging_util import setup_logger
 
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 def update_credit(entity_id, credit_count):
     """

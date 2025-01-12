@@ -6,7 +6,7 @@ from decimal import Decimal
 from modules.logging_util import setup_logger
 from modules.services.credit_service import update_credit, get_remaining_credits
 
-logger = setup_logger()
+logger = setup_logger(__name__)
 RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET')
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))

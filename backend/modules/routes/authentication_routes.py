@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_mail import Mail, Message
 from flask_jwt_extended import create_access_token, create_refresh_token
 from modules.logging_util import setup_logger
-logger = setup_logger()
+logger = setup_logger(__name__)
 import os
 from modules.services.auth_services import generate_and_store_otp, is_otp_valid, set_password
 from modules.services.user_service import is_email_registered, get_user_by_email  # Import the new function

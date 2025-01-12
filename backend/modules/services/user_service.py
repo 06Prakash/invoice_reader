@@ -8,7 +8,7 @@ from modules.logging_util import setup_logger
 from sqlalchemy.orm import joinedload
 from flask_jwt_extended import get_jwt_identity
 
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 def create_user(username, email, password, company_id=None):
     # Check if the username or email already exists

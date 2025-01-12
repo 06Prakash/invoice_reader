@@ -1,17 +1,17 @@
 from flask import request, jsonify, send_from_directory
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
 from PyPDF2 import PdfReader
 from modules.services.user_service import reduce_credits_for_user
 from modules.logging_util import setup_logger
-from modules.azure_extraction import extract_with_azure
+from modules.azure_extraction import extract_with_azure, upload_extraction_results_to_azure
 from modules.progress_tracker import ProgressTracker
 from modules.services.credit_service import validate_credits, reduce_credits
 from modules.services.page_service import calculate_pages_to_process, calculate_file_pages_to_process
+from modules.services.azure_blob_service import AzureBlobService
 import os
 
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 
 def register_extract_routes(app):
@@ -19,101 +19,119 @@ def register_extract_routes(app):
     @jwt_required()
     def extract_data():
         """
-        Handles data extraction from PDF files using either Azure Form Recognizer
-        or template-based methods based on client requirements.
+        Handles data extraction from PDF files using Azure Form Recognizer
+        and uploads results to Azure Blob Storage.
         """
         data = request.json
         user_id = get_jwt_identity()
         progress_tracker = ProgressTracker()
-        page_config = data.get('page_config', {})
+        page_config = data.get("page_config", {})
         logger.info(f"Page Config: {page_config}")
 
         # Validate input data
-        is_valid, error_response, status_code = validate_input(data)
+        # Azure-specific configurations
+        azure_container = app.config["AZURE_STORAGE_CONTAINER"]
+        azure_connection_string = app.config["AZURE_STORAGE_CONNECTION_STRING"]
+        azure_blob_service = AzureBlobService(azure_connection_string, azure_container)
+        is_valid, error_response, status_code = validate_input(data, user_id, azure_blob_service)
         if not is_valid:
             return error_response, status_code
 
-        upload_folder = app.config['UPLOAD_FOLDER']
-        # Create a user-specific progress file
-        progress_file = os.path.join(upload_folder, f'progress_{user_id}.txt')
 
-        filenames = data['filenames']
+        # Create a temporary folder for file operations
+        upload_folder = app.config["UPLOAD_FOLDER"]
+        progress_file = os.path.join(upload_folder, f"progress_{user_id}.txt")
+        filenames = data["filenames"]
         extraction_model = data.get('extraction_model', 'NIRA AI - Printed Text (PB)').strip()
         azure_endpoint = app.config['AZURE_ENDPOINT']
         azure_key = app.config['AZURE_KEY']
 
-        # Calculate total pages in the PDF
-        total_pages = progress_tracker.calculate_total_pages(filenames, upload_folder)
-        logger.info(f"Total Pages in PDF: {total_pages}")
-
-        # Calculate pages to process
-        pages_to_process = calculate_pages_to_process(page_config, total_pages)
-        logger.info(f"Pages to Process: {pages_to_process}")
-
-        if pages_to_process == 0:
-            return jsonify({'message': 'No pages to process based on the configuration.'}), 400
-
-        # Validate credit availability
+        # Download files from Azure
+        file_paths = {}
         try:
-            validate_credits(user_id, pages_to_process)
-        except ValueError as e:
-            logger.error(f"Credit validation failed: {e}")
-            return jsonify({'message': str(e)}), 400
+            for filename in filenames:
+                # Download file locally
+                # local_path =  filename.split("/")
+                exact_file_name = filename.split("/")[-1]
+                local_path = os.path.join(upload_folder, exact_file_name)
+                logger.info(f"Attempting to download file {filename}")
+                with open(local_path, "wb") as local_file:
+                    local_file.write(azure_blob_service.download_file(user_id, filename))
+                file_paths[exact_file_name] = local_path
+                logger.info(f"Downloaded {exact_file_name} to {local_path}")
 
-        # Initialize progress tracking
-        progress_tracker.initialize_progress(progress_file)
+        except Exception as e:
+            logger.error(f"Failed to download files from Azure: {e}")
+            return jsonify({"message": "Error downloading files from Azure"}), 500
 
         # Perform extraction
         results = []
         try:
             results, file_page_counts = perform_extraction(
-                filenames, upload_folder, progress_file, extraction_model, azure_endpoint, azure_key, progress_tracker, page_config
+                filenames, file_paths, user_id, upload_folder, progress_file, extraction_model,
+                azure_endpoint, azure_key, azure_blob_service, progress_tracker, page_config
             )
         except Exception as e:
             logger.error(f"Extraction failed: {e}")
-            return jsonify({'message': 'Extraction process failed. Please try again later.'}), 500
+            return jsonify({"message": "Extraction process failed. Please try again later."}), 500
 
-        # Separate successful and failed extractions
+        # Upload extraction results to Azure
+        response = {"extracted_files": {}, "failed_files": []}
+        file_upload_data = {}
         successful_results = []
-        failed_files = []
-        for result in results:
-            if 'error' in result:
-                failed_files.append(result['filename'])
-                logger.error(f"Extraction failed for file: {result['filename']}, Error: {result['error']}")
-            else:
+        try:
+            for result in results:
+                filename = result["filename"]
+                if "error" in result:
+                    logger.error(f"Extraction failed for {filename}: {result['error']}")
+                    response["failed_files"].append(filename)
+                    continue
                 successful_results.append(result)
+            for result in successful_results:
+                filename = result["filename"]
+                logger.info("Inside the expected successful results files..")
+                # Upload processed files to Azure
+                for file_type, local_file_path in result["extracted_data"].items():
+                    if file_type in ["text_data", "original_lines"]:
+                        continue
+                    logger.info(f"Inside the {file_type} for expected successful result file {local_file_path}..")
+                    if not local_file_path or not os.path.exists(local_file_path):
+                        logger.info(f"Path {local_file_path} not exists")
+                        continue
+                    upload_extraction_results_to_azure(result["extracted_data"], filename, azure_blob_service, user_id)
+                    azure_file_path = azure_blob_service.generate_blob_name(user_id, filename.split("/")[-1], 'user_extract')
+                    logger.info(f"Got the azure file path as {azure_file_path}")
+                    # response["extracted_files"].setdefault(filename, {})[file_type] = local_file_path
+            response_data, lines_data, csv_data, text_data, excel_paths = process_results(successful_results)
+             # Log failed files
+            if len(response["failed_files"]) > 0:
+                logger.warning(f"The following files failed during extraction: {response['failed_files']}")
+            # Deduct credits for successfully processed files only
+            successful_pages = 0
+            for result in successful_results:
+                filename = result['filename']
+                if filename in file_page_counts:
+                    logger.info("-=-=-=-=-==")
+                    logger.info(file_page_counts[filename])
+                    logger.info("-=-=-=-=-==")
+                    pages_to_process = calculate_file_pages_to_process(page_config.get(filename, None), file_page_counts[filename])
+                    successful_pages += pages_to_process
+            if successful_pages > 0:
+                try:
+                    reduce_credits(user_id, successful_pages)
+                    logger.info(f"Deducted {successful_pages} credits for user {user_id}.")
+                except ValueError as e:
+                    logger.error(f"Credit deduction failed: {e}")
+                    return jsonify({'message': 'Credit deduction failed after successful extraction.'}), 500
 
-        # Log failed files
-        if failed_files:
-            logger.warning(f"The following files failed during extraction: {failed_files}")
-
-        # Deduct credits for successfully processed files only
-        successful_pages = 0
-        for result in successful_results:
-            filename = result['filename']
-            if filename in file_page_counts:
-                logger.info("-=-=-=-=-==")
-                logger.info(file_page_counts[filename])
-                logger.info("-=-=-=-=-==")
-                pages_to_process = calculate_file_pages_to_process(page_config.get(filename, None), file_page_counts[filename])
-                successful_pages += pages_to_process
-
-        if successful_pages > 0:
-            try:
-                reduce_credits(user_id, successful_pages)
-                logger.info(f"Deducted {successful_pages} credits for user {user_id}.")
-            except ValueError as e:
-                logger.error(f"Credit deduction failed: {e}")
-                return jsonify({'message': 'Credit deduction failed after successful extraction.'}), 500
-
-        # Process results for successful extractions
-        response_data, lines_data, csv_data, text_data, excel_paths = process_results(successful_results)
-
-        # Mark progress as 100%
-        with open(progress_file, 'w') as pf:
-            pf.write('100')
+        except Exception as e:
+            logger.error(f"Failed to upload extracted results to Azure: {e}")
+            return jsonify({"message": "Error uploading extraction results to Azure"}), 500
 
         # Prepare response
+        if response["failed_files"]:
+            logger.warning(f"Some files failed during extraction: {response['failed_files']}")
+
         response = {
             'json_data': response_data,
             'lines_data': lines_data,
@@ -121,8 +139,7 @@ def register_extract_routes(app):
             'text_data': text_data,
             'excel_paths': excel_paths,
         }
-        if failed_files:
-            response['failed_files'] = failed_files
+        logger.info(f"Final extracted data: {response}")
 
         return jsonify(response), 200 if successful_results else 500
 
@@ -175,7 +192,7 @@ def register_extract_routes(app):
     ##############################################################
     ################ Non routing functions #######################
     ##############################################################
-    def validate_input(data):
+    def validate_input(data, user_id, azure_blob_service):
         """
         Validates the input data for the extraction request.
         Ensures page_config is present for files with more than 10 pages.
@@ -188,15 +205,19 @@ def register_extract_routes(app):
         filenames = data['filenames']
 
         for filename in filenames:
-            progress_tracker = ProgressTracker()
-            total_pages = progress_tracker.get_total_pages(filename, app.config['UPLOAD_FOLDER'])
-            if total_pages > 10 and filename not in page_config:
-                logger.error(f"Page configuration is mandatory for files with more than 10 pages. Missing for {filename}")
-                return False, jsonify({'message': f'Page configuration is mandatory for {filename} with more than 10 pages'}), 400
+            blob_name = azure_blob_service.generate_blob_name(user_id, filename, 'user_upload')
+            try:
+                total_pages = azure_blob_service.get_total_pages_from_azure(blob_name)
+                logger.info(f"Total Pages: {total_pages}")
+                if total_pages > 10 and filename not in page_config:
+                    logger.error(f"Page configuration is mandatory for files with more than 10 pages. Missing for {filename}")
+                    return False, jsonify({'message': f'Page configuration is mandatory for {filename} with more than 10 pages'}), 400
+            except Exception as e:
+                logger.error(f"Failed to validate {filename}: {e}")
+                return False, jsonify({'message': f'Failed to validate {filename}: {e}'}), 500
 
         return True, None, None
 
-    
     def process_results(results):
         """
         Processes the results from concurrent extraction tasks.
@@ -244,15 +265,38 @@ def register_extract_routes(app):
         return response_data, lines_data, csv_paths, text_paths, excel_paths
 
     def perform_extraction(
-        filenames, upload_folder, progress_file, extraction_model,
-        azure_endpoint, azure_key, progress_tracker, page_config=None
+        filenames, file_paths, user_id, upload_folder, progress_file, extraction_model,
+        azure_endpoint, azure_key, azure_blob_service, progress_tracker, page_config=None
     ):
+        """
+        Orchestrates the extraction process for multiple files using Azure Form Recognizer.
+        :param filenames: List of filenames to process
+        :param file_paths: Dictionary mapping filenames to their local file paths
+        :param user_id: ID of the user performing the extraction
+        :param upload_folder: Local folder containing uploaded files
+        :param progress_file: Path to the progress tracking file
+        :param extraction_model: Model to use for extraction
+        :param azure_endpoint: Azure Form Recognizer endpoint
+        :param azure_key: Azure Form Recognizer key
+        :param azure_blob_service: Azure Blob service instance
+        :param progress_tracker: Instance of ProgressTracker for updating progress
+        :param page_config: Optional page configurations for each file
+        :return: Results and page counts for each file
+        """
         results = []
         file_page_counts = {}  # Track page count for each file
+
+        # Use ThreadPoolExecutor for parallel processing
         with ThreadPoolExecutor(max_workers=2) as executor:
             futures = []
+
             for filename in filenames:
-                pdf_path = os.path.join(upload_folder, filename)
+                # Get local file path for the current file
+                pdf_path = file_paths.get(filename)
+                if not pdf_path:
+                    logger.error(f"File path for {filename} not found.")
+                    results.append({"filename": filename, "error": "File path not found."})
+                    continue
 
                 # Calculate total pages for the current file
                 try:
@@ -272,11 +316,12 @@ def register_extract_routes(app):
                 # Submit extraction task
                 futures.append(
                     executor.submit(
-                        extract_with_azure, filename, upload_folder, upload_folder, total_pages, progress_file,
-                        progress_tracker, extraction_model, azure_endpoint, azure_key, specified_pages
+                        extract_with_azure, filename, user_id, pdf_path, azure_blob_service, upload_folder,
+                        total_pages, progress_file, progress_tracker, extraction_model, azure_endpoint, azure_key, specified_pages
                     )
                 )
 
+            # Collect results as tasks complete
             for future in as_completed(futures):
                 results.append(future.result())
 

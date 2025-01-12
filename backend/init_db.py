@@ -1,8 +1,8 @@
 # backend/init_db.py
 from extensions import db
 from flask import Flask
-from backend.modules.models.company import Company
-from backend.modules.models.user import User
+from modules.models.company import Company
+from modules.models.user import User
 import os
 
 # Fetch environment variables for database configuration

@@ -26,12 +26,8 @@ WORKDIR /app
 COPY backend/app-requirements.txt .
 RUN pip install --no-cache-dir -r app-requirements.txt
 
-# Install base dependencies
-COPY backend/base-requirements.txt .
-RUN pip install --no-cache-dir -r base-requirements.txt
-
 # Install additional tools and libraries
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \
     libgl1-mesa-glx \
     postgresql-client \

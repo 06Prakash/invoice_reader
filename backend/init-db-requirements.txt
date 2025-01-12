@@ -6,4 +6,5 @@ Werkzeug<2.0.0
 Flask-Bcrypt>=1.0.0
 Flask-Login==0.4.1
 flask-jwt-extended==3.25.1
+flask_mail==0.9.1
 markupsafe==2.0.1
