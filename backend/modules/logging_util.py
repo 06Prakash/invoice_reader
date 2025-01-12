@@ -54,4 +54,4 @@ def cleanup_old_logs():
             file_mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
             if file_mod_time < cutoff_date:
                 os.remove(file_path)
-                print(f"Deleted old log file: {file_path}"
+                print(f"Deleted old log file: {file_path}")
