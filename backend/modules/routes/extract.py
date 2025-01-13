@@ -39,7 +39,7 @@ def register_extract_routes(app):
         # Step 4: Perform Extraction
         results, file_page_counts = perform_extraction_with_error_handling(
             filenames, file_paths, user_id, upload_folder, extraction_model,
-            azure_endpoint, azure_key, azure_blob_service, progress_tracker, page_config
+            azure_endpoint, azure_key, azure_blob_service, progress_tracker, page_config, pages_to_process
         )
 
         # Retrieve Excel files to combine
@@ -63,6 +63,8 @@ def register_extract_routes(app):
 
         # Step 6: Deduct Credits for Successful Pages
         deduct_credits_for_successful_pages(successful_results, file_page_counts, page_config, user_id)
+
+        progress_tracker.update_progress(progress_file, 0, pages_to_process, True)
 
         # Step 7: Clean Up Local Files
         cleanup_local_files(upload_folder, filenames)
@@ -225,12 +227,12 @@ def register_extract_routes(app):
         return total_pages, pages_to_process
 
     # Step 4: Perform Extraction with Error Handling
-    def perform_extraction_with_error_handling(filenames, file_paths, user_id, upload_folder, extraction_model, azure_endpoint, azure_key, azure_blob_service, progress_tracker, page_config):
+    def perform_extraction_with_error_handling(filenames, file_paths, user_id, upload_folder, extraction_model, azure_endpoint, azure_key, azure_blob_service, progress_tracker, page_config, pages_to_process):
         try:
             progress_file = os.path.join(upload_folder, f"progress_{user_id}.txt")
             results, file_page_counts = perform_extraction(
                 filenames, file_paths, user_id, upload_folder, progress_file, extraction_model,
-                azure_endpoint, azure_key, azure_blob_service, progress_tracker, page_config
+                azure_endpoint, azure_key, azure_blob_service, progress_tracker, page_config, pages_to_process
             )
             logger.info(f"Extraction progress updated in {progress_file}")
             return results, file_page_counts
@@ -470,7 +472,7 @@ def register_extract_routes(app):
 
     def perform_extraction(
         filenames, file_paths, user_id, upload_folder, progress_file, extraction_model,
-        azure_endpoint, azure_key, azure_blob_service, progress_tracker, page_config=None
+        azure_endpoint, azure_key, azure_blob_service, progress_tracker, page_config=None, pages_to_process = 0
     ):
         """
         Orchestrates the extraction process for multiple files using Azure Form Recognizer.
@@ -520,7 +522,7 @@ def register_extract_routes(app):
                 # Submit extraction task
                 futures.append(
                     executor.submit(
-                        extract_with_azure, filename, user_id, pdf_path, azure_blob_service, upload_folder,
+                        extract_with_azure, filename, user_id, azure_blob_service, upload_folder, pages_to_process,
                         total_pages, progress_file, progress_tracker, extraction_model, azure_endpoint, azure_key, specified_pages
                     )
                 )

@@ -48,30 +48,46 @@ class ProgressTracker:
         """
         return sum(len(convert_from_path(os.path.join(upload_folder, filename), 300)) for filename in filenames)
 
-    def update_progress(self, progress_file, pages_processed_in_task, total_pages):
+    def update_progress(self, progress_file, pages_processed_in_task, total_pages, completion=False):
         """
         Updates the progress file by aggregating progress from all tasks.
 
         :param progress_file: Path to the progress file
         :param pages_processed_in_task: Number of pages processed in the current task
         :param total_pages: Total number of pages to process across all tasks
+        :param completion: Boolean flag indicating if the task is complete
         """
         try:
+            if total_pages <= 0:
+                logger.error("Total pages must be greater than zero.")
+                return
+            
             with self.lock:
-                # Update the total pages processed
+                # Safely update the total pages processed
                 self.total_pages_processed += pages_processed_in_task
-                progress = int((self.total_pages_processed / total_pages) * 100)
+                self.total_pages_processed = min(self.total_pages_processed, total_pages)  # Cap at total_pages
 
-                # Log the aggregated progress
+                # Calculate progress
+                if completion:
+                    progress = 100
+                else:
+                    progress = min(int((self.total_pages_processed / total_pages) * 100), 99)
+
+                # Log progress
                 logger.info(
                     f"Updating progress: {progress}% (Processed: {self.total_pages_processed}/{total_pages} pages)"
                 )
 
                 # Write progress to the file
-                with open(progress_file, 'w') as pf:
-                    pf.write(str(progress))
+                try:
+                    with open(progress_file, 'w') as pf:
+                        pf.write(str(progress))
+                except Exception as e:
+                    logger.error(f"Error writing to progress file: {e}")
+
         except Exception as e:
             logger.error(f"Error updating progress: {e}")
+
 
     def reset_progress(self):
         """

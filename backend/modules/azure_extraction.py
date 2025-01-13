@@ -235,7 +235,7 @@ def process_based_on_model(result, filename, section, output_folder, progress_tr
         return process_text_extraction(result, f"{filename}_{section}", output_folder, progress_tracker, progress_file, total_pages)
 
 def extract_with_azure(
-    filename, user_id, pdf_path, azure_blob_service, output_folder, total_pages, progress_file, progress_tracker,
+    filename, user_id, azure_blob_service, output_folder, pages_to_process, total_pages, progress_file, progress_tracker,
     extraction_model, azure_endpoint, azure_key, page_config=None
 ):
     """
@@ -312,7 +312,7 @@ def extract_with_azure(
                             result = poller.result()
 
                         section_outputs = process_based_on_model(
-                            result, filename, section, output_folder, progress_tracker, progress_file, total_pages, mapped_model
+                            result, filename, section, output_folder, progress_tracker, progress_file, pages_to_process, mapped_model
                         )
 
                         # Process outputs and aggregate them
@@ -348,7 +348,7 @@ def extract_with_azure(
                     result = poller.result()
 
                 full_outputs = process_based_on_model(
-                    result, filename, "Full Document", output_folder, progress_tracker, progress_file, total_pages, mapped_model
+                    result, filename, "Full Document", output_folder, progress_tracker, progress_file, pages_to_process, mapped_model
                 )
 
                 section_data.setdefault("Full Document", {}).setdefault("raw_tables", []).extend(
