@@ -363,6 +363,7 @@ def consolidate_excel_sheets(input_files, output_excel_path):
             for sheet_name, dataframes in sheet_data.items():
                 logger.info(f"Consolidating sheet: {sheet_name}")
                 consolidated_df = consolidate_dataframes(dataframes)
+                # remove_gridlines(writer, sheet_name)
                 if not consolidated_df.empty:
                     consolidated_df.to_excel(writer, sheet_name=sheet_name, index=False, header=True)
                     logger.info(f"Consolidated data written to sheet: {sheet_name}")

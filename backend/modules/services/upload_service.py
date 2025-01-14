@@ -31,9 +31,7 @@ def upload_files(user_id, files):
         return {'error': f"File type not allowed: {', '.join(invalid_files)}"}, 400
 
     # Initialize AzureBlobService
-    connection_string = current_app.config['AZURE_STORAGE_CONNECTION_STRING']
-    container_name = current_app.config['AZURE_STORAGE_CONTAINER']
-    blob_service = AzureBlobService(connection_string, container_name)
+    blob_service = current_app.config['AZURE_BLOB_SERVICE']
 
     try:
         # Upload files to Azure Blob Storage

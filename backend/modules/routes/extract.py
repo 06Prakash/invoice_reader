@@ -1,7 +1,8 @@
 from flask import request, jsonify, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from PyPDF2 import PdfReader
+from PyPDF2 import PdfReader, PdfWriter
+from werkzeug.utils import secure_filename
 from modules.services.user_service import reduce_credits_for_user
 from modules.logging_util import setup_logger
 from modules.azure_extraction import extract_with_azure, upload_extraction_results_to_azure, delete_extracted_local_files
@@ -10,6 +11,9 @@ from modules.services.credit_service import validate_credits, reduce_credits
 from modules.services.page_service import calculate_pages_to_process, calculate_file_pages_to_process
 from modules.services.azure_blob_service import AzureBlobService
 from modules.services.excel_service import consolidate_excel_sheets
+from modules.services.upload_service import upload_files
+from tempfile import NamedTemporaryFile
+from io import BytesIO
 import copy
 import os
 logger = setup_logger(__name__)
@@ -32,6 +36,13 @@ def register_extract_routes(app):
 
         # Step 2: Download Files from Azure
         file_paths, local_file_paths = download_files_from_azure(filenames, azure_blob_service, user_id, upload_folder)
+
+        # step 3: Creating new pdfs with the provided page configs alone.
+        logger.info(f"file_paths: {file_paths}")
+        file_paths, page_config = create_small_pdf_with_config(file_paths, page_config, user_id, azure_blob_service)
+        logger.info(f"file_paths: {file_paths}")
+        logger.info(f"updated page_config: {page_config}")
+        saved_config = copy.deepcopy(page_config)
 
         # Step 3: Calculate Pages to Process
         total_pages, pages_to_process = calculate_pages_and_validate_credits(file_paths, page_config, progress_tracker, user_id, upload_folder)
@@ -67,10 +78,84 @@ def register_extract_routes(app):
         progress_tracker.update_progress(progress_file, 0, pages_to_process, True)
 
         # Step 7: Clean Up Local Files
-        cleanup_local_files(upload_folder, filenames)
+        # cleanup_local_files(upload_folder, filenames)
 
         return jsonify(response), 200 if successful_results else 500
-        
+
+    def create_small_pdf_with_config(file_paths, page_config, user_id, azure_blob_service):
+        """
+        Updates the content of the files in file_paths based on the page configuration.
+        The modified files overwrite the originals and are uploaded to Azure Blob Storage.
+
+        Args:
+            file_paths (dict): Dictionary where keys are file names and values are input PDF file paths.
+            page_config (dict): Configuration containing page ranges for each PDF.
+            user_id (str): User ID for organizing uploaded files in Azure Blob Storage.
+            azure_blob_service (AzureBlobService): Instance of AzureBlobService to handle uploads.
+
+        Returns:
+            tuple: (file_paths, updated_page_config)
+                - file_paths: The same dictionary passed as input, ensuring no changes.
+                - updated_page_config: Updated page configuration reflecting new page numbers and preserving other attributes.
+        """
+        updated_page_config = {}
+
+        try:
+            for file_name, file_path in file_paths.items():
+                if file_name in page_config:
+                    logger.info(f"Processing file: {file_path}")
+                    pdf_reader = PdfReader(file_path)
+                    pdf_writer = PdfWriter()
+
+                    config = page_config[file_name]
+                    new_page_config = {}
+                    current_page_number = 1  # Start numbering from 1 for the new PDF
+
+                    # Generate new content based on page ranges
+                    for section, details in config.items():
+                        page_range = details['pageRange']
+                        page_numbers = [int(p) - 1 for p in page_range.split(",") if p.strip().isdigit()]
+
+                        new_page_numbers = []
+                        for page_num in page_numbers:
+                            if 0 <= page_num < len(pdf_reader.pages):
+                                pdf_writer.add_page(pdf_reader.pages[page_num])
+                                new_page_numbers.append(current_page_number)
+                                current_page_number += 1
+                            else:
+                                logger.warning(f"Page {page_num + 1} out of range for {file_name}")
+
+                        if new_page_numbers:
+                            updated_section = details.copy()  # Copy all existing keys in section
+                            updated_section['pageRange'] = ",".join(map(str, new_page_numbers))
+                            new_page_config[section] = updated_section
+                        else:
+                            logger.warning(f"No valid pages for section {section} in file {file_name}. Preserving original config.")
+                            new_page_config[section] = details  # Preserve original config if no pages are valid
+
+                    # Overwrite the original file with the modified PDF
+                    with open(file_path, "wb") as output_file:
+                        pdf_writer.write(output_file)
+
+                    # Update the page configuration
+                    updated_page_config[file_name] = new_page_config
+
+                    # Upload the modified file to Azure Blob Storage
+                    logger.info(f"Uploading modified file {file_path} for user {user_id}.")
+                    azure_blob_service.upload_file(
+                        user_id=user_id,
+                        local_file_path=file_path,
+                        folder_type="user_upload",  # Adjust folder type as needed
+                        destination_filename=file_name
+                    )
+
+            return file_paths, updated_page_config
+
+        except Exception as e:
+            logger.error(f"Error in processing files: {str(e)}")
+            raise
+
+
     def get_excel_files_to_combine(user_folder, filenames, page_config):
         """
         Retrieves the list of Excel files to combine. These files:
