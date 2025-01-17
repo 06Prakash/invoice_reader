@@ -6,6 +6,7 @@ from .credit_routes import credit_routes
 from .health_check import health_bp
 from .razor_payment_routes import razor_bp
 from .authentication_routes import auth_bp
+from .admin_routes import admin_bp
 
 def register_routes(app):
     """
@@ -21,3 +22,4 @@ def register_routes(app):
     app.register_blueprint(credit_routes, url_prefix='/credit')
     app.register_blueprint(razor_bp, url_prefix='/razor')
     app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(admin_bp, url_prefix='/admin')

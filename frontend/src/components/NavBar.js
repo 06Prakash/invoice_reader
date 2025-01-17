@@ -10,7 +10,7 @@ const NavBar = ({ token, setToken, userRole, setUserRole }) => {
     const location = useLocation();
     const history = useHistory();
     const currentPath = location.pathname;
-    const dropdownRef = useRef(null); // Reference for the dropdown
+    const dropdownRef = useRef(null);
     const username = localStorage.getItem('username');
     const excludedPaths = ['/login', '/register', '/forgot-password'];
 
@@ -32,36 +32,40 @@ const NavBar = ({ token, setToken, userRole, setUserRole }) => {
         localStorage.removeItem('username');
         localStorage.removeItem('special_admin');
         setToken('');
-        setUserRole('user'); // Reset user role to default
+        setUserRole('user');
         axios.defaults.headers.common['Authorization'] = '';
-        setDropdownVisible(false); // Close the dropdown
+        setDropdownVisible(false);
         history.push('/login');
     };
 
     const navigateToCreditUpdate = () => {
-        setDropdownVisible(false); // Close the dropdown
+        setDropdownVisible(false);
         history.push('/credit-update');
     };
 
     const navigateToPurchaseCredits = () => {
-        setDropdownVisible(false); // Close the dropdown
+        setDropdownVisible(false);
         history.push('/payment');
+    };
+
+    const navigateToCompanyRegistration = () => {
+        setDropdownVisible(false);
+        history.push('/company-register');
     };
 
     const toggleDropdown = () => {
         if (!dropdownVisible) {
-            fetchCredits(); // Fetch credits only when the dropdown is opened
+            fetchCredits();
         }
         setDropdownVisible(!dropdownVisible);
     };
 
     const handleClickOutside = (event) => {
         if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-            setDropdownVisible(false); // Close dropdown if clicked outside
+            setDropdownVisible(false);
         }
     };
 
-    // Add event listener for clicks outside the dropdown
     useEffect(() => {
         if (dropdownVisible) {
             document.addEventListener('click', handleClickOutside);
@@ -73,20 +77,18 @@ const NavBar = ({ token, setToken, userRole, setUserRole }) => {
         };
     }, [dropdownVisible]);
 
-    // Fetch credits and user role on mount or token change
     useEffect(() => {
         if (token && !excludedPaths.includes(currentPath)) {
             fetchCredits();
 
-            // Update userRole dynamically if localStorage changes
             const specialAdmin = localStorage.getItem('special_admin') === 'true';
             setUserRole(specialAdmin ? 'special_admin' : 'user');
 
             const interval = setInterval(() => {
-                fetchCredits(); // Fetch credits every 1 minute
-            }, 60000); // 60 seconds
+                fetchCredits();
+            }, 60000);
 
-            return () => clearInterval(interval); // Cleanup on component unmount
+            return () => clearInterval(interval);
         }
     }, [token, currentPath, setUserRole]);
 
@@ -104,23 +106,30 @@ const NavBar = ({ token, setToken, userRole, setUserRole }) => {
                         </span>
                         {dropdownVisible && (
                             <div className="dropdown-menu">
-                                {/* Show Special admin menu only if userRole is special_admin */}
+                                {/* Special admin menu items */}
                                 {userRole === 'special_admin' && (
-                                    <div
-                                        className="dropdown-item"
-                                        onClick={navigateToCreditUpdate}
-                                    >
-                                        Credit Update
-                                    </div>
+                                    <>
+                                        <div
+                                            className="dropdown-item"
+                                            onClick={navigateToCompanyRegistration}
+                                        >
+                                            Company Registration
+                                        </div>
+                                        <div
+                                            className="dropdown-item"
+                                            onClick={navigateToCreditUpdate}
+                                        >
+                                            Credit Update
+                                        </div>
+                                    </>
                                 )}
-                                {/* Purchase Credits menu */}
+                                {/* Common menu items */}
                                 <div
                                     className="dropdown-item"
                                     onClick={navigateToPurchaseCredits}
                                 >
                                     Purchase Credits
                                 </div>
-                                {/* Logout menu */}
                                 <div className="dropdown-item" onClick={handleLogout}>
                                     Logout
                                 </div>

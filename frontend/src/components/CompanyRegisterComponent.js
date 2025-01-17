@@ -1,49 +1,36 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Button, TextField, Grid, Snackbar, Alert, Typography } from '@mui/material';
-import { useHistory } from 'react-router-dom';
-import './styles/RegisterComponent.css';
+import { Button, TextField, Grid, Snackbar, Alert } from '@mui/material';
+import './styles/CompanyRegisterComponent.css';
 
-const RegisterComponent = ({ setToken, userRole }) => {
+const CompanyRegisterComponent = () => {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [companyName, setCompanyName] = useState('');
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    const [isSpecialAdmin, setIsSpecialAdmin] = useState(userRole === 'special_admin');
     const [showSnackbar, setShowSnackbar] = useState(false);
     const [snackbarType, setSnackbarType] = useState('success');
 
-    const history = useHistory();
-
-    const handleRegister = async () => {
-        if (isSpecialAdmin && !companyName) {
-            showMessage('Company name is required for special admins.', 'error');
+    const handleAddCompany = async () => {
+        if (!companyName) {
+            showMessage('Company name is required.', 'error');
             return;
         }
 
         if (!validateEmail(email)) {
-            showMessage('Invalid email format', 'error');
+            showMessage('Invalid email format.', 'error');
             return;
         }
 
         try {
-            const endpoint = isSpecialAdmin ? '/admin/add-company' : '/user/register';
-            const payload = isSpecialAdmin
-                ? { company_name: companyName, username, email, password }
-                : { username, email, password };
-
-            const response = await axios.post(endpoint, payload);
-
-            if (!isSpecialAdmin) {
-                setToken(response.data.access_token);
-                setTimeout(() => history.push('/login'), 2000);
-            }
-            showMessage('Registration successful', 'success');
+            const payload = { company_name: companyName, username, email, password };
+            await axios.post('/admin/add-company', payload);
+            showMessage('Company and admin added successfully!', 'success');
         } catch (error) {
-            console.error('Error registering:', error);
-            showMessage('Registration failed. Please try again.', 'error');
+            console.error('Error adding company:', error);
+            showMessage('Failed to add company. Please try again.', 'error');
         }
     };
 
@@ -61,19 +48,17 @@ const RegisterComponent = ({ setToken, userRole }) => {
     const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
     return (
-        <div className="register-container">
-            <h2>{isSpecialAdmin ? 'Add Company and Admin' : 'Register'}</h2>
+        <div className="company-register-container">
+            <h2>Add Company and Admin</h2>
             <Grid container spacing={2}>
-                {isSpecialAdmin && (
-                    <Grid item xs={12}>
-                        <TextField
-                            fullWidth
-                            label="Company Name"
-                            value={companyName}
-                            onChange={(e) => setCompanyName(e.target.value)}
-                        />
-                    </Grid>
-                )}
+                <Grid item xs={12}>
+                    <TextField
+                        fullWidth
+                        label="Company Name"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                    />
+                </Grid>
                 <Grid item xs={12}>
                     <TextField
                         fullWidth
@@ -100,22 +85,11 @@ const RegisterComponent = ({ setToken, userRole }) => {
                     />
                 </Grid>
                 <Grid item xs={12}>
-                    <Button variant="contained" color="primary" onClick={handleRegister}>
-                        {isSpecialAdmin ? 'Add Company and Admin' : 'Register'}
+                    <Button variant="contained" color="primary" onClick={handleAddCompany}>
+                        Add Company and Admin
                     </Button>
                 </Grid>
             </Grid>
-            {/* Information message for enterprise users */}
-            { !isSpecialAdmin && (
-                <div style={{ marginTop: '20px', textAlign: 'center' }}>
-                    <Typography variant="body2" color="textSecondary">
-                        For enterprise or organizational accounts, please contact our helpdesk at{' '}
-                        <a href="mailto:helpdesk@niraitsolutions.com" style={{ color: '#1976d2' }}>
-                            helpdesk@niraitsolutions.com
-                        </a>.
-                    </Typography>
-                </div>
-            )}
 
             {/* Snackbar for success or error messages */}
             <Snackbar
@@ -132,4 +106,4 @@ const RegisterComponent = ({ setToken, userRole }) => {
     );
 };
 
-export default RegisterComponent;
+export default CompanyRegisterComponent;

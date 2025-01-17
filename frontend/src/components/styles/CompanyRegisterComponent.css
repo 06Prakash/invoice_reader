@@ -1,0 +1,59 @@
+.company-register-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+.company-register-container h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.company-register-container .form-group {
+    margin-bottom: 20px;
+}
+
+.company-register-container .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.company-register-container .form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    box-sizing: border-box;
+    transition: border-color 0.3s;
+}
+
+.company-register-container .form-group input:hover,
+.company-register-container .form-group input:focus {
+    border-color: #004d40;
+}
+
+.company-register-container button {
+    width: 100%;
+    background-color: #004d40;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 10px;
+    transition: background-color 0.3s;
+}
+
+.company-register-container button:hover {
+    background-color: #00332d;
+}
+
+.company-register-container .MuiSnackbar-root {
+    z-index: 1400;
+}

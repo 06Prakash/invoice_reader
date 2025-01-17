@@ -10,6 +10,7 @@ import NavBar from './components/NavBar';
 import LinearProgress from '@mui/material/LinearProgress';
 import PageBasedExtractionComponent from './components/PageBasedExtractionComponent';
 import CreditUpdateComponent from './components/CreditUpdateComponent';
+import CompanyRegisterComponent from './components/CompanyRegisterComponent';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 
@@ -228,6 +229,7 @@ const App = () => {
                             )
                         }
                     />
+                    <ProtectedRoute path="/company-register" component={CompanyRegisterComponent} token={token} userRole={userRole} />
 
                     <Route
                         path="/"
