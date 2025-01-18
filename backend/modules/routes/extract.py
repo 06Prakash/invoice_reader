@@ -60,7 +60,7 @@ def register_extract_routes(app):
         # Perform combining logic (if needed)
         if excel_files_to_combine:
             consolidated_file_path = os.path.join(upload_folder, f"{filenames[0].split('.')[0]}_Combined_Sections.xlsx")
-            consolidate_excel_sheets(excel_files_to_combine, consolidated_file_path)
+            consolidate_excel_sheets(excel_files_to_combine, consolidated_file_path, saved_config)
             logger.info("Excel combining process completed.")
             try:
                 uploaded_files = azure_blob_service.upload_file(user_id, consolidated_file_path, 'user_extract')
