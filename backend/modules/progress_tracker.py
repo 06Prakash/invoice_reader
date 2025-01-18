@@ -1,6 +1,5 @@
 from threading import Lock
 import logging
-from pdf2image import convert_from_path
 from PyPDF2 import PdfReader
 
 import os
@@ -46,7 +45,15 @@ class ProgressTracker:
         """
         Calculates the total number of pages for all files.
         """
-        return sum(len(convert_from_path(os.path.join(upload_folder, filename), 300)) for filename in filenames)
+        total_pages = 0
+        for filename in filenames:
+            file_path = os.path.join(upload_folder, filename)
+            try:
+                reader = PdfReader(file_path)
+                total_pages += len(reader.pages)
+            except Exception as e:
+                print(f"Error processing file {filename}: {e}")
+        return total_pages
 
     def update_progress(self, progress_file, pages_processed_in_task, total_pages, completion=False):
         """
