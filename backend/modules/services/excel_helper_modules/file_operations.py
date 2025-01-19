@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from modules.logging_util import setup_logger
+from modules.services.excel_helper_modules.sanitization import consolidate_related_rows_with_order
 logger = setup_logger(__name__)
 from modules.services.excel_helper_modules.excel_operations import (
     save_sheet,
@@ -9,6 +10,40 @@ from modules.services.excel_helper_modules.excel_operations import (
 from modules.services.excel_helper_modules.data_processing import (
     process_table_data
 )
+
+def add_unique_suffix_to_duplicates(df, column_name):
+    """
+    Appends '(Uniq:1)', '(Uniq:2)', etc., to duplicate entries in the specified column,
+    while skipping empty or NaN values.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame.
+        column_name (str): Name of the column to handle duplicates.
+
+    Returns:
+        pd.DataFrame: Updated DataFrame with unique values in the specified column.
+    """
+    # Track counts of each value to generate unique suffixes
+    value_counts = {}
+    
+    def generate_unique_name(value):
+        # Skip empty or NaN values
+        if pd.isna(value) or str(value).strip() == "":
+            return value
+        # If this value has not been seen before, keep it as is
+        if value not in value_counts:
+            value_counts[value] = 1
+            return value
+        else:
+            # Add a unique suffix for duplicates
+            value_counts[value] += 1
+            return f"{value} (Uniq:{value_counts[value]})"
+
+    # Apply uniqueness logic to the specified column
+    df[column_name] = df[column_name].apply(generate_unique_name)
+    return df
+
+
 
 def save_sections_to_excel_and_csv(section_data, filename, output_folder, config=None):
     """
@@ -39,7 +74,7 @@ def save_sections_to_excel_and_csv(section_data, filename, output_folder, config
                 table_content = content.get("raw_tables", None)
                 if table_content == None:
                     table_content = content
-                section_dfs = process_and_save_section(table_content, section, base_filename, output_folder, writer, config)
+                section_dfs = process_and_save_section(table_content, section, writer, config)
                 combined_dataframes.extend(section_dfs)
                 has_data = True
 
@@ -63,15 +98,36 @@ def save_sections_to_excel_and_csv(section_data, filename, output_folder, config
             os.remove(combined_csv_path)
         return {"result": "failure", "error": str(e)}
 
-def process_and_save_section(content, section, base_filename, output_folder, writer, config):
+def drop_nan_text_columns(df):
+    """
+    Drops columns where all rows are either:
+    - "nan" (as string, case insensitive),
+    - empty strings (""), or
+    - numpy.nan (true NaN values).
+
+    Args:
+        df (pd.DataFrame): Input DataFrame.
+
+    Returns:
+        pd.DataFrame: Cleaned DataFrame with unnecessary columns removed.
+    """
+    def is_column_empty(col):
+        # Convert column to string to handle "nan" as text
+        col_as_str = col.astype(str).str.lower()
+        # Check if all values are "nan", empty strings, or NaN
+        return col_as_str.isin(["nan", ""]).all() or col.isna().all()
+
+    # Apply the check to each column and drop the empty ones
+    return df.loc[:, ~df.apply(is_column_empty)]
+
+def process_and_save_section(content, section, writer, config):
     """
     Processes a single section and saves its data to both Excel and returns the DataFrame for CSV combination.
+    Consolidates rows with the same value in the first column, maintains their original order from the extracted PDF.
 
     Args:
         content (any): Section content (list, dict, or str).
         section (str): Name of the section.
-        base_filename (str): Base name for files.
-        output_folder (str): Path to save files.
         writer (ExcelWriter): Excel writer object.
         config (dict): Configuration dictionary.
 
@@ -87,37 +143,58 @@ def process_and_save_section(content, section, base_filename, output_folder, wri
     logger.info(f"Processing section: {section} with config: {section_config}, Content Type: {type(content)}")
 
     if isinstance(content, list):  # Process tables
+        combined_df = pd.DataFrame()
         for idx, table in enumerate(content):
             if isinstance(table, pd.DataFrame) and not table.empty:
-                logger.info(f"Writing table {idx + 1} for section {section}, shape: {table.shape}")
-                safe_sheet_name = sanitize_sheet_name(f"{section}_Table_{idx + 1}")
-                logger.info(f"Sheet name: {safe_sheet_name}")
+                logger.info(f"Processing table {idx + 1} for section {section}, shape: {table.shape}")
+                
+                # Handle duplicate rows in the first column
+                first_column_name = table.columns[0]
+                table = add_unique_suffix_to_duplicates(table, first_column_name)
 
-                # Process table data with section-specific configuration
-                table = process_table_data(
-                    table,
-                    {"columnsToRemove": columns_to_remove, "gridLinesRemoval": grid_lines_removal, 'rowsToRemove': rows_to_remove}
-                )
-                save_sheet(
-                    writer,
-                    table,
-                    safe_sheet_name,
-                    {"gridLinesRemoval": grid_lines_removal}
-                )
-                table["Section"] = section
-                section_dataframes.append(table)
+                # Consolidate related rows while preserving order
+                table = consolidate_related_rows_with_order(table)
+
+                # Concatenate tables
+                combined_df = pd.concat([combined_df, table], ignore_index=True)
             else:
                 logger.warning(f"Skipping empty or invalid table for section: {section}")
 
+        if not combined_df.empty:
+            # Apply transformations (row removal, column removal, grid line removal)
+            combined_df = process_table_data(
+                combined_df,
+                {"columnsToRemove": columns_to_remove, "gridLinesRemoval": grid_lines_removal, "rowsToRemove": rows_to_remove}
+            )
+
+            # Remove columns with all NaN or empty values
+            combined_df = drop_nan_text_columns(combined_df)
+
+            # Save the sheet
+            safe_sheet_name = sanitize_sheet_name(section)
+            logger.info(f"Writing combined sheet for section {section}, shape: {combined_df.shape}")
+            save_sheet(
+                writer,
+                combined_df,
+                safe_sheet_name,
+                {"gridLinesRemoval": grid_lines_removal}
+            )
+            combined_df["Section"] = section
+            section_dataframes.append(combined_df)
+        else:
+            logger.warning(f"No valid tables to combine for section: {section}")
     elif isinstance(content, dict):  # Process field-based data
         logger.info(f"Dictionary content: {content}")
         df = pd.DataFrame(content.items(), columns=["Field", "Value"])
         if not df.empty:
-            safe_sheet_name = sanitize_sheet_name(section)
+            # Apply transformations before saving
             df = process_table_data(
                 df,
                 {"columnsToRemove": columns_to_remove, "gridLinesRemoval": grid_lines_removal}
             )
+            df = drop_nan_text_columns(df)
+
+            safe_sheet_name = sanitize_sheet_name(section)
             save_sheet(
                 writer,
                 df,
@@ -133,11 +210,14 @@ def process_and_save_section(content, section, base_filename, output_folder, wri
         rows = [row.split() for row in content.split("\n") if row.strip()]
         df = pd.DataFrame(rows)
         if not df.empty:
-            safe_sheet_name = sanitize_sheet_name(section)
+            # Apply transformations before saving
             df = process_table_data(
                 df,
                 {"columnsToRemove": columns_to_remove, "gridLinesRemoval": grid_lines_removal}
             )
+            df = drop_nan_text_columns(df)
+
+            safe_sheet_name = sanitize_sheet_name(section)
             save_sheet(
                 writer,
                 df,

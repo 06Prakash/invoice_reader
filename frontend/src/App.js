@@ -31,7 +31,8 @@ const App = () => {
     const [token, setToken] = useState(localStorage.getItem('jwt_token') || '');
     const [userRole, setUserRole] = useState(
         localStorage.getItem('special_admin') === 'true' ? 'special_admin' : 'user'
-    );    
+    );
+    const MAX_FILES = 5;
 
     // Update Axios headers on token change
     useEffect(() => {
@@ -143,6 +144,10 @@ const App = () => {
     };
 
     const handleUploadSuccess = (filenames, extractedData, linesData) => {
+        if (filenames.length > MAX_FILES) {
+            showToast(`You can upload a maximum of ${MAX_FILES} files.`, 'error');
+            return;
+        }
         setUploadedFiles(filenames);
         setExtractedData(extractedData);
         setOriginalLines(linesData);
@@ -151,7 +156,7 @@ const App = () => {
 
     const handleExtractData = () => {
         if (uploadedFiles.length === 0) {
-            setMessage('Please upload files and select or generate a template first.');
+            setMessage('Please upload files first.');
             return;
         }
         setLoading(true);

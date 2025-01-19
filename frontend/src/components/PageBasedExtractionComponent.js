@@ -14,7 +14,7 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
     const [notification, setNotification] = useState('');
     const [isExpanded, setIsExpanded] = useState(false);
 
-    const validateSectionName = (name) => /^[a-zA-Z0-9_-]{1,50}$/.test(name);
+    const validateSectionName = (name) => /^[a-zA-Z0-9_-\s]{1,50}$/.test(name);
     const validatePageRange = (range) => /^(\d+(-\d+)?)(,\d+(-\d+)?)*$/.test(range);
 
     const handleSectionChange = (value) => {
@@ -22,7 +22,7 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
         if (!validateSectionName(value)) {
             setErrors((prevErrors) => ({
                 ...prevErrors,
-                section: 'Invalid section name. Only letters, digits, "-", and "_" are allowed (max 50 characters).',
+                section: 'Invalid section name. Only letters, digits, " ", "-", and "_" are allowed (max 50 characters).',
             }));
         } else {
             setErrors((prevErrors) => ({ ...prevErrors, section: '' }));

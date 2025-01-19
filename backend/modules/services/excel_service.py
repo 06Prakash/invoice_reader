@@ -5,8 +5,6 @@ from modules.services.excel_helper_modules.excel_operations import (
 )
 from modules.services.excel_helper_modules.consolidation import (
     consolidate_excel_sheets,
-    consolidate_tables,
-    consolidate_and_save,
     consolidate_dataframes
 )
 from modules.services.excel_helper_modules.file_operations import (
