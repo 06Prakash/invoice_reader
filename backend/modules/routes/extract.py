@@ -78,7 +78,7 @@ def register_extract_routes(app):
         progress_tracker.update_progress(progress_file, 0, pages_to_process, True)
 
         # Step 7: Clean Up Local Files
-        # cleanup_local_files(upload_folder, filenames)
+        cleanup_local_files(upload_folder, filenames)
 
         return jsonify(response), 200 if successful_results else 500
 
