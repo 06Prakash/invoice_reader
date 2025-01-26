@@ -86,15 +86,23 @@ const LoginComponent = ({ setToken, setUserRole }) => {
                             />
                         </Grid>
                         <Grid item xs={12}>
-                            <Button variant="contained" color="primary" onClick={handleLogin}>
-                                Login
-                            </Button>
+                        <Button
+                            variant="contained"
+                            className="login-button"
+                            onClick={handleLogin}
+                            disableElevation
+                            disabled={!username || !password} // Disable if fields are empty
+                        >
+                            Login
+                        </Button>
                         </Grid>
                         <Grid item xs={12}>
                             <Button
                                 variant="outlined"
-                                color="secondary"
+                                className="otp-button"
                                 onClick={() => setIsOTPSignIn(true)}
+                                color="secondary"
+                                disableElevation
                             >
                                 Sign in with OTP
                             </Button>

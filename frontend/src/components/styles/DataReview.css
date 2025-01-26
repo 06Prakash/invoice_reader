@@ -1,26 +1,9 @@
-/* Container Styling */
-.data-review-container {
-    margin: 20px auto;
-    max-width: 90%;
-    border: 2px solid #004d40; /* Product green */
-    border-radius: 8px;
-    padding: 20px;
-    background-color: #ffffff; /* White background */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
-}
+/* Data Review Component Specific Styles */
 
-/* Section Titles */
-.data-review h2, .data-review h3 {
-    color: #004d40; /* Product green */
-    text-align: center;
-    font-weight: bold;
-    margin-bottom: 20px;
-}
-
-/* File Selection */
+/* File Selection and Format Selection */
 .file-selection, .format-selection {
     display: flex;
-    flex-wrap: wrap; /* Allow wrapping for responsiveness */
+    flex-wrap: wrap;
     gap: 15px;
     justify-content: center;
     align-items: center;
@@ -30,7 +13,7 @@
 .file-selection label, .format-selection label {
     font-size: 16px;
     font-weight: bold;
-    color: #004d40; /* Product green */
+    color: var(--primary-color);
     margin-right: 10px;
 }
 
@@ -38,129 +21,59 @@
     width: 100%;
     max-width: 300px;
     padding: 10px;
-    border: 1px solid #004d40; /* Product green */
-    border-radius: 5px;
+    border: 1px solid var(--primary-color);
+    border-radius: var(--border-radius);
     font-size: 16px;
-    background-color: #f8f9fa; /* Light grey background */
-    color: #004d40;
-    transition: border-color 0.3s;
+    background-color: var(--light-bg-color);
+    color: var(--primary-color);
+    transition: border-color var(--transition-speed);
 }
 
 .file-selection select:focus, .format-selection select:focus {
-    border-color: #00332d; /* Darker green on focus */
+    border-color: var(--primary-hover-color);
     outline: none;
 }
 
-/* Data Viewer Section */
-.data-viewer {
-    text-align: center;
-    margin: 20px 0;
-}
-
-.data-viewer p {
-    font-size: 16px;
-    color: #333; /* Neutral text color */
-}
-
-.data-viewer button {
-    background-color: #004d40; /* Product green */
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: background-color 0.3s, transform 0.3s;
-}
-
-.data-viewer button:hover {
-    background-color: #00332d;
-    transform: scale(1.05);
-}
-
-/* Original Lines Section */
+/* Original Lines Viewer */
 .original-lines-viewer {
     margin-top: 20px;
-    background-color: #f8f9fa; /* Light grey background */
+    background-color: var(--light-bg-color);
     padding: 20px;
-    border-radius: 8px;
-    border: 1px solid #ccc; /* Subtle border */
+    border-radius: var(--border-radius);
+    border: 1px solid #ccc;
 }
 
 .original-lines-viewer h3 {
     margin-bottom: 15px;
-    color: #004d40; /* Product green */
+    color: var(--primary-color);
     text-align: center;
     font-weight: bold;
 }
 
 .original-lines-viewer pre {
-    background-color: #ffffff; /* White for text readability */
+    background-color: #ffffff;
     padding: 15px;
     border-radius: 5px;
     overflow: auto;
     max-height: 300px;
     font-size: 14px;
-    font-family: "Courier New", Courier, monospace; /* Code-style font */
-    border: 1px solid #ccc; /* Subtle border */
-    color: #333; /* Neutral text color */
-}
-
-/* Pagination Section */
-.pagination {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap; /* Allow wrapping for smaller screens */
-    gap: 10px; /* Space between buttons */
-    margin-top: 20px;
-}
-
-.pagination button {
-    background-color: #ffffff;
-    color: #004d40;
-    border: 1px solid #004d40;
-    padding: 8px 15px;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s, color 0.3s;
-    font-size: 14px;
-}
-
-.pagination button:hover {
-    background-color: #004d40;
-    color: white;
-}
-
-.pagination button.active {
-    background-color: #004d40;
-    color: white;
+    font-family: "Courier New", Courier, monospace;
+    border: 1px solid #ccc;
+    color: #333;
 }
 
 /* Responsive Adjustments */
 @media (max-width: 768px) {
-    .data-review-container {
-        padding: 15px;
-    }
-
     .file-selection, .format-selection {
-        flex-direction: column; /* Stack items vertically */
+        flex-direction: column;
         align-items: center;
     }
 
     .file-selection select, .format-selection select {
-        max-width: 100%; /* Full width on small screens */
-    }
-
-    .data-viewer button {
-        font-size: 14px;
-        padding: 8px 15px;
-    }
-
-    .pagination button {
-        padding: 5px 10px;
+        max-width: 100%;
     }
 
     .original-lines-viewer pre {
-        max-height: 200px; /* Reduce height for smaller screens */
+        max-height: 200px;
     }
 }

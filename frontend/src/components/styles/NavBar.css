@@ -1,12 +1,15 @@
+/* NavBar Component Specific Styles */
+
 .navbar {
-    background-color: #004d40; /* Blackish green color */
-    color: white;
-    padding: 10px 20px;
+    background-color: var(--primary-color);
+    color: var(--light-text);
+    padding: 15px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid #00332e; /* Slightly darker shade for the border */
+    border-bottom: 2px solid var(--primary-hover-color);
     position: relative;
+    box-shadow: var(--box-shadow);
 }
 
 .navbar-brand {
@@ -17,40 +20,25 @@
 .logo {
     height: 40px;
     width: 40px;
-    border-radius: 50%; /* Make the logo round */
+    border-radius: 50%;
     margin-right: 15px;
-    border: 2px solid #fff; /* Add a white border around the logo */
-    object-fit: cover; /* Ensure the logo is properly contained within the round shape */
+    border: 2px solid var(--light-text);
+    object-fit: cover;
 }
 
 .navbar h1 {
     margin: 0;
-    font-size: 24px;
+    font-size: 20px;
     font-weight: bold;
-}
-
-.nav-button {
-    background-color: white;
-    color: #004d40; /* Match the navbar color */
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: background-color 0.3s ease;
-    text-decoration: none; /* Remove underline from link */
-    margin-left: 10px; /* Space between buttons */
-}
-
-.nav-button:hover {
-    background-color: #e7e7e7;
+    color: var(--light-text);
+    letter-spacing: 0.5px;
 }
 
 .user-info {
     position: relative;
     cursor: pointer;
     font-size: 16px;
-    color: white;
+    color: var(--light-text);
     display: flex;
     align-items: center;
     font-weight: bold;
@@ -58,12 +46,11 @@
 
 .username {
     cursor: pointer;
-    margin-right: 10px;
-    position: relative;
+    margin-right: 5px;
 }
 
 .user-info:after {
-    content: "▼"; /* Downward caret */
+    content: "\25BC"; /* Downward caret */
     font-size: 12px;
     margin-left: 5px;
 }
@@ -72,16 +59,16 @@
     position: absolute;
     right: 20px;
     top: 50px;
-    background-color: white;
-    color: #004d40;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    background-color: var(--light-text);
+    color: var(--primary-color);
+    border: 1px solid var(--border-light);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
     z-index: 1000;
-    min-width: 150px;
+    min-width: 180px;
     text-align: left;
     padding: 10px;
-    max-width: 200px;
+    max-width: 250px;
     word-wrap: break-word;
 }
 
@@ -89,31 +76,42 @@
     display: block;
     background-color: transparent;
     border: none;
-    color: #004d40;
+    color: var(--primary-color);
     padding: 10px 15px;
     width: 100%;
     text-align: left;
     cursor: pointer;
     font-size: 14px;
-    transition: background-color 0.3s ease;
+    transition: background-color var(--transition-speed), color var(--transition-speed);
+    border-radius: 5px;
 }
 
 .dropdown-item:hover {
-    background-color: #d6f5d6; /* Slightly lighter green */
-    color: #00332e;
+    background-color: var(--secondary-color);
+    color: var(--primary-hover-color);
     font-weight: bold;
+}
+
+.nav-button {
+    background-color: var(--light-text);
+    color: var(--primary-color);
+    border: none;
+    padding: 10px 15px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color var(--transition-speed), color var(--transition-speed);
+    text-decoration: none;
+    margin-left: 10px;
+}
+
+.nav-button:hover {
+    background-color: var(--secondary-hover-color);
 }
 
 .nav-button.active {
-    background-color: #00332e;
-    color: white;
-}
-
-.dropdown-item:focus {
-    outline: none;
-    background-color: #d6f5d6;
-    color: #00332e;
-    font-weight: bold;
+    background-color: var(--primary-hover-color);
+    color: var(--light-text);
 }
 
 @media (max-width: 768px) {
@@ -123,7 +121,7 @@
     }
 
     .navbar-brand h1 {
-        font-size: 20px;
+        font-size: 18px;
     }
 
     .dropdown-menu {
@@ -133,5 +131,6 @@
 
     .dropdown-item {
         font-size: 16px;
+        padding: 10px;
     }
 }

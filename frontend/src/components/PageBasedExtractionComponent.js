@@ -171,7 +171,7 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
                         Specify the pages to extract for each file and section. Use the reset button to clear all configurations or remove individual sections as needed.
                     </p>
                     <div className="file-inputs">
-                        {Object.keys(pageConfig).length === 0 && <p>No files added yet.</p>}
+                        {Object.keys(pageConfig).length === 0 && <p>No files added for section extraction yet.</p>}
                         {Object.entries(pageConfig).map(([file, sections]) => (
                             <div key={file} className="file-config">
                                 <h4>{file}</h4>

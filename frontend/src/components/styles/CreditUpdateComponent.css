@@ -1,19 +1,19 @@
-/* Container Styling */
+/* Credit Update Component Specific Styles */
+
 .credit-update-container {
     max-width: 600px;
-    margin: 0 auto;
-    padding: 30px;
-    background-color: #ffffff;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
-    font-family: 'Arial', sans-serif;
-    color: #004d40;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: var(--light-bg-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    font-family: var(--font-family);
 }
 
-/* Title Styling */
 .page-title {
     text-align: center;
     margin-bottom: 20px;
+    color: var(--primary-color);
     font-size: 1.8rem;
     font-weight: bold;
 }
@@ -21,110 +21,123 @@
 /* Search Section */
 .search-section {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
     gap: 10px;
+    align-items: center;
     margin-bottom: 20px;
 }
 
 .search-section .text-field {
-    flex: 1;
+    flex: 3; /* TextField takes most of the space */
+    min-width: 0; /* Prevents TextField from overflowing */
 }
 
 .search-section .primary-button {
-    flex-shrink: 0;
-    padding: 12px 20px;
+    flex: 1; /* Button takes less space */
+    background-color: var(--primary-color);
+    color: var(--light-text);
+    padding: 10px 15px;
+    font-weight: bold;
+    text-transform: uppercase;
+    border-radius: var(--border-radius);
+    transition: background-color var(--transition-speed);
 }
 
-/* Table Styling */
+.search-section .primary-button:hover {
+    background-color: var(--primary-hover-color);
+    transform: scale(1.03);
+}
+
+/* User Table */
 .user-table {
-    margin: 20px 0;
-    background-color: #f9f9f9;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
+    margin-bottom: 20px;
+    background-color: var(--light-bg-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
 }
 
 .user-table th {
-    background-color: #004d40;
-    color: white;
-    padding: 12px 16px;
+    background-color: var(--table-header-bg-color);
+    color: var(--table-header-text-color);
+    padding: 12px;
     text-align: left;
     font-weight: bold;
 }
 
 .user-table td {
-    padding: 12px 16px;
-    font-size: 0.95rem;
-    color: #333;
-    border-top: 1px solid #ddd;
-}
-
-/* Input Fields */
-.text-field {
     padding: 10px;
-    font-size: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    transition: border-color 0.3s, box-shadow 0.3s;
+    font-size: 0.95rem;
+    color: var(--text-color);
 }
 
-.text-field:focus {
-    border-color: #004d40;
-    box-shadow: 0 0 5px rgba(0, 77, 64, 0.4);
+.user-table .text-field {
+    margin: 0;
 }
 
-/* Unified Button Styling */
+/* Buttons */
 .primary-button,
 .secondary-button,
 .back-button {
-    margin-top: 20px;
-    padding: 12px 20px;
+    width: 100%;
+    padding: 12px;
     font-size: 1rem;
     font-weight: bold;
-    border-radius: 8px;
-    transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
-    color: white;
-    border: none;
-    cursor: pointer;
-    background-color: #004d40; /* Unified green color */
+    border-radius: var(--border-radius);
+    transition: background-color var(--transition-speed), transform var(--transition-speed);
 }
 
-.primary-button:hover,
-.secondary-button:hover,
+.secondary-button {
+    background-color: var(--secondary-color);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+}
+
+.secondary-button:hover {
+    background-color: var(--secondary-hover-color);
+    color: var(--primary-hover-color);
+}
+
+.back-button {
+    background-color: var(--primary-color);
+    color: var(--light-text);
+    margin-top: 10px;
+}
+
 .back-button:hover {
-    background-color: #00332d; /* Unified hover color */
-    transform: scale(1.05);
-    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+    background-color: var(--primary-hover-color);
+    transform: scale(1.03);
 }
 
-.primary-button:active,
-.secondary-button:active,
-.back-button:active {
-    transform: scale(0.98);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.primary-button:focus,
-.secondary-button:focus,
-.back-button:focus {
-    outline: 2px solid #80cbc4;
-    outline-offset: 2px;
-}
-
-/* Snackbar Styling */
+/* Snackbar */
 .snackbar .MuiSnackbar-root {
     z-index: 1400;
 }
 
 /* Responsive Styling */
 @media (max-width: 768px) {
+    .search-section {
+        flex-direction: column;
+    }
+
+    .search-section .text-field,
+    .search-section .primary-button {
+        width: 100%;
+    }
+
     .credit-update-container {
-        padding: 20px;
+        padding: 15px;
     }
 
     .page-title {
-        font-size: 1.5rem;
+        font-size: 1.6rem;
+    }
+
+    .search-section {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .primary-button {
+        margin-top: 10px;
     }
 
     .primary-button,
@@ -134,32 +147,9 @@
         padding: 10px 16px;
     }
 
-    .search-section {
-        flex-direction: column;
-        gap: 15px;
-    }
-
-    .user-table td,
-    .user-table th {
+    .user-table th,
+    .user-table td {
         font-size: 0.85rem;
-        padding: 8px 12px;
+        padding: 8px;
     }
-}
-
-/* Additional Effects */
-.primary-button:hover:focus,
-.secondary-button:hover:focus,
-.back-button:hover:focus {
-    box-shadow: 0 6px 12px rgba(0, 77, 64, 0.3);
-    transform: scale(1.08);
-}
-
-.primary-button:disabled,
-.secondary-button:disabled,
-.back-button:disabled {
-    background-color: #b2dfdb;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-    color: #ffffff;
 }

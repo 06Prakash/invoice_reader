@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Button, CircularProgress } from '@mui/material';
+import { CloudUploadOutlined, DescriptionOutlined } from '@mui/icons-material';
 import './styles/UploadComponent.css';
 
 const UploadComponent = ({ onUploadSuccess }) => {
@@ -27,8 +28,8 @@ const UploadComponent = ({ onUploadSuccess }) => {
         try {
             const response = await axios.post('/upload', formData, {
                 headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
+                    'Content-Type': 'multipart/form-data',
+                },
             });
 
             onUploadSuccess(response.data.filenames);
@@ -41,15 +42,28 @@ const UploadComponent = ({ onUploadSuccess }) => {
 
     return (
         <div className="upload-container">
-            <label className="custom-file-upload">
-                <input type="file" multiple onChange={handleFileChange} />
-                Choose Files
-            </label>
-            {selectedFiles.length > 0 && (
-                <span className="file-count">{selectedFiles.length} file(s) selected</span>
-            )}
-            <Button variant="contained" className="upload-button" onClick={handleUpload} disabled={uploading}>
-                {uploading ? <CircularProgress size={24} /> : 'Upload'}
+            <div className="file-input-wrapper">
+                <label className="custom-file-upload">
+                    <CloudUploadOutlined className="upload-icon" />
+                    Choose Files
+                    <input type="file" multiple onChange={handleFileChange} />
+                </label>
+                {selectedFiles.length > 0 && (
+                    <div className="file-count">
+                        <DescriptionOutlined className="file-icon" />
+                        {selectedFiles.length} file(s) selected
+                    </div>
+                )}
+            </div>
+            <Button
+                variant="contained"
+                className="upload-button"
+                onClick={handleUpload}
+                disabled={uploading}
+                disableElevation
+                startIcon={uploading ? <CircularProgress size={18} /> : null}
+            >
+                {uploading ? 'Uploading...' : 'Upload'}
             </Button>
         </div>
     );

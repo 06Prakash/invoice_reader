@@ -95,22 +95,30 @@ const OTPSignInComponent = ({ onBack, setToken }) => {
                 <Grid item xs={12}>
                     {!isOTPSent ? (
                         <Button
-                            variant="contained"
-                            color="primary"
+                            className="send-otp-button"
                             onClick={handleSendOTP}
                             disabled={isLoading} // Disable button while loading
+                            disableElevation
                             startIcon={isLoading && <CircularProgress size={20} />} // Show loader
                         >
                             {isLoading ? 'Sending...' : 'Send OTP'}
                         </Button>
                     ) : (
-                        <Button variant="contained" color="primary" onClick={handleVerifyOTP}>
+                        <Button
+                            className="verify-otp-button"
+                            onClick={handleVerifyOTP}
+                            disableElevation
+                        >
                             Verify OTP
                         </Button>
                     )}
                 </Grid>
                 <Grid item xs={12}>
-                    <Button variant="text" color="secondary" onClick={onBack}>
+                    <Button
+                        variant="text"
+                        className="back-button"
+                        onClick={onBack}
+                    >
                         Back to Login
                     </Button>
                 </Grid>

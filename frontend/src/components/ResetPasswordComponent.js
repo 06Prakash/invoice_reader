@@ -123,21 +123,21 @@ const ResetPasswordComponent = ({ onBack }) => {
                 <Grid item xs={12}>
                     {!isOTPSent ? (
                         <Button
-                            variant="contained"
-                            color="primary"
+                            className="send-otp-button"
                             onClick={handleSendOTP}
+                            disableElevation
                             disabled={isSendingOTP} // Disable while OTP is being sent
                         >
                             {isSendingOTP ? 'Sending OTP...' : 'Send OTP'}
                         </Button>
                     ) : (
-                        <Button variant="contained" color="primary" onClick={handleResetPassword}>
+                        <Button className="reset-password-button" onClick={handleResetPassword} disableElevation>
                             Reset Password
                         </Button>
                     )}
                 </Grid>
                 <Grid item xs={12}>
-                    <Button variant="text" color="secondary" onClick={onBack}>
+                    <Button className="back-to-login" onClick={onBack} disableElevation>
                         Back to Login
                     </Button>
                 </Grid>

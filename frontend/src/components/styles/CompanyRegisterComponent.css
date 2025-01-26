@@ -1,59 +1,137 @@
+
 .company-register-container {
-    max-width: 500px;
-    margin: 0 auto;
+    max-width: 600px;
+    margin: 50px auto;
     padding: 20px;
-    background-color: #fff;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
+    background-color: var(--secondary-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    text-align: center;
+    font-family: 'Arial', sans-serif;
 }
 
 .company-register-container h2 {
-    text-align: center;
     margin-bottom: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--primary-color);
+    text-transform: capitalize;
 }
 
-.company-register-container .form-group {
-    margin-bottom: 20px;
+.company-register-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
-.company-register-container .form-group label {
+.form-group {
+    text-align: left;
+}
+
+.form-group label {
     display: block;
     margin-bottom: 5px;
     font-weight: bold;
+    color: var(--text-color);
 }
 
-.company-register-container .form-group input {
+.form-group input {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius);
     font-size: 16px;
-    box-sizing: border-box;
-    transition: border-color 0.3s;
+    transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
 }
 
-.company-register-container .form-group input:hover,
-.company-register-container .form-group input:focus {
-    border-color: #004d40;
+.form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 5px var(--primary-color);
 }
 
-.company-register-container button {
+.submit-button {
     width: 100%;
-    background-color: #004d40;
+    padding: 12px;
+    background-color: var(--primary-color);
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
+    border-radius: var(--border-radius);
     font-size: 16px;
-    margin-top: 10px;
-    transition: background-color 0.3s;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color var(--transition-speed);
 }
 
-.company-register-container button:hover {
-    background-color: #00332d;
+.submit-button:hover {
+    background-color: var(--primary-hover-color);
 }
 
-.company-register-container .MuiSnackbar-root {
-    z-index: 1400;
+.submit-button:disabled {
+    background-color: var(--secondary-hover-color);
+    cursor: not-allowed;
+}
+
+.snackbar {
+    margin-top: 20px;
+    padding: 12px;
+    border-radius: var(--border-radius);
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.snackbar.success {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.snackbar.error {
+    background-color: var(--error-color);
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .company-register-container {
+        padding: 15px;
+    }
+
+    .company-register-container h2 {
+        font-size: 20px;
+    }
+
+    .form-group input {
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .submit-button {
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .snackbar {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .company-register-container {
+        margin: 20px auto;
+        padding: 10px;
+    }
+
+    .form-group input {
+        font-size: 12px;
+        padding: 8px;
+    }
+
+    .submit-button {
+        font-size: 12px;
+        padding: 8px;
+    }
+
+    .snackbar {
+        font-size: 12px;
+    }
 }

@@ -7,14 +7,27 @@
     --text-color: #333;
     --error-color: #ff0000;
     --box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    --box-shadow-strong: 0 4px 8px rgba(0, 0, 0, 0.2);
+    --box-shadow-strong: 0 8px 15px rgba(0, 0, 0, 0.2);
+    --box-shadow-light: 0 4px 8px rgba(0, 0, 0, 0.1);
+    --box-shadow-hover: 0 6px 12px rgba(0, 0, 0, 0.2);
     --border-radius: 8px;
+    --border-radius-large: 12px;
     --transition-speed: 0.3s;
+    --transition: all 0.3s ease;
+    --transition-transform: transform 0.3s ease;
     --table-header-bg-color: #004d40;
     --table-header-text-color: white;
-    --light-text: white;
+    --light-text: #ffffff;
     --light-bg-color: #f8f9fa;
     --focus-outline-color: #80cbc4;
+    --dark-green: #004d40;
+    --muted-green: #7cb342;
+    --light-green: #e8f5e9;
+    --teal: #00897b;
+    --teal-hover: #00695c;
+    --primary-muted: #c5e1a5;
+    --dark-muted-green: #33691e;
+    --focus-shadow: 0 0 10px rgba(0, 137, 123, 0.5);
 }
 
 /* Global Layout Styles */
