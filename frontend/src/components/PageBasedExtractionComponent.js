@@ -9,13 +9,13 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
     const [columnsToRemove, setColumnsToRemove] = useState('');
     const [rowsToRemove, setRowsToRemove] = useState('');
     const [gridLinesRemoval, setGridLinesRemoval] = useState(false);
-    const [combineSections, setCombineSections] = useState(false); // Combine at the file level
+    const [combineSections, setCombineSections] = useState(false);
     const [errors, setErrors] = useState({ section: '', pageRange: '' });
     const [notification, setNotification] = useState('');
     const [isExpanded, setIsExpanded] = useState(false);
 
-    const validateSectionName = (name) => /^[a-zA-Z0-9_-\s]{1,50}$/.test(name);
-    const validatePageRange = (range) => /^(\d+(-\d+)?)(,\d+(-\d+)?)*$/.test(range);
+    const validateSectionName = (name) => /^[a-zA-Z0-9_\-\s]{1,50}$/.test(name);
+    const validatePageRange = (range) => /^\d+(-\d+)?(,\d+(-\d+)?)*$/.test(range);
 
     const handleSectionChange = (value) => {
         setSection(value);
@@ -40,7 +40,7 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
             setErrors((prevErrors) => ({ ...prevErrors, pageRange: '' }));
         }
     };
-    
+
     const handleInputChange = (file, section, category, key, value) => {
         setPageConfig((prevConfig) => ({
             ...prevConfig,
@@ -75,7 +75,6 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
 
         const sanitizedFilename = filename.replace(/\s+/g, '_'); // Replace spaces with underscores
 
-        // Add configuration to the pageConfig object
         setPageConfig((prevConfig) => {
             const updatedConfig = { ...prevConfig };
             updatedConfig[sanitizedFilename] = {
@@ -91,7 +90,6 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
                 },
             };
 
-            // Apply "combineSections" logic to all files with the same section name
             if (combineSections) {
                 Object.keys(updatedConfig).forEach((file) => {
                     if (file !== sanitizedFilename && updatedConfig[file][section]) {
@@ -103,7 +101,6 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
             return updatedConfig;
         });
 
-        // Reset input fields after adding the configuration
         setSection('');
         setPageRange('');
         setColumnsToRemove('');
@@ -155,6 +152,14 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
         setIsExpanded(!isExpanded);
     };
 
+    const getUniqueSections = () => {
+        const sections = new Set();
+        Object.values(pageConfig).forEach((fileConfig) =>
+            Object.keys(fileConfig).forEach((section) => sections.add(section))
+        );
+        return Array.from(sections);
+    };
+
     return (
         <div className="page-extraction-container">
             <h3 onClick={toggleExpandCollapse} className="expand-collapse-header">
@@ -170,46 +175,79 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
                         {Object.entries(pageConfig).map(([file, sections]) => (
                             <div key={file} className="file-config">
                                 <h4>{file}</h4>
-                                {Object.entries(sections).map(([section, config]) => (
-                                    <div key={section} className="section-config">
-                                        <label>{section}:</label>
-                                        <input
-                                            type="text"
-                                            placeholder="e.g., 1,3-4"
-                                            value={config.pageRange || ''}
-                                            onChange={(e) =>
-                                                handleInputChange(file, section, 'general', 'pageRange', e.target.value)
-                                            }
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="Columns to remove (comma-separated)"
-                                            value={config.excel?.columnsToRemove?.join(', ') || ''}
-                                            onChange={(e) =>
-                                                handleInputChange(
-                                                    file,
-                                                    section,
-                                                    'excel',
-                                                    'columnsToRemove',
-                                                    e.target.value.split(',').map((col) => col.trim())
-                                                )
-                                            }
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="Rows to remove (comma-separated)"
-                                            value={config.excel?.rowsToRemove?.join(', ') || ''}
-                                            onChange={(e) =>
-                                                handleInputChange(
-                                                    file,
-                                                    section,
-                                                    'excel',
-                                                    'rowsToRemove',
-                                                    e.target.value.split(',').map((row) => row.trim())
-                                                )
-                                            }
-                                        />
-                                        <button onClick={() => handleRemoveSection(file, section)}>Remove Section</button>
+                                {Object.entries(sections).map(([sectionName, config]) => (
+                                    <div key={sectionName} className="section-config">
+                                        <div className="section-header">
+                                            <span>{sectionName}</span>
+                                            <button
+                                                onClick={() => handleRemoveSection(file, sectionName)}
+                                                className="remove-icon"
+                                                title="Remove this section"
+                                            >
+                                                ✖
+                                            </button>
+                                        </div>
+                                        <div className="input-wrapper">
+                                            <label>{sectionName}:</label>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g., 1,3-4"
+                                                value={config.pageRange || ''}
+                                                onChange={(e) =>
+                                                    handleInputChange(file, sectionName, 'general', 'pageRange', e.target.value)
+                                                }
+                                            />
+                                        </div>
+                                        <div className="input-wrapper">
+                                            <input
+                                                type="text"
+                                                placeholder="Columns to remove (comma-separated)"
+                                                value={config.excel?.columnsToRemove?.join(', ') || ''}
+                                                onChange={(e) =>
+                                                    handleInputChange(
+                                                        file,
+                                                        sectionName,
+                                                        'excel',
+                                                        'columnsToRemove',
+                                                        e.target.value.split(',').map((col) => col.trim())
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                        <div className="input-wrapper">
+                                            <input
+                                                type="text"
+                                                placeholder="Rows to remove (comma-separated)"
+                                                value={config.excel?.rowsToRemove?.join(', ') || ''}
+                                                onChange={(e) =>
+                                                    handleInputChange(
+                                                        file,
+                                                        sectionName,
+                                                        'excel',
+                                                        'rowsToRemove',
+                                                        e.target.value.split(',').map((row) => row.trim())
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                        <div className="checkbox-group">
+                                            <label>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={config.excel?.gridLinesRemoval || false}
+                                                    readOnly
+                                                />
+                                                Remove Gridlines
+                                            </label>
+                                            <label>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={config.excel?.combine || false}
+                                                    readOnly
+                                                />
+                                                Combine Sections
+                                            </label>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -236,11 +274,19 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
                             {errors.section && <p className="error-message">{errors.section}</p>}
                             <input
                                 type="text"
-                                placeholder="Enter section name (e.g., Table_1)"
+                                placeholder="Enter or select section name (e.g., Table_1)"
                                 value={section}
                                 onChange={(e) => handleSectionChange(e.target.value)}
+                                list="section-suggestions"
                                 className={errors.section ? 'error' : ''}
+                            
                             />
+                            <span className="tooltip-text">Enter or select section name (e.g., Table_1)</span>
+                            <datalist id="section-suggestions">
+                                {getUniqueSections().map((existingSection) => (
+                                    <option key={existingSection} value={existingSection} />
+                                ))}
+                            </datalist>
                         </div>
                         <div className="input-wrapper">
                             {errors.pageRange && <p className="error-message">{errors.pageRange}</p>}
@@ -251,40 +297,49 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
                                 onChange={(e) => handlePageRangeChange(e.target.value)}
                                 className={errors.pageRange ? 'error' : ''}
                             />
+                            <span className="tooltip-text">Enter page range (e.g., 1,3-4)</span>
                         </div>
-                        <input
-                            type="text"
-                            placeholder="Columns to remove (comma-separated)"
-                            value={columnsToRemove}
-                            onChange={(e) => setColumnsToRemove(e.target.value)}
-                        />
-                        <input
-                            type="text"
-                            placeholder="Rows to remove (comma-separated)"
-                            value={rowsToRemove}
-                            onChange={(e) => setRowsToRemove(e.target.value)}
-                        />
-                        <label>
+                        <div className="input-wrapper">
                             <input
-                                type="checkbox"
-                                checked={gridLinesRemoval}
-                                onChange={(e) => setGridLinesRemoval(e.target.checked)}
+                                type="text"
+                                placeholder="Columns to remove (comma-separated)"
+                                value={columnsToRemove}
+                                onChange={(e) => setColumnsToRemove(e.target.value)}
                             />
-                            Remove Gridlines
-                        </label>
-                        <label>
+                            <span className="tooltip-text">Columns to remove (comma-separated)</span>
+                        </div>
+                        <div className="input-wrapper">
                             <input
-                                type="checkbox"
-                                checked={combineSections}
-                                onChange={(e) => setCombineSections(e.target.checked)}
+                                type="text"
+                                placeholder="Rows to remove (comma-separated)"
+                                value={rowsToRemove}
+                                onChange={(e) => setRowsToRemove(e.target.value)}
                             />
-                            Combine Sections
-                        </label>
-                        <button onClick={handleAddSectionConfig}>Add Section</button>
+                            <span className="tooltip-text">Rows to remove (comma-separated)</span>
+                        </div>
+                        <div className="checkbox-group">
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={gridLinesRemoval}
+                                    onChange={(e) => setGridLinesRemoval(e.target.checked)}
+                                />
+                                Remove Gridlines
+                            </label>
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={combineSections}
+                                    onChange={(e) => setCombineSections(e.target.checked)}
+                                />
+                                Combine Sections
+                            </label>
+                        </div>
+                        <button onClick={handleAddSectionConfig} className="add-button">Add Section</button>
                     </div>
 
                     <div className="json-actions">
-                        <button onClick={handleResetConfig}>Reset All Configurations</button>
+                        <button onClick={handleResetConfig} className="reset-button">Reset All Configurations</button>
                         <button
                             onClick={handleSubmit}
                             className="submit-button"

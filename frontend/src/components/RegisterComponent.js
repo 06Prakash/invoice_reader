@@ -17,6 +17,10 @@ const RegisterComponent = ({ setToken, userRole }) => {
 
     const history = useHistory();
 
+    const handleUsernameChange = (value) => {
+        setUsername(value.toLowerCase());
+    };
+
     const handleRegister = async () => {
         if (isSpecialAdmin && !companyName) {
             showMessage('Company name is required for special admins.', 'error');
@@ -79,7 +83,7 @@ const RegisterComponent = ({ setToken, userRole }) => {
                         fullWidth
                         label="Username"
                         value={username}
-                        onChange={(e) => setUsername(e.target.value)}
+                        onChange={(e) => handleUsernameChange(e.target.value)}
                     />
                 </Grid>
                 <Grid item xs={12}>
@@ -106,7 +110,7 @@ const RegisterComponent = ({ setToken, userRole }) => {
                 </Grid>
             </Grid>
             {/* Information message for enterprise users */}
-            { !isSpecialAdmin && (
+            {!isSpecialAdmin && (
                 <div style={{ marginTop: '20px', textAlign: 'center' }}>
                     <Typography variant="body2" color="textSecondary">
                         For enterprise or organizational accounts, please contact our helpdesk at{' '}

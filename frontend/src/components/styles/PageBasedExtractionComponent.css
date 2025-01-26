@@ -1,221 +1,308 @@
+/* Page-Based Extraction Component Specific Styles */
+
+/* Container Styling */
 .page-extraction-container {
-    background-color: #f5fff5; /* Light greenish background for better readability */
-    border: 1px solid #006400; /* Dark green border */
-    border-radius: 10px;
-    padding: 20px;
-    margin: 20px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    color: #003300; /* Deep green for text */
-    font-family: 'Arial', sans-serif;
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 25px;
+    background-color: var(--light-bg-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    font-family: var(--font-family);
 }
 
-.page-extraction-container h3 {
-    color: #004d00; /* Slightly lighter green for headings */
+/* Header */
+.page-extraction-container h2 {
     text-align: center;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+    color: var(--primary-color);
+    font-size: 1.8rem;
+    font-weight: bold;
 }
 
-.page-extraction-container p {
-    color: #003300;
-    font-size: 14px;
-    margin-bottom: 15px;
+/* Form Styling */
+.config-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+/* Dropdown */
+.file-dropdown {
+    padding: 12px;
+    border: 1px solid var(--primary-color);
+    border-radius: var(--border-radius);
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    font-size: 1rem;
+    width: 100%;
+    transition: border-color var(--transition-speed);
+}
+
+.file-dropdown:focus {
+    border-color: var(--primary-hover-color);
+    outline: none;
+    box-shadow: 0 0 5px var(--primary-hover-color);
+}
+
+/* Input Fields */
+/* Wider Input Fields */
+input[type="text"] {
+    width: 100%; /* Makes the input take full width */
+    max-width: 400px; /* Controls the maximum width */
+    padding: 12px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: var(--border-radius);
+    transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+}
+
+input[type="text"]:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 5px var(--primary-color);
+    outline: none;
+}
+
+/* Tooltip Styling */
+.tooltip-container {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip-container:hover .tooltip-text,
+.tooltip-container input:focus + .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+.tooltip-text {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    top: -30px;
+    left: 0;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.85rem;
+    z-index: 10;
+    white-space: nowrap;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.error-input {
+    border-color: var(--error-color);
+    background-color: #fdecea;
+}
+
+/* Checkbox Group */
+.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.checkbox-group label {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Buttons */
+button {
+    padding: 10px 15px;
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--light-text);
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: background-color var(--transition-speed), transform var(--transition-speed);
+}
+
+button:hover {
+    background-color: var(--primary-hover-color);
+    transform: scale(1.03);
+}
+
+.add-button {
+    background-color: var(--primary-color);
+}
+
+.reset-button {
+    background-color: var(--secondary-color);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+}
+
+.reset-button:hover {
+    background-color: var(--secondary-hover-color);
+}
+
+.submit-button {
+    background-color: var(--success-color);
+}
+
+.submit-button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* Notification */
+.notification {
+    margin-top: 10px;
+    color: var(--success-color);
+    font-weight: bold;
+    text-align: center;
+}
+
+/* Config View */
+.config-view {
+    margin-top: 20px;
+    background-color: var(--light-bg-color);
+    padding: 15px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
 }
 
 .file-config {
-    background-color: #ffffff; /* White background for file sections */
-    border: 1px solid #d4d4d4; /* Light gray border */
-    border-radius: 5px;
-    padding: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
 }
 
-.file-config h4 {
-    color: #004d00; /* Consistent greenish heading for filenames */
+.file-config h3 {
     margin-bottom: 10px;
+    color: var(--primary-color);
+    font-size: 1.2rem;
+    font-weight: bold;
 }
 
 .section-config {
+    background-color: var(--secondary-color);
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow-light);
+    position: relative;
+}
+
+.section-header {
     display: flex;
+    justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
-    gap: 10px;
-}
-
-.section-config label {
-    font-weight: bold;
-    color: #003300;
-    flex: 0 0 100px;
-}
-
-.section-config input {
-    flex: 1;
-    padding: 8px;
-    border: 1px solid #006400;
-    border-radius: 4px;
-}
-
-.add-section {
-    display: flex;
-    gap: 10px;
-    margin-top: 20px;
-}
-
-.add-section input {
-    padding: 8px;
-    border: 1px solid #006400;
-    border-radius: 4px;
-    flex: 1;
-}
-
-.add-section button {
-    background-color: #006400;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 10px 20px;
-    font-size: 14px;
-    cursor: pointer;
-}
-
-.add-section button:hover, .json-actions button:hover {
-    background-color: #004d00;
-}
-
-.json-upload {
-    margin-top: 20px;
-}
-
-.json-upload input {
-    margin-top: 10px;
-}
-
-.json-actions {
-    display: flex;
-    justify-content: flex-start;
-    gap: 10px;
-    margin-top: 20px;
-}
-
-.json-actions button {
-    background-color: #006400;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 10px 20px;
-    font-size: 14px;
-    cursor: pointer;
-}
-
-.json-actions button:hover {
-    background-color: #004d00;
-}
-
-.json-upload p, .json-actions p {
-    margin-top: 10px;
-    font-size: 14px;
-    color: #003300;
-}
-.expand-collapse-header {
-    cursor: pointer;
-    color: #007bff;
-    font-size: 1.2em;
-    margin-bottom: 10px;
-}
-
-.expand-collapse-header:hover {
-    text-decoration: underline;
-}
-
-.page-extraction-content {
-    border: 1px solid #ddd;
-    padding: 10px;
-    margin-top: 10px;
-    border-radius: 5px;
-}
-
-.notification {
-    color: green;
-    margin-top: 10px;
+    font-size: 1.1rem;
     font-weight: bold;
 }
 
-.submit-button.clicked {
-    background-color: #007bff;
-    color: white;
-    box-shadow: 0 0 5px #007bff;
-    transform: scale(0.98);
+.remove-icon {
+    background: none;
+    border: none;
+    color: var(--error-color);
+    font-size: 1rem; /* Reduce font size */
+    cursor: pointer;
+    padding: 0; /* Remove additional padding */
+    width: 24px; /* Set fixed width for the button */
+    height: 24px; /* Set fixed height for the button */
+    line-height: 1; /* Adjust line height for alignment */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%; /* Make it circular */
+    background-color: #f8d7da; /* Light red background for better visibility */
 }
 
-.file-dropdown {
-    margin-right: 10px;
-    padding: 5px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+.remove-icon:hover {
+    color: white;
+    background-color: var(--error-color); /* Darker red on hover */
 }
 
 .input-wrapper {
+    margin-bottom: 10px;
+}
+
+.input-wrapper label {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    margin-bottom: 5px;
+}
+
+.section-config span {
+    color: var(--text-color);
+    font-size: 1rem;
+    flex: 1;
+}
+
+.section-config button {
+    padding: 8px 12px;
+    background-color: var(--error-color);
+    color: var(--light-text);
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+}
+
+.section-config button:hover {
+    background-color: #cc0000;
+}
+
+.scrollable-placeholder-container {
     position: relative;
-    margin-bottom: 10px; /* Space between inputs */
-    display: flex;
-    flex-direction: column; /* Stack error message and input vertically */
+    overflow: hidden;
 }
 
-.error-message {
-    color: #d32f2f; /* Professional-looking red color */
-    font-size: 14px; /* Slightly larger font for visibility */
-    margin-bottom: 5px; /* Space below the error message */
-    font-weight: bold; /* Bold font for emphasis */
-    font-family: 'Arial', sans-serif; /* Clean, professional font */
+.scrollable-placeholder {
+    position: absolute;
+    white-space: nowrap;
+    transform: translateX(0);
+    animation: scroll-placeholder 10s linear infinite;
+    color: #ccc; /* Placeholder color */
+    pointer-events: none; /* Ensure it's not interactive */
 }
 
-.error {
-    border-color: #d32f2f !important; /* Match the red color for border */
-    background-color: #fdecea; /* Subtle red background for the error field */
-    outline: none; /* Remove default focus outline */
+@keyframes scroll-placeholder {
+    0% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
 }
 
-/* Styles for Combine Sections checkbox and label */
-.combine-sections-label {
-    font-weight: bold;
-    color: #003300; /* Matches existing green theme */
-    display: flex;
-    align-items: center;
-    margin-top: 10px;
-}
 
-/* Multi-Select Dropdown Styles */
-.file-dropdown[multiple] {
-    height: auto; /* Automatically adjusts height based on options */
-    padding: 8px; /* Comfortable padding for better usability */
-    border: 1px solid #006400; /* Matches existing green theme */
-    border-radius: 4px;
-    background-color: #f5fff5; /* Light green for consistency with the theme */
-    color: #003300; /* Dark green text for readability */
-    font-family: 'Arial', sans-serif;
-}
 
-/* Individual Options in Multi-Select */
-.file-dropdown[multiple] option {
-    padding: 5px; /* Padding for each option */
-    font-size: 14px; /* Maintain consistency with other inputs */
-}
+/* Responsive Design */
+@media (max-width: 768px) {
+    .page-extraction-container {
+        padding: 15px;
+    }
 
-/* Highlight Selected Options */
-.file-dropdown[multiple] option:checked {
-    background-color: #006400; /* Dark green for selected options */
-    color: white; /* White text for better contrast */
-}
+    input[type="text"],
+    .file-dropdown {
+        font-size: 0.9rem;
+        padding: 8px;
+    }
 
-.file-dropdown {
-    padding: 8px;
-    border: 1px solid #006400; /* Dark green border for consistency */
-    border-radius: 4px;
-    background-color: #f5fff5; /* Light green background */
-    color: #003300;
-    font-family: 'Arial', sans-serif;
-}
+    .checkbox-group {
+        flex-direction: column;
+    }
 
-/* Checkbox Styling */
-label input[type="checkbox"] {
-    margin-right: 5px; /* Space between the checkbox and the label */
+    .config-view {
+        padding: 10px;
+    }
+
+    .section-config {
+        flex-direction: column;
+        gap: 10px;
+    }
+    button {
+        font-size: 0.9rem;
+        padding: 8px 16px;
+    }
 }
