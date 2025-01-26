@@ -30,7 +30,6 @@ const CreditUpdateComponent = () => {
     const handleSearch = async () => {
         try {
             const response = await axios.get(`/user/search?query=${searchQuery}`);
-            console.log('User Data:', response.data);
             setUserData(response.data);
             setCreditCount(
                 parseFloat(response.data.credit_count || 0).toFixed(2) // Parse credit count as decimal
@@ -44,10 +43,8 @@ const CreditUpdateComponent = () => {
 
     const handleUpdateCredit = async () => {
         try {
-            const isUser = !userData.company_id; // Determine if it's a personal user or a company user
-
             await axios.put(`/credit/update`, {
-                entityId: isUser ? userData.id : userData.company_id,
+                entityId: userData.id,
                 creditCount: parseFloat(creditCount).toFixed(2), // Send decimal value
             });
             showMessage('Credit updated successfully', 'success');
