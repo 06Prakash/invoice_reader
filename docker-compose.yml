@@ -19,7 +19,7 @@ services:
       - shared_network
     command: ["python", "app.py"]  # Run Flask app in development
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health/check"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/health/check"]
       start_period: 10s  # Wait 10 seconds before starting health checks
       interval: 2m  # Perform subsequent health checks every 2 minutes
       timeout: 10s

@@ -22,12 +22,9 @@ RUN npm run build
 FROM python:3.9-slim
 WORKDIR /app
 
-# Install app-specific dependencies first
-COPY backend/app-requirements.txt .
-RUN pip install --no-cache-dir -r app-requirements.txt
-
-# Install additional tools and libraries
+# Install SSH, backend dependencies, and additional tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssh-server \
     poppler-utils \
     libgl1-mesa-glx \
     postgresql-client \
@@ -35,6 +32,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Configure SSH
+RUN mkdir /var/run/sshd && \
+    echo 'root:password' | chpasswd && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/UsePAM yes/UsePAM no/' /etc/ssh/sshd_config
+
+# Install app-specific dependencies
+COPY backend/app-requirements.txt .
+RUN pip install --no-cache-dir -r app-requirements.txt
 
 # Copy the backend code into the container
 COPY backend /app
@@ -54,8 +61,8 @@ RUN mkdir -p /app/logs
 # Make entrypoint.sh executable
 RUN chmod +x /app/entrypoint.sh
 
-# Expose the port the app runs on
-EXPOSE 5000
+# Expose the app and SSH ports
+EXPOSE 80 22
 
-# Set the entrypoint to the script
-ENTRYPOINT ["python", "app.py"]
+# Use a process manager to handle both processes
+CMD ["bash", "-c", "/usr/sbin/sshd && python app.py"]
