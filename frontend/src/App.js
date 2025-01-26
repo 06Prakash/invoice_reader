@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
 import axios from 'axios';
+import './components/styles/global_stylings.css';
 import UploadComponent from './components/UploadComponent';
 import DataReview from './components/DataReview';
 import RegisterComponent from './components/RegisterComponent';
