@@ -1,30 +1,28 @@
+# ==================================
 # Step 1: Build the frontend
+# ==================================
 FROM node:18-alpine AS build-frontend
 WORKDIR /frontend
 
-# Increase Node.js memory limit
+# Increase Node.js memory limit for large builds
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Copy package.json and package-lock.json for dependency resolution
+# Install dependencies separately for better caching
 COPY frontend/package*.json ./
-
-# Install frontend dependencies with no optional packages
 RUN npm install --omit=optional
 
-# Expose the React development server port
-EXPOSE 3000
-
-# Copy the rest of the frontend code and build it
+# Copy the frontend code and build it
 COPY frontend/ .
 RUN npm run build
 
-# Step 2: Backend and runtime setup
-FROM python:3.9-slim
+# ==================================
+# Step 2: Backend Base Setup
+# ==================================
+FROM python:3.9-slim AS base
 WORKDIR /app
 
-# Install SSH, backend dependencies, and additional tools
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    openssh-server \
     poppler-utils \
     libgl1-mesa-glx \
     postgresql-client \
@@ -33,36 +31,44 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure SSH
-RUN mkdir /var/run/sshd && \
-    echo 'root:password' | chpasswd && \
-    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
-    sed -i 's/UsePAM yes/UsePAM no/' /etc/ssh/sshd_config
-
-# Install app-specific dependencies
+# Install Python dependencies
 COPY backend/app-requirements.txt .
 RUN pip install --no-cache-dir -r app-requirements.txt
 
-# Copy the backend code into the container
+# Copy backend code
 COPY backend /app
 
-# Copy the frontend build artifacts from the previous stage
+# Copy frontend build artifacts into backend for production
 COPY --from=build-frontend /frontend/build /app/static
 
-# Copy the entrypoint script
+# Copy the entrypoint script and ensure it's executable
 COPY entrypoint.sh /app/entrypoint.sh
+RUN dos2unix /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
-# Convert entrypoint to Unix format
-RUN dos2unix /app/entrypoint.sh
-
-# Create the logs directory
+# Create logs directory
 RUN mkdir -p /app/logs
 
-# Make entrypoint.sh executable
-RUN chmod +x /app/entrypoint.sh
+# ==================================
+# Step 3: Development Mode
+# ==================================
+FROM base AS dev
+ENV FLASK_ENV=development
+ENV DEBUG=True
 
-# Expose the app and SSH ports
-EXPOSE 80 22
+# Mount backend code as a volume for live reload
+VOLUME ["/app"]
 
-# Use a process manager to handle both processes
-CMD ["bash", "-c", "/usr/sbin/sshd && python app.py"]
+# Expose Flask's development port
+EXPOSE 5000
+
+# Run Flask in development mode with auto-reload
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5000", "--reload"]
+
+# ==================================
+# Step 4: Production Mode
+# ==================================
+FROM base AS prod
+EXPOSE 80
+
+# Run Gunicorn with optimized thread settings for better performance
+CMD ["gunicorn", "-w", "4", "-k", "gthread", "--threads", "4", "-b", "0.0.0.0:80", "app:app"]

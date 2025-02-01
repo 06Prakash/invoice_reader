@@ -4,41 +4,43 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile  # Single Dockerfile in the root folder
+      dockerfile: Dockerfile
+      target: dev  # Use the development version of the backend
+    container_name: invoice_reader_backend
     ports:
-      - "5001:5000"  # Expose backend on port 5001
+      - "5001:5000"  # Flask runs on port 5000, mapped to 5001
     volumes:
-      - ./backend:/app  # Mount the backend folder for live updates
-      - ./migrations:/app/migrations  # Persist database migrations
-      - ./logs:/app/logs  # Persist logs locally
-      - ./resources:/app/resources  # Mount resources folder (e.g., templates)
-      - ./uploads:/app/uploads  # Mount uploads folder
+      - ./backend:/app  # Mount backend for live reload
+      - ./migrations:/app/migrations
+      - ./logs:/app/logs  # Persist logs
+      - ./resources:/app/resources
+      - ./uploads:/app/uploads  # Persist uploads
     env_file:
-      - .env  # Use environment variables from .env file
+      - .env  # Load environment variables
     networks:
       - shared_network
-    command: ["python", "app.py"]  # Run Flask app in development
+    command: ["flask", "run", "--host=0.0.0.0", "--port=5000", "--reload"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health/check"]
-      start_period: 10s  # Wait 10 seconds before starting health checks
-      interval: 2m  # Perform subsequent health checks every 2 minutes
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health/check"]
+      interval: 30s  # Check every 10 seconds
+      timeout: 5s
       retries: 3
-
+      start_period: 5s  # Give Flask some time to start before checking
 
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
       target: build-frontend
+    container_name: invoice_reader_frontend
     image: node:18-alpine
     working_dir: /frontend
     volumes:
-      - ./frontend:/frontend  # Mount the frontend folder for live updates
-      - /frontend/node_modules  # Ensure `node_modules` is container-specific
+      - ./frontend:/frontend  # Live updates
+      - /frontend/node_modules  # Keep node_modules in the container
     ports:
-      - "3000:3000"  # Expose React development server port
-    command: ["npm", "start"]  # Run React development server
+      - "3000:3000"  # Expose React development server
+    command: ["npm", "start"]  # Run React dev server
     networks:
       - shared_network
     depends_on:

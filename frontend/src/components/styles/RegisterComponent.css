@@ -1,6 +1,109 @@
-/* Register Component Specific Styles */
+/* Register Component Styles */
+.register-container {
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 25px;
+    background: white;
+    box-shadow: var(--box-shadow);
+    border-radius: var(--border-radius);
+    text-align: center;
+}
 
-/* Material-UI Snackbar Root Styling */
-.register-container .MuiSnackbar-root {
-    z-index: 1400;
+/* Header Styling */
+.register-container h2 {
+    color: var(--primary-color);
+    margin-bottom: 15px;
+}
+
+/* Form Fields */
+.form-group {
+    margin-bottom: 15px;
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    font-size: 14px;
+    color: var(--text-color);
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: var(--border-radius);
+    font-size: 14px;
+    transition: border-color 0.3s ease-in-out;
+}
+
+.form-group input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+/* Button Styling */
+.register-button {
+    width: 100%;
+    padding: 10px;
+    background: var(--primary-color);
+    color: white;
+    font-size: 16px;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: background 0.3s ease-in-out;
+}
+
+.register-button:hover {
+    background: var(--primary-hover-color);
+}
+
+/* Message Box */
+.message-box {
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: var(--border-radius);
+    font-size: 14px;
+}
+
+.message-box.success {
+    background: #e8f5e9;
+    color: var(--muted-green);
+    border: 1px solid var(--muted-green);
+}
+
+.message-box.error {
+    background: #fdecea;
+    color: var(--error-color);
+    border: 1px solid var(--error-color);
+}
+
+/* Helpdesk Info */
+.helpdesk-info {
+    margin-top: 15px;
+    font-size: 12px;
+    color: var(--text-color);
+}
+
+.helpdesk-info a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.helpdesk-info a:hover {
+    text-decoration: underline;
+}
+
+.checking-text {
+    font-size: 12px;
+    color: var(--primary-muted);
+    margin-left: 10px;
+}
+
+.register-button:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
 }

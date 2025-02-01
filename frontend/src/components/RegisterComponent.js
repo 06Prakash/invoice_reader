@@ -1,34 +1,68 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Button, TextField, Grid, Snackbar, Alert, Typography } from '@mui/material';
 import { useHistory } from 'react-router-dom';
 import './styles/RegisterComponent.css';
 
+/**
+ * RegisterComponent handles user registration and special admin company creation.
+ *
+ * @param {Function} setToken Callback to store the access token.
+ * @param {string} userRole The role of the user (e.g., "special_admin").
+ * @return {JSX.Element} The rendered registration form component.
+ */
 const RegisterComponent = ({ setToken, userRole }) => {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [companyName, setCompanyName] = useState('');
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    const [message, setMessage] = useState({ text: '', type: '' });
     const [isSpecialAdmin, setIsSpecialAdmin] = useState(userRole === 'special_admin');
-    const [showSnackbar, setShowSnackbar] = useState(false);
-    const [snackbarType, setSnackbarType] = useState('success');
+    const [isUsernameValid, setIsUsernameValid] = useState(false);
+    const [checkingUsername, setCheckingUsername] = useState(false);
 
     const history = useHistory();
 
-    const handleUsernameChange = (value) => {
-        setUsername(value.toLowerCase());
+    /**
+     * Checks if the username is available when the user moves focus away from the field.
+     *
+     * @return {void}
+     */
+    const checkUsernameAvailability = async () => {
+        if (!username.trim()) return;
+
+        setCheckingUsername(true);
+        try {
+            const response = await axios.get(`/user/checkuser?username=${username.trim().toLowerCase()}`);
+            setIsUsernameValid(response.data.available);
+            setMessage({ text: response.data.message, type: response.data.available ? 'success' : 'error' });
+        } catch (error) {
+            console.error('Error checking username:', error);
+            setMessage({ text: 'Error checking username', type: 'error' });
+        }
+        setCheckingUsername(false);
     };
 
+    /**
+     * Handles the registration process.
+     *
+     * Validates the email format and company name (if applicable) before sending a registration
+     * request to the server. Displays a success or error message based on the response.
+     *
+     * @return {void}
+     */
     const handleRegister = async () => {
+        if (!isUsernameValid) {
+            setMessage({ text: 'Please choose a different username', type: 'error' });
+            return;
+        }
+
         if (isSpecialAdmin && !companyName) {
-            showMessage('Company name is required for special admins.', 'error');
+            setMessage({ text: 'Company name is required for special admins.', type: 'error' });
             return;
         }
 
         if (!validateEmail(email)) {
-            showMessage('Invalid email format', 'error');
+            setMessage({ text: 'Invalid email format', type: 'error' });
             return;
         }
 
@@ -44,94 +78,88 @@ const RegisterComponent = ({ setToken, userRole }) => {
                 setToken(response.data.access_token);
                 setTimeout(() => history.push('/login'), 2000);
             }
-            showMessage('Registration successful', 'success');
+            setMessage({ text: 'Registration successful', type: 'success' });
         } catch (error) {
             console.error('Error registering:', error);
-            showMessage('Registration failed. Please try again.', 'error');
+            setMessage({ text: 'Registration failed. Please try again.', type: 'error' });
         }
     };
 
-    const showMessage = (message, type) => {
-        setSnackbarType(type);
-        setError(type === 'error' ? message : '');
-        setSuccess(type === 'success' ? message : '');
-        setShowSnackbar(true);
-    };
-
-    const handleSnackbarClose = () => {
-        setShowSnackbar(false);
-    };
-
+    /**
+     * Validates the provided email address using a regular expression.
+     *
+     * @param {string} email The email address to validate.
+     * @return {boolean} Returns true if the email format is valid, otherwise false.
+     */
     const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
     return (
         <div className="register-container">
             <h2>{isSpecialAdmin ? 'Add Company and Admin' : 'Register'}</h2>
-            <Grid container spacing={2}>
-                {isSpecialAdmin && (
-                    <Grid item xs={12}>
-                        <TextField
-                            fullWidth
-                            label="Company Name"
-                            value={companyName}
-                            onChange={(e) => setCompanyName(e.target.value)}
-                        />
-                    </Grid>
-                )}
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        label="Username"
-                        value={username}
-                        onChange={(e) => handleUsernameChange(e.target.value)}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        label="Email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        type="password"
-                        label="Password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <Button variant="contained" color="primary" onClick={handleRegister}>
-                        {isSpecialAdmin ? 'Add Company and Admin' : 'Register'}
-                    </Button>
-                </Grid>
-            </Grid>
-            {/* Information message for enterprise users */}
-            {!isSpecialAdmin && (
-                <div style={{ marginTop: '20px', textAlign: 'center' }}>
-                    <Typography variant="body2" color="textSecondary">
-                        For enterprise or organizational accounts, please contact our helpdesk at{' '}
-                        <a href="mailto:helpdesk@niraitsolutions.com" style={{ color: '#1976d2' }}>
-                            helpdesk@niraitsolutions.com
-                        </a>.
-                    </Typography>
+
+            {message.text && (
+                <div className={`message-box ${message.type === 'error' ? 'error' : 'success'}`}>
+                    {message.text}
                 </div>
             )}
 
-            {/* Snackbar for success or error messages */}
-            <Snackbar
-                open={showSnackbar}
-                autoHideDuration={4000}
-                onClose={handleSnackbarClose}
-                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-            >
-                <Alert onClose={handleSnackbarClose} severity={snackbarType}>
-                    {snackbarType === 'success' ? success : error}
-                </Alert>
-            </Snackbar>
+            <form onSubmit={(e) => e.preventDefault()}>
+                {isSpecialAdmin && (
+                    <div className="form-group">
+                        <label>Company Name</label>
+                        <input
+                            type="text"
+                            value={companyName}
+                            onChange={(e) => setCompanyName(e.target.value)}
+                            required
+                        />
+                    </div>
+                )}
+                <div className="form-group">
+                    <label>Username</label>
+                    <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                        onBlur={checkUsernameAvailability} // Checks availability on losing focus
+                        required
+                    />
+                    {checkingUsername && <span className="checking-text">Checking...</span>}
+                </div>
+                <div className="form-group">
+                    <label>Email</label>
+                    <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                    />
+                </div>
+                <div className="form-group">
+                    <label>Password</label>
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                    />
+                </div>
+                <button
+                    type="button"
+                    className="register-button"
+                    onClick={handleRegister}
+                    disabled={!isUsernameValid || checkingUsername} // Disabled if username is taken
+                >
+                    {isSpecialAdmin ? 'Add Company and Admin' : 'Register'}
+                </button>
+            </form>
+
+            {!isSpecialAdmin && (
+                <p className="helpdesk-info">
+                    For enterprise or organizational accounts, please contact our helpdesk at{' '}
+                    <a href="mailto:helpdesk@niraitsolutions.com">helpdesk@niraitsolutions.com</a>.
+                </p>
+            )}
         </div>
     );
 };

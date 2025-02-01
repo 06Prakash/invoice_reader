@@ -10,6 +10,10 @@ from flask_jwt_extended import get_jwt_identity
 
 logger = setup_logger(__name__)
 
+def get_user(username):
+    return User.query.filter_by(username=username).first()
+
+
 def create_user(username, email, password, company_id=None):
     # Check if the username or email already exists
     if User.query.filter_by(username=username).first():

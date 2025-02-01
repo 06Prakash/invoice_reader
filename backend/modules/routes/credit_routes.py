@@ -2,8 +2,10 @@ from flask import Blueprint, request, jsonify
 from modules.services.credit_service import update_credit, get_remaining_credits
 from modules.middleware.admin_middleware import special_admin_required
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from modules.logging_util import setup_logger
 
 credit_routes = Blueprint('credit_routes', __name__)
+logger = setup_logger(__name__)
 
 @credit_routes.route('/update', methods=['PUT'])
 @special_admin_required
@@ -31,6 +33,7 @@ def get_remaining_credits_endpoint():
     remaining_credits = get_remaining_credits(user_id)
 
     if remaining_credits is None:
+        logger.info(f"Looks like no credits found for the user {user_id}")
         return jsonify({'error': 'Credits not found'}), 404
 
     return jsonify({'remaining_credits': remaining_credits}), 200

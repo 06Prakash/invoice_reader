@@ -23,18 +23,11 @@ psycopg2-binary==2.9.1
 pandas==1.5.3
 numpy==1.21.4
 openpyxl
-python-dateutil==2.8.2
 
 # PDF and document processing
-pdfplumber==0.5.28
 PyPDF2==3.0.1
-reportlab==3.6.12
 
 # Other utilities
 python-dotenv==1.0.0
 gunicorn
 razorpay
-Faker==13.3.4
-
-# Image processing
-opencv-python-headless==4.5.3.56

@@ -1,7 +1,7 @@
 # backend/modules/user_routes.py
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, create_refresh_token, get_jwt_identity
-from modules.services.user_service import create_user, get_all_users, authenticate_user, search_user_service
+from modules.services.user_service import create_user, get_all_users, authenticate_user, search_user_service, get_user
 from modules.middleware.admin_middleware import special_admin_required
 
 from modules.logging_util import setup_logger
@@ -60,6 +60,24 @@ def login():
         }), 200
 
     return jsonify({'message': 'Invalid credentials'}), 401
+
+@user_bp.route('/checkuser', methods=['GET'])
+def check_username():
+    """
+    Checks if a username is available.
+    """
+    username = request.args.get('username', '').strip().lower()
+    logger.info(f"Searching username: {username}")
+    if not username:
+        return jsonify({'error': 'Username is required'}), 400
+
+    user_exists = get_user(username) is not None
+
+    if user_exists:
+        return jsonify({'available': False, 'message': 'Username is already taken'}), 200
+
+    return jsonify({'available': True, 'message': 'Username is available'}), 200
+
 
 @user_bp.route('/search', methods=['GET'])
 @jwt_required()
