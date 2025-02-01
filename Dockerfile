@@ -53,6 +53,7 @@ RUN mkdir -p /app/logs
 # ==================================
 FROM base AS dev
 ENV FLASK_ENV=development
+ENV FLASK_DEBUG=1
 ENV DEBUG=True
 
 # Mount backend code as a volume for live reload
@@ -72,3 +73,10 @@ EXPOSE 80
 
 # Run Gunicorn with optimized thread settings for better performance
 CMD ["gunicorn", "-w", "4", "-k", "gthread", "--threads", "4", "-b", "0.0.0.0:80", "app:app"]
+
+# ==================================
+# Step 5: Celery Worker
+# ==================================
+FROM base AS celery_worker
+ENV C_FORCE_ROOT=true
+CMD ["celery", "-A", "celery_worker.celery_app", "worker", "--loglevel=info"]

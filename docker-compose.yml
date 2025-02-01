@@ -22,7 +22,7 @@ services:
     command: ["flask", "run", "--host=0.0.0.0", "--port=5000", "--reload"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health/check"]
-      interval: 30s  # Check every 10 seconds
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 5s  # Give Flask some time to start before checking
@@ -46,6 +46,31 @@ services:
     depends_on:
       backend:
         condition: service_healthy  # Wait for backend to be healthy
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: invoice_reader_celery
+    depends_on:
+      - backend
+      - redis
+    command: ["celery", "-A", "modules.services.background_service.celery_worker.celery_app", "worker", "--loglevel=info"]
+    environment:
+      - FLASK_DEBUG=1  # Replaces FLASK_ENV (deprecated)
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    networks:
+      - shared_network
+
+  redis:
+    image: redis:latest
+    container_name: redis_broker
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - shared_network
 
 networks:
   shared_network:

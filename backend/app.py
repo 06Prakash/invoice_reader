@@ -9,6 +9,7 @@ from extensions import db, bcrypt, login_manager, jwt, mail
 from modules.routes import register_routes
 from modules.logging_util import setup_logger, cleanup_old_logs
 from dotenv import load_dotenv
+from celery import Celery
 
 # Load environment variables from .env
 load_dotenv()
@@ -23,26 +24,53 @@ def import_all_models(package_name):
         if not is_pkg:
             importlib.import_module(module_name)
 
+def make_celery(app):
+    """
+    Configure Celery to work with Flask.
+    """
+    celery = Celery(
+        app.import_name,
+        broker=app.config.get("CELERY_BROKER_URL", "redis://redis:6379/0"),
+        backend=app.config.get("CELERY_RESULT_BACKEND", "redis://redis:6379/0"),
+    )
+    celery.conf.update(app.config)
+    
+    # Push Flask context for Celery workers
+    class ContextTask(celery.Task):
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery.Task = ContextTask
+    return celery
+
 def create_app():
-    app = Flask(__name__, static_folder='static', static_url_path='')
+    """
+    Initialize the Flask application with required configurations and extensions.
+    """
+    app = Flask(__name__, static_folder="static", static_url_path="")
     CORS(app)
 
     # Configure logging
     logger = setup_logger(__name__)
 
     # Load configuration based on FLASK_ENV
-    flask_env = os.getenv('FLASK_ENV', 'production')
-    app.config.from_object('config')
+    flask_env = os.getenv("FLASK_ENV", "production")
+    app.config.from_object("config")
 
     if flask_env == "development":
-        app.config['DEBUG'] = True
+        app.config["DEBUG"] = True
+        app.config["CELERY_BROKER_URL"] = "redis://redis:6379/0"
+        app.config["CELERY_RESULT_BACKEND"] = "redis://redis:6379/0"
     else:
-        app.config['DEBUG'] = False
+        app.config["DEBUG"] = False
+        app.config["CELERY_BROKER_URL"] = os.getenv("AZURE_STORAGE_QUEUE_URL")
+        app.config["CELERY_RESULT_BACKEND"] = None  # No result backend needed for Azure
 
     logger.info(f"Starting Flask App in {flask_env} mode...")
 
     # Register models & extensions
-    import_all_models('modules.models')
+    import_all_models("modules.models")
     db.init_app(app)
     bcrypt.init_app(app)
     login_manager.init_app(app)
@@ -50,24 +78,23 @@ def create_app():
     mail.init_app(app)
 
     # Initialize Flask-Migrate
-    migrate = Migrate(app, db)
+    Migrate(app, db)
+
+    # Initialize Celery with Flask
+    global celery_app
+    celery_app = make_celery(app)
 
     # Register routes
     register_routes(app)
 
-    # # Health Check Route for Docker
-    # @app.route('/health', methods=['GET'])
-    # def health_check():
-    #     return jsonify({'status': 'healthy'}), 200
-
     # Static file serving for frontend (React)
-    @app.route('/', defaults={'path': ''})
-    @app.route('/<path:path>')
+    @app.route("/", defaults={"path": ""})
+    @app.route("/<path:path>")
     def serve(path):
-        if path != "" and os.path.exists(app.static_folder + '/' + path):
+        if path != "" and os.path.exists(app.static_folder + "/" + path):
             return send_from_directory(app.static_folder, path)
         else:
-            return send_from_directory(app.static_folder, 'index.html')
+            return send_from_directory(app.static_folder, "index.html")
 
     return app
 
@@ -76,7 +103,7 @@ app = create_app()
 if __name__ == "__main__":
     cleanup_old_logs()
     
-    # Set port dynamicall
-    port = 5000 if os.getenv("FLASK_ENV", "production") == "development" else 80
+    # Set port dynamically
+    port = 5000 if os.getenv("FLASK_ENV", "development") == "development" else 80
 
-    app.run(host="0.0.0.0", port=port, debug=app.config['DEBUG'])
+    app.run(host="0.0.0.0", port=port, debug=app.config["DEBUG"])
