@@ -1,84 +1,79 @@
-.data-review-container {
-    margin: 20px;
-    border: 2px solid #004d40; /* blackish green border */
-    border-radius: 8px;
-    padding: 20px;
-    background-color: #fff;
+/* Data Review Component Specific Styles */
+
+/* File Selection and Format Selection */
+.file-selection, .format-selection {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
 }
 
-.data-review h2, .data-review h3 {
-    color: #004d40; /* blackish green */
-}
-
-.data-review button {
-    background-color: #004d40; /* blackish green */
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
+.file-selection label, .format-selection label {
     font-size: 16px;
-    margin-top: 10px;
-    transition: background-color 0.3s, transform 0.3s;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-right: 10px;
 }
 
-.data-review button:hover {
-    background-color: #00332d;
-    transform: scale(1.05);
-}
-
-.table-container {
-    overflow-x: auto; /* Ensure table fits within the container */
-    margin: 20px 0;
-}
-
-.data-review table {
+.file-selection select, .format-selection select {
     width: 100%;
-    border-collapse: collapse;
-}
-
-.data-review th, .data-review td {
-    border: 1px solid #ccc;
+    max-width: 300px;
     padding: 10px;
-    text-align: left;
+    border: 1px solid var(--primary-color);
+    border-radius: var(--border-radius);
+    font-size: 16px;
+    background-color: var(--light-bg-color);
+    color: var(--primary-color);
+    transition: border-color var(--transition-speed);
 }
 
-.data-review th {
-    background-color: #004d40;
-    color: white;
+.file-selection select:focus, .format-selection select:focus {
+    border-color: var(--primary-hover-color);
+    outline: none;
+}
+
+/* Original Lines Viewer */
+.original-lines-viewer {
+    margin-top: 20px;
+    background-color: var(--light-bg-color);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    border: 1px solid #ccc;
+}
+
+.original-lines-viewer h3 {
+    margin-bottom: 15px;
+    color: var(--primary-color);
+    text-align: center;
     font-weight: bold;
 }
 
-.data-review pre {
-    background-color: #f8f9fa;
-    padding: 10px;
+.original-lines-viewer pre {
+    background-color: #ffffff;
+    padding: 15px;
     border-radius: 5px;
     overflow: auto;
     max-height: 300px;
+    font-size: 14px;
+    font-family: "Courier New", Courier, monospace;
+    border: 1px solid #ccc;
+    color: #333;
 }
 
-.pagination {
-    display: flex;
-    justify-content: center;
-    margin-top: 20px;
-}
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .file-selection, .format-selection {
+        flex-direction: column;
+        align-items: center;
+    }
 
-.pagination button {
-    background-color: #fff;
-    color: #004d40;
-    border: 1px solid #004d40;
-    padding: 5px 10px;
-    margin: 0 5px;
-    cursor: pointer;
-    transition: background-color 0.3s, color 0.3s;
-}
+    .file-selection select, .format-selection select {
+        max-width: 100%;
+    }
 
-.pagination button:hover {
-    background-color: #004d40;
-    color: white;
-}
-
-.pagination button.active {
-    background-color: #004d40;
-    color: white;
+    .original-lines-viewer pre {
+        max-height: 200px;
+    }
 }

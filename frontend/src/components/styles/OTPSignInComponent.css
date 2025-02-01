@@ -1,0 +1,135 @@
+/* General Container Styling */
+.otp-signin-container {
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 30px 25px;
+    background-color: var(--light-bg-color) !important;
+    border-radius: var(--border-radius-large);
+    box-shadow: var(--box-shadow-strong);
+    text-align: center;
+    font-family: 'Arial', sans-serif;
+}
+
+.otp-signin-container h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: var(--primary-color) !important;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    text-transform: capitalize;
+}
+
+/* Text Field Styling */
+.otp-signin-container .MuiTextField-root {
+    margin-bottom: 15px;
+}
+
+.otp-signin-container input {
+    border-radius: var(--border-radius);
+    font-size: 16px;
+    padding: 10px;
+    background-color: var(--light-bg-color) !important;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    transition: box-shadow var(--transition-speed), border-color var(--transition-speed) !important;
+}
+
+.otp-signin-container input:focus {
+    box-shadow: 0 0 8px var(--primary-hover-color) !important;
+    border-color: var(--primary-hover-color) !important;
+}
+
+/* Send OTP Button */
+.send-otp-button {
+    background-color: var(--primary-color) !important;
+    color: var(--light-text) !important;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 12px 20px;
+    width: 100%;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: background-color var(--transition-speed), transform var(--transition-speed), box-shadow var(--transition-speed);
+    box-shadow: var(--box-shadow);
+}
+
+.send-otp-button:hover {
+    background-color: var(--primary-hover-color) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 77, 64, 0.2);
+}
+
+.send-otp-button:disabled {
+    background-color: var(--secondary-hover-color) !important;
+    cursor: not-allowed;
+    opacity: 0.7;
+    box-shadow: none;
+}
+
+/* Verify OTP Button */
+.verify-otp-button {
+    background-color: var(--secondary-color) !important;
+    color: var(--primary-color) !important;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 12px 20px;
+    width: 100%;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: background-color var(--transition-speed), transform var(--transition-speed), box-shadow var(--transition-speed);
+    box-shadow: var(--box-shadow);
+}
+
+.verify-otp-button:hover {
+    background-color: var(--secondary-hover-color) !important;
+    color: var(--text-color) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 77, 64, 0.2);
+}
+
+/* Back to Login Button */
+.back-button {
+    color: var(--primary-color) !important;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: none;
+    padding: 8px 12px;
+    margin-top: 15px;
+    width: 100%;
+    transition: color var(--transition-speed), transform var(--transition-speed);
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+}
+
+.back-button:hover {
+    color: var(--primary-hover-color) !important;
+    text-decoration: underline;
+    transform: scale(1.03);
+}
+
+/* Snackbar Styling */
+.MuiSnackbar-root {
+    max-width: 400px;
+    margin: auto;
+    text-align: center;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow-strong);
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .otp-signin-container {
+        padding: 20px;
+    }
+
+    .otp-signin-container h2 {
+        font-size: 20px;
+    }
+
+    .send-otp-button,
+    .verify-otp-button,
+    .back-button {
+        font-size: 14px;
+        padding: 10px;
+    }
+}

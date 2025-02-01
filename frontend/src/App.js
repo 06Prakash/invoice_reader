@@ -1,52 +1,93 @@
-// src/App.js
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
 import axios from 'axios';
+import './components/styles/global_stylings.css';
 import UploadComponent from './components/UploadComponent';
 import DataReview from './components/DataReview';
-import TemplateManager from './components/TemplateManager';
-import JsonTemplateGenerator from './components/JsonTemplateGenerator';
 import RegisterComponent from './components/RegisterComponent';
 import LoginComponent from './components/LoginComponent';
+import PaymentPageComponent from "./components/PaymentPageComponent";
 import NavBar from './components/NavBar';
 import LinearProgress from '@mui/material/LinearProgress';
+import PageBasedExtractionComponent from './components/PageBasedExtractionComponent';
+import CreditUpdateComponent from './components/CreditUpdateComponent';
+import CompanyRegisterComponent from './components/CompanyRegisterComponent';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
+
 import './App.css';
-import './components/styles/JsonTemplateGenerator.css'; // Include the new CSS file
 
 const App = () => {
-    const [templates, setTemplates] = useState([]);
-    const [selectedTemplate, setSelectedTemplate] = useState('Default Template');
     const [uploadedFiles, setUploadedFiles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [snackbarType, setSnackbarType] = useState('success');
     const [extractedData, setExtractedData] = useState(null);
-    const [outputFormat, setOutputFormat] = useState('json');
     const [extractionModels, setExtractionModels] = useState([]);
-    const [selectedModel, setSelectedModel] = useState('NIRA standard Extraction');
+    const [pageConfig, setPageConfig] = useState({});
+    const [selectedModel, setSelectedModel] = useState('NIRA AI - Printed Text (PB)');
     const [originalLines, setOriginalLines] = useState([]);
-    const [defaultTemplateFields, setDefaultTemplateFields] = useState('');
     const [progress, setProgress] = useState(0);
     const [token, setToken] = useState(localStorage.getItem('jwt_token') || '');
+    const [userRole, setUserRole] = useState(
+        localStorage.getItem('special_admin') === 'true' ? 'special_admin' : 'user'
+    );
+    const MAX_FILES = 5;
 
+    // Update Axios headers on token change
     useEffect(() => {
         if (token) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-            fetchTemplates();
-            fetchDefaultTemplate();
         }
     }, [token]);
 
+    // Configure Axios Interceptor
+    useEffect(() => {
+        const axiosInterceptor = axios.interceptors.response.use(
+            (response) => response,
+            (error) => {
+                if (error.response?.status === 401) {
+                    // Token expired or unauthorized access
+                    handleLogout();
+                } else if (error.response?.status === 400 && error.response?.data?.message) {
+                    // Show toast for credit-related issues
+                    showToast(error.response.data.message, 'error');
+                }
+                return Promise.reject(error);
+            }
+        );
+
+        return () => {
+            axios.interceptors.response.eject(axiosInterceptor);
+        };
+    }, []);
+
+    // Show a toast/snackbar
+    const showToast = (msg, type) => {
+        setMessage(msg);
+        setSnackbarType(type);
+        setSnackbarOpen(true);
+    };
+
+    // Close the snackbar
+    const handleSnackbarClose = () => {
+        setSnackbarOpen(false);
+    };
+
+    // Simulate progress update
     useEffect(() => {
         if (loading) {
             const interval = setInterval(() => {
-                axios.get('/progress')
-                    .then(response => {
+                axios
+                    .get('/progress')
+                    .then((response) => {
                         setProgress(response.data.progress);
                         if (response.data.progress >= 100) {
                             clearInterval(interval);
                         }
                     })
-                    .catch(error => {
+                    .catch((error) => {
                         console.error('Error fetching progress:', error);
                     });
             }, 5000);
@@ -54,43 +95,60 @@ const App = () => {
         }
     }, [loading]);
 
+    // Fetch available extraction models
     useEffect(() => {
-        // Fetch available extraction models from the backend or define them statically
         axios.get('/extraction-models')
-            .then(response => {
-                setExtractionModels(response.data.models || ['NIRA standard Extraction']); // Fallback to default models if no data
+            .then((response) => {
+                setExtractionModels(response.data.models || ['NIRA AI - Printed Text (PB)']); // Fallback to default
             })
-            .catch(error => {
+            .catch((error) => {
                 console.error('Error fetching extraction models:', error);
-                setExtractionModels(['NIRA standard Extraction']); // Default models in case of error
+                setExtractionModels(['NIRA AI - Printed Text (PB)']); // Default on error
             });
     }, []);
 
-    const fetchTemplates = () => {
-        axios.get('/templates')
-            .then(response => {
-                setTemplates(response.data);
-            })
-            .catch(error => {
-                console.error('Error fetching templates:', error);
-            });
+    useEffect(() => {
+        const refreshTokenInterval = setInterval(async () => {
+            try {
+                const refreshResponse = await axios.post('/user/refresh-token', null, {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem('refresh_token')}`,
+                    },
+                });
+    
+                const { access_token } = refreshResponse.data;
+    
+                // Update the token in localStorage and Axios headers
+                localStorage.setItem('jwt_token', access_token);
+                axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+                console.log('Token refreshed successfully.');
+            } catch (error) {
+                console.error('Failed to refresh token:', error);
+                handleLogout(); // Logout user if token refresh fails
+            }
+        }, 2 * 60 * 1000); // Refresh every 2 minutes
+    
+        return () => clearInterval(refreshTokenInterval); // Cleanup on unmount
+    }, []);
+
+    const handleLogout = () => {
+        setToken('');
+        setUserRole('user');
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('special_admin');
+        axios.defaults.headers.common['Authorization'] = null;
     };
 
-    const fetchDefaultTemplate = () => {
-        axios.get('/default_template')
-            .then(response => {
-                const fields = JSON.stringify(response.data.fields, null, 2);
-                setDefaultTemplateFields(fields);
-                if (!templates.includes('Default Template')) {
-                    setTemplates(prevTemplates => [...prevTemplates, 'Default Template']);
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching default template:', error);
-            });
+    const handlePageConfigSubmit = (config) => {
+        setPageConfig(config);
+        console.log('Page-based extraction config:', config);
     };
 
     const handleUploadSuccess = (filenames, extractedData, linesData) => {
+        if (filenames.length > MAX_FILES) {
+            showToast(`You can upload a maximum of ${MAX_FILES} files.`, 'error');
+            return;
+        }
         setUploadedFiles(filenames);
         setExtractedData(extractedData);
         setOriginalLines(linesData);
@@ -98,8 +156,8 @@ const App = () => {
     };
 
     const handleExtractData = () => {
-        if (uploadedFiles.length === 0 || !selectedTemplate) {
-            setMessage('Please upload files and select or generate a template first.');
+        if (uploadedFiles.length === 0) {
+            setMessage('Please upload files first.');
             return;
         }
         setLoading(true);
@@ -107,99 +165,141 @@ const App = () => {
         setProgress(0);
         const data = {
             filenames: uploadedFiles,
-            template: selectedTemplate,
-            output_format: outputFormat,
             extraction_model: selectedModel,
+            page_config: pageConfig,
         };
 
-        axios.post('/extract', data)
-            .then(response => {
+        axios
+            .post('/extract', data)
+            .then((response) => {
                 console.log('Data extracted successfully:', response.data);
                 setExtractedData(response.data);
                 setOriginalLines(response.data.lines_data || {});
+                showToast('Data extracted successfully.', 'success');
                 setMessage('Data extracted successfully.');
             })
-            .catch(error => {
+            .catch((error) => {
                 console.error('Error extracting data:', error);
-                setMessage('Failed to extract data.');
+                const errorMessage = error.response?.data?.message || 'An unexpected error occurred.';
+                setMessage(errorMessage);
             })
             .finally(() => {
                 setLoading(false);
             });
     };
 
-    const handleTemplateSelect = (templateName) => {
-        setSelectedTemplate(templateName);
-    };
-
-    const handleOutputFormatChange = (event) => {
-        setOutputFormat(event.target.value);
-    };
-
     const handleExtractionMethodChange = (event) => {
         setSelectedModel(event.target.value);
     };
 
+    const ProtectedRoute = ({ component: Component, token, userRole, ...rest }) => (
+        <Route
+            {...rest}
+            render={(props) =>
+                token && userRole === 'special_admin' ? (
+                    <Component {...props} />
+                ) : (
+                    <Redirect to="/" />
+                )
+            }
+        />
+    );    
+
     return (
         <Router>
-            <div className="App">
-                <NavBar token={token} setToken={setToken} />
+            <div className="App" key={userRole}>
+            <NavBar token={token} setToken={setToken} userRole={userRole} setUserRole={setUserRole} />
                 <Switch>
-                    <Route path="/register">
-                        {token ? <Redirect to="/" /> : <RegisterComponent setToken={setToken} />}
-                    </Route>
-                    <Route path="/login">
-                        {token ? <Redirect to="/" /> : <LoginComponent setToken={setToken} />}
-                    </Route>
-                    <Route path="/">
-                        {!token ? (
+                    {/* Registration */}
+                    <Route
+                        path="/register"
+                        render={() =>
+                            token ? <Redirect to="/" /> : <RegisterComponent setToken={setToken} />
+                        }
+                    />
+                    {/* Login */}
+                    <Route
+                        path="/login"
+                        render={() =>
+                            token ? <Redirect to="/" /> : <LoginComponent setToken={setToken} setUserRole={setUserRole} />
+                        }
+                    />
+                    <ProtectedRoute path="/credit-update" component={CreditUpdateComponent} token={token} userRole={userRole} />
+                    <Route
+                        path="/payment"
+                        render={() =>
+                            token ? (
+                            <PaymentPageComponent userId={123 /* Pass logged-in user ID dynamically */} />
+                            ) : (
                             <Redirect to="/login" />
-                        ) : (
-                            <div>
-                                <UploadComponent onUploadSuccess={handleUploadSuccess} />
-                                <TemplateManager
-                                    templates={templates}
-                                    onTemplateSelect={handleTemplateSelect}
-                                    selectedTemplate={selectedTemplate}
-                                    fetchTemplates={fetchTemplates}
-                                    defaultTemplateFields={defaultTemplateFields}
-                                />
-                                <JsonTemplateGenerator fetchTemplates={fetchTemplates} />
-                                <div className="output-format-container">
-                                    <div className="output-format">
-                                        <label htmlFor="output-format">Output Format:</label>
-                                        <select id="output-format" value={outputFormat} onChange={handleOutputFormatChange}>
-                                            <option value="json">JSON</option>
-                                            <option value="csv">CSV</option>
-                                            <option value="text">Text</option>
-                                        </select>
-                                        {/* Dropdown to select extraction method */}
-                                        <label htmlFor="extraction-method">Extraction Method:</label>
+                            )
+                        }
+                    />
+                    <ProtectedRoute path="/company-register" component={CompanyRegisterComponent} token={token} userRole={userRole} />
+
+                    <Route
+                        path="/"
+                        render={() =>
+                            token ? (
+                                <>
+                                    <UploadComponent onUploadSuccess={handleUploadSuccess} />
+                                    <PageBasedExtractionComponent
+                                        onPageExtractionConfigSubmit={handlePageConfigSubmit}
+                                        uploadedFiles={uploadedFiles}
+                                    />
+                                    <div className="output-format-container">
+                                        <div className="output-format">
+                                            <label htmlFor="extraction-method">
+                                                Extraction Method:
+                                            </label>
                                             <select
                                                 id="extraction-method"
                                                 value={selectedModel}
-                                                onChange={handleExtractionMethodChange}>
+                                                onChange={handleExtractionMethodChange}
+                                            >
                                                 {extractionModels.map((model) => (
                                                     <option key={model} value={model}>
-                                                        {model.charAt(0).toUpperCase() + model.slice(1)} Extraction
+                                                        {model.charAt(0).toUpperCase() +
+                                                            model.slice(1)}{' '}
+                                                        Extraction
                                                     </option>
                                                 ))}
                                             </select>
-                                        <button onClick={handleExtractData} disabled={loading}>
-                                            {loading ? `Extracting... ${progress}% completed` : 'Extract Data'}
-                                        </button>
+                                            <button onClick={handleExtractData} disabled={loading}>
+                                                {loading ? `Extracting... ${progress}% completed` : 'Extract Data'}
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-
-                                {message && <p>{message}</p>}
-                                {loading && <LinearProgress variant="determinate" value={progress} />}
-                                {extractedData && (
-                                    <DataReview extractedData={extractedData} outputFormat={outputFormat} originalLines={originalLines} />
-                                )}
-                            </div>
-                        )}
+                                    {message && <p>{message}</p>}
+                                    {loading && ( <LinearProgress variant="determinate" value={progress}/> )}
+                                    {extractedData && (
+                                        <DataReview extractedData={extractedData} originalLines={originalLines} token={token} />
+                                    )}
+                                </>
+                            ) : (
+                                <Redirect to="/login" />
+                            )
+                        }
+                    />
+                   <Route path="*">
+                        <div>
+                            <h1>404: Route Not Found</h1>
+                            <p>Current URL: {window.location.pathname}</p>
+                        </div>
                     </Route>
                 </Switch>
+
+                {/* Snackbar for notifications */}
+                <Snackbar
+                    open={snackbarOpen}
+                    autoHideDuration={5000}
+                    onClose={handleSnackbarClose}
+                    anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                >
+                    <Alert onClose={handleSnackbarClose} severity={snackbarType}>
+                        {message}
+                    </Alert>
+                </Snackbar>
             </div>
         </Router>
     );

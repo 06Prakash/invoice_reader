@@ -1,73 +1,74 @@
+# ==================================
 # Step 1: Build the frontend
+# ==================================
 FROM node:18-alpine AS build-frontend
 WORKDIR /frontend
 
-# Increase Node.js memory limit
+# Increase Node.js memory limit for large builds
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Copy package.json and package-lock.json for dependency resolution
+# Install dependencies separately for better caching
 COPY frontend/package*.json ./
-
-# Install frontend dependencies with no optional packages
 RUN npm install --omit=optional
 
-# Copy the rest of the frontend code and build it
+# Copy the frontend code and build it
 COPY frontend/ .
 RUN npm run build
 
-# Step 2: Build the backend and create the final image
-FROM python:3.9-slim
+# ==================================
+# Step 2: Backend Base Setup
+# ==================================
+FROM python:3.9-slim AS base
 WORKDIR /app
 
-# Install app-specific dependencies first
-COPY backend/app-requirements.txt .
-RUN pip install --no-cache-dir -r app-requirements.txt
-
-# Install base dependencies
-COPY backend/base-requirements.txt .
-RUN pip install --no-cache-dir -r base-requirements.txt
-
-# We don't need this if we have Azure
-# Create EasyOCR model directory and download models during build
-# RUN mkdir -p /root/.EasyOCR/model && \
-# python -c "import easyocr; easyocr.Reader(['en'], model_storage_directory='/root/.EasyOCR', download_enabled=True)"
-
-# Verify if models are downloaded correctly
-# RUN ls -lh /root/.EasyOCR/model  # This should list the downloaded models
-
-# Install necessary packages for PDF processing, OpenCV, and PostgreSQL client (psql)
-RUN apt-get update && apt-get install -y \
-    tesseract-ocr \
-    libtesseract-dev \
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \
     libgl1-mesa-glx \
     postgresql-client \
     dos2unix \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the backend code into the container
+# Install Python dependencies
+COPY backend/app-requirements.txt .
+RUN pip install --no-cache-dir -r app-requirements.txt
+
+# Copy backend code
 COPY backend /app
 
-# Copy the frontend build artifacts from the previous stage
+# Copy frontend build artifacts into backend for production
 COPY --from=build-frontend /frontend/build /app/static
 
-# Copy the default template to the appropriate location
-COPY resources /app/resources
-
-# Copy the entrypoint script
+# Copy the entrypoint script and ensure it's executable
 COPY entrypoint.sh /app/entrypoint.sh
+RUN dos2unix /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
-RUN dos2unix /app/entrypoint.sh
-
-# Create the logs directory
+# Create logs directory
 RUN mkdir -p /app/logs
 
-# Make entrypoint.sh executable
-RUN chmod +x /app/entrypoint.sh
+# ==================================
+# Step 3: Development Mode
+# ==================================
+FROM base AS dev
+ENV FLASK_ENV=development
+ENV DEBUG=True
 
-# Expose the port the app runs on
+# Mount backend code as a volume for live reload
+VOLUME ["/app"]
+
+# Expose Flask's development port
 EXPOSE 5000
 
-# Set the entrypoint to the script
-ENTRYPOINT ["python", "app.py"]
+# Run Flask in development mode with auto-reload
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5000", "--reload"]
+
+# ==================================
+# Step 4: Production Mode
+# ==================================
+FROM base AS prod
+EXPOSE 80
+
+# Run Gunicorn with optimized thread settings for better performance
+CMD ["gunicorn", "-w", "4", "-k", "gthread", "--threads", "4", "-b", "0.0.0.0:80", "app:app"]

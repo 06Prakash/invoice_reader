@@ -1,47 +1,94 @@
+/* Upload Container */
 .upload-container {
-  margin: 20px 0; /* Add margin to separate from the header */
+  margin: 20px 0;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
+  gap: 15px; /* Add spacing between elements */
 }
 
-.upload-container input {
-  display: none; /* Hide the default file input */
+/* File Input Wrapper */
+.file-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
+/* Custom File Upload Button */
 .custom-file-upload {
-  background-color: #004d40; /* Change to blackish-green */
+  background-color: var(--primary-color);
   color: white;
-  border: none;
+  border: 1px solid var(--primary-hover-color);
   padding: 10px 20px;
-  border-radius: 5px;
+  border-radius: var(--border-radius);
   cursor: pointer;
   font-size: 16px;
-  margin-right: 10px; /* Add some space between the input and the button */
-  display: inline-block;
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Space between icon and text */
+  transition: background-color var(--transition-speed), transform 0.2s ease;
+  box-shadow: var(--box-shadow-light);
 }
 
 .custom-file-upload:hover {
-  background-color: #00332d;
+  background-color: var(--primary-hover-color);
+  transform: scale(1.05);
 }
 
-.upload-container .upload-button {
-  background-color: #004d40; /* Change to blackish-green */
-  color: white;
+.custom-file-upload input {
+  display: none; /* Hide default input */
+}
+
+/* File Count Display */
+.file-count {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  color: var(--text-color);
+  gap: 5px; /* Space between icon and text */
+}
+
+.file-count .file-icon {
+  font-size: 18px;
+  color: var(--primary-color);
+}
+
+/* Upload Button */
+.upload-button {
+  background-color: var(--primary-color) !important;
+  color: var(--light-text) !important;
   border: none;
   padding: 10px 20px;
-  border-radius: 5px;
+  border-radius: var(--border-radius);
   cursor: pointer;
   font-size: 16px;
-  margin-left: 10px; /* Add some space to the left of the button */
+  margin-left: 10px; /* Adjust spacing */
+  transition: background-color var(--transition-speed), transform var(--transition-speed);
+  box-shadow: var(--box-shadow);
 }
 
-.upload-container .upload-button:hover {
-  background-color: #00332d;
+.upload-button:hover {
+  background-color: var(--primary-hover-color) !important;
+  transform: scale(1.05);
 }
 
-.file-count {
-  margin-left: 10px; /* Add some space to the left of the file count */
-  font-size: 16px;
-  color: #333;
+.upload-button:disabled {
+  background-color: var(--primary-muted) !important;
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .custom-file-upload,
+  .upload-button {
+      font-size: 14px;
+      padding: 10px 15px;
+  }
+
+  .file-count {
+      font-size: 14px;
+  }
 }

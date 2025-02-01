@@ -1,0 +1,155 @@
+/* Credit Update Component Specific Styles */
+
+.credit-update-container {
+    max-width: 600px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: var(--light-bg-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    font-family: var(--font-family);
+}
+
+.page-title {
+    text-align: center;
+    margin-bottom: 20px;
+    color: var(--primary-color);
+    font-size: 1.8rem;
+    font-weight: bold;
+}
+
+/* Search Section */
+.search-section {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.search-section .text-field {
+    flex: 3; /* TextField takes most of the space */
+    min-width: 0; /* Prevents TextField from overflowing */
+}
+
+.search-section .primary-button {
+    flex: 1; /* Button takes less space */
+    background-color: var(--primary-color);
+    color: var(--light-text);
+    padding: 10px 15px;
+    font-weight: bold;
+    text-transform: uppercase;
+    border-radius: var(--border-radius);
+    transition: background-color var(--transition-speed);
+}
+
+.search-section .primary-button:hover {
+    background-color: var(--primary-hover-color);
+    transform: scale(1.03);
+}
+
+/* User Table */
+.user-table {
+    margin-bottom: 20px;
+    background-color: var(--light-bg-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+}
+
+.user-table th {
+    background-color: var(--table-header-bg-color);
+    color: var(--table-header-text-color);
+    padding: 12px;
+    text-align: left;
+    font-weight: bold;
+}
+
+.user-table td {
+    padding: 10px;
+    font-size: 0.95rem;
+    color: var(--text-color);
+}
+
+.user-table .text-field {
+    margin: 0;
+}
+
+/* Buttons */
+.primary-button,
+.secondary-button,
+.back-button {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    font-weight: bold;
+    border-radius: var(--border-radius);
+    transition: background-color var(--transition-speed), transform var(--transition-speed);
+}
+
+.secondary-button {
+    background-color: var(--secondary-color);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+}
+
+.secondary-button:hover {
+    background-color: var(--secondary-hover-color);
+    color: var(--primary-hover-color);
+}
+
+.back-button {
+    background-color: var(--primary-color);
+    color: var(--light-text);
+    margin-top: 10px;
+}
+
+.back-button:hover {
+    background-color: var(--primary-hover-color);
+    transform: scale(1.03);
+}
+
+/* Snackbar */
+.snackbar .MuiSnackbar-root {
+    z-index: 1400;
+}
+
+/* Responsive Styling */
+@media (max-width: 768px) {
+    .search-section {
+        flex-direction: column;
+    }
+
+    .search-section .text-field,
+    .search-section .primary-button {
+        width: 100%;
+    }
+
+    .credit-update-container {
+        padding: 15px;
+    }
+
+    .page-title {
+        font-size: 1.6rem;
+    }
+
+    .search-section {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .primary-button {
+        margin-top: 10px;
+    }
+
+    .primary-button,
+    .secondary-button,
+    .back-button {
+        font-size: 0.9rem;
+        padding: 10px 16px;
+    }
+
+    .user-table th,
+    .user-table td {
+        font-size: 0.85rem;
+        padding: 8px;
+    }
+}

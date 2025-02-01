@@ -1,0 +1,386 @@
+/* Centralized Global Styles */
+:root {
+    --primary-color: #004d40;
+    --primary-hover-color: #00332d;
+    --secondary-color: #e0f2f1;
+    --secondary-hover-color: #b2dfdb;
+    --text-color: #333;
+    --error-color: #ff0000;
+    --box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --box-shadow-strong: 0 8px 15px rgba(0, 0, 0, 0.2);
+    --box-shadow-light: 0 4px 8px rgba(0, 0, 0, 0.1);
+    --box-shadow-hover: 0 6px 12px rgba(0, 0, 0, 0.2);
+    --border-radius: 8px;
+    --border-radius-large: 12px;
+    --transition-speed: 0.3s;
+    --transition: all 0.3s ease;
+    --transition-transform: transform 0.3s ease;
+    --table-header-bg-color: #004d40;
+    --table-header-text-color: white;
+    --light-text: #ffffff;
+    --light-bg-color: #f8f9fa;
+    --focus-outline-color: #80cbc4;
+    --dark-green: #004d40;
+    --muted-green: #7cb342;
+    --light-green: #e8f5e9;
+    --teal: #00897b;
+    --teal-hover: #00695c;
+    --primary-muted: #c5e1a5;
+    --dark-muted-green: #33691e;
+    --focus-shadow: 0 0 10px rgba(0, 137, 123, 0.5);
+}
+
+/* Global Layout Styles */
+.container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: var(--box-shadow);
+    border-radius: var(--border-radius);
+}
+
+h2, h3 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: var(--primary-color);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    box-sizing: border-box;
+    transition: border-color var(--transition-speed);
+}
+
+.form-group input:hover,
+.form-group input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+button {
+    width: 100%;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 10px;
+    transition: background-color var(--transition-speed);
+}
+
+button:hover {
+    background-color: var(--primary-hover-color);
+}
+
+.secondary-button {
+    width: 100%;
+    background-color: var(--secondary-color);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 10px;
+    transition: background-color var(--transition-speed), color var(--transition-speed);
+}
+
+.secondary-button:hover {
+    background-color: var(--secondary-hover-color);
+    color: var(--primary-hover-color);
+}
+
+.file-config,
+.page-extraction-content {
+    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #fff;
+    box-shadow: var(--box-shadow);
+    margin-bottom: 10px;
+}
+
+.notification {
+    color: green;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+.error-message {
+    color: var(--error-color);
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    background-color: #fdecea;
+    border-radius: 5px;
+    padding: 5px;
+}
+
+.error {
+    border-color: var(--error-color) !important;
+    background-color: #fdecea;
+}
+
+.add-section button,
+.json-actions button {
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 5px;
+    padding: 10px;
+    transition: background-color var(--transition-speed);
+}
+
+.add-section button:hover,
+.json-actions button:hover {
+    background-color: var(--primary-hover-color);
+}
+
+.file-dropdown {
+    padding: 8px;
+    border: 1px solid var(--primary-color);
+    border-radius: 4px;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    font-family: 'Arial', sans-serif;
+}
+
+.file-dropdown[multiple] {
+    height: auto;
+    padding: 8px;
+    background-color: #f5fff5;
+}
+
+.file-dropdown[multiple] option:checked {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+label input[type="checkbox"] {
+    margin-right: 5px;
+}
+
+.navbar {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--primary-hover-color);
+    position: relative;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+}
+
+.logo {
+    height: 40px;
+    width: 40px;
+    border-radius: 50%;
+    margin-right: 15px;
+    border: 2px solid #fff;
+    object-fit: cover;
+}
+
+.navbar h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.nav-button {
+    background-color: white;
+    color: var(--primary-color);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color var(--transition-speed);
+    text-decoration: none;
+    margin-left: 10px;
+}
+
+.nav-button:hover {
+    background-color: #e7e7e7;
+}
+
+.user-info {
+    position: relative;
+    cursor: pointer;
+    font-size: 16px;
+    color: white;
+    display: flex;
+    align-items: center;
+    font-weight: bold;
+}
+
+.username {
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+.user-info:after {
+    content: "▼";
+    font-size: 12px;
+    margin-left: 5px;
+}
+
+.dropdown-menu {
+    position: absolute;
+    right: 20px;
+    top: 50px;
+    background-color: white;
+    color: var(--primary-color);
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-shadow: var(--box-shadow);
+    z-index: 1000;
+    min-width: 150px;
+    text-align: left;
+    padding: 10px;
+    max-width: 200px;
+    word-wrap: break-word;
+}
+
+.dropdown-item {
+    display: block;
+    background-color: transparent;
+    border: none;
+    color: var(--primary-color);
+    padding: 10px 15px;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color var(--transition-speed);
+}
+
+.dropdown-item:hover {
+    background-color: #d6f5d6;
+    color: var(--primary-hover-color);
+    font-weight: bold;
+}
+
+/* Pagination Styling */
+.pagination {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.pagination button {
+    background-color: #ffffff;
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color var(--transition-speed), color var(--transition-speed);
+    font-size: 14px;
+}
+
+.pagination button:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.pagination button.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Table Styling */
+.user-table {
+    margin: 20px 0;
+    background-color: var(--light-bg-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    overflow: hidden;
+}
+
+.user-table th {
+    background-color: var(--table-header-bg-color);
+    color: var(--table-header-text-color);
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: bold;
+}
+
+.user-table td {
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    color: var(--text-color);
+    border-top: 1px solid #ddd;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .navbar-brand h1 {
+        font-size: 20px;
+    }
+
+    .dropdown-menu {
+        right: 0;
+        left: 0;
+    }
+
+    .dropdown-item {
+        font-size: 16px;
+    }
+
+    .container {
+        padding: 15px;
+    }
+
+    button {
+        font-size: 14px;
+        padding: 8px 16px;
+    }
+
+    .pagination button {
+        padding: 5px 10px;
+    }
+
+    .user-table td,
+    .user-table th {
+        font-size: 0.85rem;
+        padding: 8px 12px;
+    }
+
+    .file-selection, .format-selection {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .file-selection select, .format-selection select {
+        max-width: 100%;
+    }
+}

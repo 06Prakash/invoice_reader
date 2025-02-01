@@ -1,9 +1,17 @@
 import logging
+import pandas as pd
+import os
 import re
 from datetime import datetime
 from .validation import validate_date, validate_time, validate_number, extract_number, validate_text_only
+import json
+
+logger = logging.getLogger(__name__)
 
 def extract_value(text, keyword, separator, boundaries, capture_mode, data_type, indices, multiline, logger, default=""):
+    """
+    Extracts a value from text based on keyword, boundaries, and data type.
+    """
     lines = text.split('\n')
     value = ""
     capturing = False
@@ -25,7 +33,7 @@ def extract_value(text, keyword, separator, boundaries, capture_mode, data_type,
 
             # Handle boundary matching
             if not multiline:
-                extract_with_boundaries(value, boundaries['left'], boundaries['right'], capture_mode, logger)
+                value = extract_with_boundaries(value, boundaries['left'], boundaries['right'], capture_mode, logger)
                 if boundaries['left'] and boundaries['right']:
                     match = re.search(f"{re.escape(boundaries['left'])}(.*?){re.escape(boundaries['right'])}", value)
                     value = match.group(1).strip() if match else value
@@ -45,13 +53,16 @@ def extract_value(text, keyword, separator, boundaries, capture_mode, data_type,
                 break
 
     # Final validation for multiline or extracted values
-    if boundaries['multiline-left'] and boundaries['multiline-right']:
+    if boundaries.get('multiline-left') and boundaries.get('multiline-right'):
         match = re.search(f"{re.escape(boundaries['multiline-left'])}(.*?){re.escape(boundaries['multiline-right'])}", value)
         value = match.group(1).strip() if match else value
     value = validate_data_type(value.strip(), data_type)
     return value if value else default
 
 def validate_data_type(value, data_type):
+    """
+    Validates the value based on its data type.
+    """
     if data_type == 'number':
         value = extract_number(value)
         return value if validate_number(value) else None
@@ -105,3 +116,59 @@ def extract_with_boundaries(text, left_boundary, right_boundary, capture_mode, l
 
     # If no matching boundary is found, return the original text
     return text
+
+def format_output_to_pandas(extracted_data):
+    """
+    Converts extracted data into a pandas DataFrame.
+
+    Args:
+        extracted_data (dict): The dictionary containing extracted key-value pairs.
+
+    Returns:
+        pd.DataFrame: DataFrame representation of the extracted data.
+    """
+    rows = [{"Field": key, "Value": value} for key, value in extracted_data.items()]
+    return pd.DataFrame(rows)
+
+def save_outputs(filename, extracted_data, output_folder):
+    """
+    Saves the extracted data in JSON, CSV, Excel, and text formats.
+
+    Args:
+        filename (str): Name of the processed file.
+        extracted_data (dict): The dictionary containing extracted data.
+        output_folder (str): Directory to save the outputs.
+
+    Returns:
+        dict: Paths to the saved files.
+    """
+    outputs = {}
+
+    # Create DataFrame
+    df = format_output_to_pandas(extracted_data)
+
+    # Save JSON
+    json_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_extracted.json")
+    with open(json_path, "w") as json_file:
+        json.dump(extracted_data, json_file, indent=2)
+    outputs['json'] = json_path
+
+    # Save CSV
+    csv_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_extracted.csv")
+    df.to_csv(csv_path, index=False)
+    outputs['csv'] = csv_path
+
+    # Save Excel
+    excel_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_extracted.xlsx")
+    with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Extracted Data")
+    outputs['excel'] = excel_path
+
+    # Save text
+    text_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_extracted.txt")
+    with open(text_path, "w") as text_file:
+        for key, value in extracted_data.items():
+            text_file.write(f"{key}: {value}\n")
+    outputs['text'] = text_path
+
+    return outputs

@@ -1,15 +1,51 @@
+version: "3.9"
+
 services:
-  app:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
+      target: dev  # Use the development version of the backend
+    container_name: invoice_reader_backend
     ports:
-      - "5001:5000"
+      - "5001:5000"  # Flask runs on port 5000, mapped to 5001
+    volumes:
+      - ./backend:/app  # Mount backend for live reload
+      - ./migrations:/app/migrations
+      - ./logs:/app/logs  # Persist logs
+      - ./resources:/app/resources
+      - ./uploads:/app/uploads  # Persist uploads
     env_file:
-      - .env
+      - .env  # Load environment variables
     networks:
       - shared_network
-    entrypoint: ["python", "app.py"]
+    command: ["flask", "run", "--host=0.0.0.0", "--port=5000", "--reload"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health/check"]
+      interval: 30s  # Check every 10 seconds
+      timeout: 5s
+      retries: 3
+      start_period: 5s  # Give Flask some time to start before checking
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: build-frontend
+    container_name: invoice_reader_frontend
+    image: node:18-alpine
+    working_dir: /frontend
+    volumes:
+      - ./frontend:/frontend  # Live updates
+      - /frontend/node_modules  # Keep node_modules in the container
+    ports:
+      - "3000:3000"  # Expose React development server
+    command: ["npm", "start"]  # Run React dev server
+    networks:
+      - shared_network
+    depends_on:
+      backend:
+        condition: service_healthy  # Wait for backend to be healthy
 
 networks:
   shared_network:

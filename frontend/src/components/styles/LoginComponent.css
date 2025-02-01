@@ -1,55 +1,167 @@
+/* Login Component Specific Styles */
+
 .login-container {
-    max-width: 500px;
-    margin: 0 auto;
-    padding: 20px;
-    background-color: #fff;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 30px 25px;
+    background-color: var(--light-bg-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow-strong);
+    font-family: 'Arial', sans-serif;
 }
 
 .login-container h2 {
     text-align: center;
     margin-bottom: 20px;
+    font-size: 24px;
+    color: var(--primary-color);
+    font-weight: bold;
+    letter-spacing: 0.5px;
 }
 
-.login-container .form-group {
+.form-group {
     margin-bottom: 20px;
 }
 
-.login-container .form-group label {
+.form-group label {
     display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--text-color);
+    font-weight: 600;
 }
 
-.login-container .form-group input {
+.form-group input {
     width: 100%;
-    padding: 10px;
+    padding: 12px;
     border: 1px solid #ccc;
-    border-radius: 5px;
+    border-radius: var(--border-radius);
     font-size: 16px;
     box-sizing: border-box;
-    transition: border-color 0.3s;
+    background-color: #ffffff;
+    transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
 }
 
-.login-container .form-group input:hover,
-.login-container .form-group input:focus {
-    border-color: #004d40;
+.form-group input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 8px rgba(0, 77, 64, 0.3);
+    outline: none;
 }
 
-.login-container button {
+button {
     width: 100%;
-    background-color: #004d40;
+    padding: 12px;
+    background-color: var(--primary-color);
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
+    border-radius: var(--border-radius);
     font-size: 16px;
-    margin-top: 10px;
-    transition: background-color 0.3s;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background-color var(--transition-speed), transform var(--transition-speed);
 }
 
-.login-container button:hover {
-    background-color: #00332d;
+button:hover {
+    background-color: var(--primary-hover-color);
+    transform: scale(1.02);
+}
+
+button:disabled {
+    background-color: var(--secondary-hover-color);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.extra-links {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.extra-links a {
+    display: inline-block;
+    margin: 5px;
+    font-size: 14px;
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color var(--transition-speed);
+}
+
+.extra-links a:hover {
+    color: var(--primary-hover-color);
+}
+
+.login-button {
+    background-color: var(--primary-color) !important;
+    color: var(--light-text) !important;
+    font-size: 16px !important;
+    font-weight: bold !important;
+    padding: 10px 15px !important;
+    width: 100% !important;
+    border-radius: var(--border-radius) !important;
+    cursor: pointer !important;
+    transition: background-color var(--transition-speed), transform var(--transition-speed) !important;
+    box-shadow: var(--box-shadow) !important;
+}
+
+.login-button:hover {
+    background-color: var(--primary-hover-color) !important;
+    transform: scale(1.03) !important;
+}
+
+.login-button:disabled {
+    background-color: var(--secondary-hover-color) !important;
+    cursor: not-allowed !important;
+    opacity: 0.7 !important;
+    box-shadow: none !important;
+}
+
+/* OTP Button */
+.otp-button {
+    border: 2px solid var(--primary-color) !important; /* Use !important to ensure this is applied */
+    color: var(--primary-color) !important;
+    font-size: 16px !important;
+    font-weight: bold !important;
+    padding: 10px 15px !important;
+    width: 100%;
+    border-radius: var(--border-radius) !important;
+    cursor: pointer;
+    transition: background-color var(--transition-speed), transform var(--transition-speed);
+}
+
+.otp-button:hover {
+    background-color: var(--secondary-color) !important;
+    color: var(--text-color) !important;
+}
+
+
+/* Forgot Password Button */
+.forgot-password-button {
+    color: var(--primary-color) !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    padding: 5px !important;
+    transition: color var(--transition-speed) !important;
+}
+
+.forgot-password-button:hover {
+    color: var(--primary-hover-color) !important;
+}
+/* Responsive Styles */
+@media (max-width: 768px) {
+    .login-container {
+        margin: 30px 15px;
+        padding: 20px;
+    }
+
+    .login-container h2 {
+        font-size: 20px;
+    }
+
+    button {
+        font-size: 14px;
+        padding: 10px;
+    }
 }
