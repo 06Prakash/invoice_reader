@@ -115,7 +115,7 @@ def register_extract_routes(app):
                     for section, details in config.items():
                         page_range = details['pageRange']
                         page_numbers = [int(p) - 1 for p in page_range.split(",") if p.strip().isdigit()]
-
+                        #need to update here
                         new_page_numbers = []
                         for page_num in page_numbers:
                             if 0 <= page_num < len(pdf_reader.pages):
