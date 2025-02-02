@@ -81,6 +81,22 @@ def register_extract_routes(app):
         cleanup_local_files(upload_folder, filenames)
 
         return jsonify(response), 200 if successful_results else 500
+    # added a function
+    def expand_input(input_str):
+        # Split the input by commas
+        parts = input_str.split(',')
+        result = []
+    
+        for part in parts:
+            if '-' in part:
+                # Handle ranges (e.g., 5-9)
+                start, end = map(int, part.split('-'))
+                result.extend(range(start, end + 1))
+            else:
+                # Handle single numbers (e.g., 1, 2)
+                result.append(int(part))
+    
+        return result
 
     def create_small_pdf_with_config(file_paths, page_config, user_id, azure_blob_service):
         """
@@ -114,8 +130,8 @@ def register_extract_routes(app):
                     # Generate new content based on page ranges
                     for section, details in config.items():
                         page_range = details['pageRange']
-                        page_numbers = [int(p) - 1 for p in page_range.split(",") if p.strip().isdigit()]
-                        #need to update here
+                        page_numbers = expand_input(page_range)
+                        #updated here
                         new_page_numbers = []
                         for page_num in page_numbers:
                             if 0 <= page_num < len(pdf_reader.pages):
