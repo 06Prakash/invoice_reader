@@ -5,7 +5,7 @@ from PyPDF2 import PdfReader, PdfWriter
 from werkzeug.utils import secure_filename
 from modules.services.user_service import reduce_credits_for_user
 from modules.logging_util import setup_logger
-from modules.azure_extraction import extract_with_azure, upload_extraction_results_to_azure, delete_extracted_local_files
+from modules.azure_extraction import extract_with_azure, upload_extraction_results_to_azure, delete_extracted_local_files,parse_page_ranges
 from modules.progress_tracker import ProgressTracker
 from modules.services.credit_service import validate_credits, reduce_credits
 from modules.services.page_service import calculate_pages_to_process, calculate_file_pages_to_process
@@ -114,7 +114,9 @@ def register_extract_routes(app):
                     # Generate new content based on page ranges
                     for section, details in config.items():
                         page_range = details['pageRange']
-                        page_numbers = [int(p) - 1 for p in page_range.split(",") if p.strip().isdigit()]
+                        ranges = parse_page_ranges(page_range)
+                        
+                        page_numbers = [int(p) - 1 for p in ranges]
 
                         new_page_numbers = []
                         for page_num in page_numbers:

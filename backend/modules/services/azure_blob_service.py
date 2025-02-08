@@ -2,10 +2,11 @@ from azure.storage.blob import BlobServiceClient
 from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from modules.logging_util import setup_logger
 import tempfile
 from PyPDF2 import PdfReader
+import re
 
 logger = setup_logger(__name__)
 
@@ -246,3 +247,60 @@ class AzureBlobService:
                 os.unlink(temp_file_path)  # Clean up temporary file
 
         return total_pages
+    
+
+    def delete_old_folders(self, days_threshold=2):
+        """
+        Deletes folders inside the 'uploads' directory of the 'pdfextractstorage1' container 
+        that are older than the given threshold.
+
+        :param days_threshold: Number of days before which folders should be deleted.
+        """
+        try:
+            logger.info(f"Deleting folders older than {days_threshold} days from 'uploads' in container {self.container_name}...")
+
+            # Regex pattern for dd_mm_yyyy format
+            folder_pattern = re.compile(r"(\d{2})_(\d{2})_(\d{4})")
+
+            # Date threshold for deletion
+            date_threshold = datetime.now() - timedelta(days=days_threshold)
+
+            # List all blobs inside the 'uploads/' directory
+            blobs = self.container_client.list_blobs(name_starts_with="uploads/")
+            folders_to_delete = set()
+
+            # Identify top-level folders inside 'uploads/' that match the pattern and are older than threshold
+            for blob in blobs:
+                blob_path = blob.name
+                parts = blob_path.split("/")
+                
+                # Ensure we are checking only top-level folders inside 'uploads/'
+                if len(parts) > 1:  # Example: 'uploads/12_01_2024/file1.txt'
+                    folder_name = parts[1]  # Extract '12_01_2024'
+
+                    match = folder_pattern.match(folder_name)
+                    if match:
+                        day, month, year = map(int, match.groups())
+                        folder_date = datetime(year, month, day)
+
+                        if folder_date < date_threshold:
+                            folders_to_delete.add(folder_name)
+
+            if not folders_to_delete:
+                logger.info("No old folders found for deletion.")
+                return
+
+            logger.info(f"Found folders to delete inside 'uploads/': {folders_to_delete}")
+
+            # Delete all blobs inside the identified folders within 'uploads/'
+            for folder in folders_to_delete:
+                logger.info(f"Deleting folder: uploads/{folder} (including subfolders)")
+                for blob in self.container_client.list_blobs(name_starts_with=f"uploads/{folder}/"):
+                    self.container_client.delete_blob(blob.name)
+                    logger.info(f"Deleted: {blob.name}")
+
+            logger.info("Old folders cleanup complete.")
+
+        except Exception as e:
+            logger.error(f"Error deleting old folders: {e}")
+            raise

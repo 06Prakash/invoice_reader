@@ -15,7 +15,8 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
     const [isExpanded, setIsExpanded] = useState(false);
 
     const validateSectionName = (name) => /^[a-zA-Z0-9_\-\s]{1,50}$/.test(name);
-    const validatePageRange = (range) => /^\d+(-\d+)?(,\d+(-\d+)?)*$/.test(range);
+    const validatePageRange = (range) => /^\d+(\.\d+)?(-\d+(\.\d+)?)?(,\d+(\.\d+)?(-\d+(\.\d+)?)?)*$/.test(range);
+
 
     const handleSectionChange = (value) => {
         setSection(value);
@@ -34,7 +35,7 @@ const PageBasedExtractionComponent = ({ onPageExtractionConfigSubmit, uploadedFi
         if (!validatePageRange(value)) {
             setErrors((prevErrors) => ({
                 ...prevErrors,
-                pageRange: 'Invalid page range. Use formats like "1", "1-3", or "1-3,4".',
+                pageRange: 'Invalid page range. Use formats like "1", "1-3","1.2,2.1,3.4" or "1-3,4".',
             }));
         } else {
             setErrors((prevErrors) => ({ ...prevErrors, pageRange: '' }));
