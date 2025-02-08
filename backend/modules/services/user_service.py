@@ -134,12 +134,12 @@ def search_user_service(query):
     Search for a user by username or email and calculate their total credits.
 
     :param query: The search query (username or email).
-    :return: A dictionary with user details and total credits or an error response.
+    :return: A dictionary with user details and total credits.
     """
     logger.info(f"Service Query: {query}")
 
     if not query:
-        return {'error': 'Search query is required'}, 400
+        return {'error': 'Search query is required'}
 
     # Search for the user by username or email
     user = User.query.options(joinedload(User.company)).filter(
@@ -148,7 +148,7 @@ def search_user_service(query):
 
     if not user:
         logger.info("User not found in database.")
-        return {'error': 'User not found'}, 404
+        return {'error': 'User not found'}
 
     # Calculate total credits
     total_credits = 0
