@@ -5,27 +5,30 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: dev  # Use the development version of the backend
+      target: dev
     container_name: invoice_reader_backend
     ports:
-      - "5001:5000"  # Flask runs on port 5000, mapped to 5001
+      - "5001:5000"
     volumes:
-      - ./backend:/app  # Mount backend for live reload
+      - ./backend:/app
       - ./migrations:/app/migrations
-      - ./logs:/app/logs  # Persist logs
+      - ./logs:/app/logs
       - ./resources:/app/resources
-      - ./uploads:/app/uploads  # Persist uploads
+      - ./uploads:/app/uploads
     env_file:
-      - .env  # Load environment variables
+      - .env
     networks:
       - shared_network
-    command: ["flask", "run", "--host=0.0.0.0", "--port=5000", "--reload"]
+    command: ["/bin/sh", "-c", "flask db upgrade && flask run --host=0.0.0.0 --port=5000 --reload"]
+    # depends_on:
+    #   redis:
+    #     condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health/check"]
-      interval: 30s  # Check every 10 seconds
+      interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 5s  # Give Flask some time to start before checking
+      start_period: 5s
 
   frontend:
     build:
@@ -36,16 +39,50 @@ services:
     image: node:18-alpine
     working_dir: /frontend
     volumes:
-      - ./frontend:/frontend  # Live updates
-      - /frontend/node_modules  # Keep node_modules in the container
+      - ./frontend:/frontend
+      - /frontend/node_modules
     ports:
-      - "3000:3000"  # Expose React development server
-    command: ["npm", "start"]  # Run React dev server
+      - "3000:3000"
+    command: ["/bin/sh", "-c", "sleep 5 && npm start"]
     networks:
       - shared_network
     depends_on:
       backend:
-        condition: service_healthy  # Wait for backend to be healthy
+        condition: service_healthy
+
+  # redis:
+  #   image: "redis:alpine"
+  #   container_name: invoice_reader_redis
+  #   restart: always
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - shared_network
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+      # retries: 3
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: invoice_reader_celery
+    command: ["celery", "-A", "modules.services.background_service.upload_worker", "worker", "--loglevel=info"]
+    depends_on:
+      # redis:
+      #   condition: service_healthy
+      backend:
+        condition: service_healthy
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    volumes:
+      - ./backend:/app
+    networks:
+      - shared_network
 
 networks:
   shared_network:

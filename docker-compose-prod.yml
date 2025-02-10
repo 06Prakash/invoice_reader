@@ -5,15 +5,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile  # Uses a single Dockerfile for both frontend & backend
+    restart: always
     ports:
-      - "80:80"  # Azure expects the app to run on port 80
+      - "80:80"  # Exposing app on port 80 (for Azure App Service)
     env_file:
       - .env  # Load environment variables
     volumes:
-      - ./logs:/app/logs  # Map logs for persistent storage
+      - ./logs:/app/logs  # Persist logs
     networks:
       - shared_network
-    command: ["gunicorn", "-w", "4", "-b", "0.0.0.0:80", "app:app"]  # Run Gunicorn in production
+    command: ["gunicorn", "-w", "4", "-b", "0.0.0.0:80", "app:app"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/health/check"]
       start_period: 10s

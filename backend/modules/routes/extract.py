@@ -252,6 +252,7 @@ def register_extract_routes(app):
     def initialize_extraction(data, user_id):
         logger.info(f"Initializing extraction for user {user_id}")
         page_config = data.get("page_config", {})
+        logger.info(f"Page Config: {page_config}")
         filenames = data["filenames"]
         extraction_model = data.get('extraction_model', 'NIRA AI - Printed Text (PB)').strip()
 
