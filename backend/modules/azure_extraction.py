@@ -42,12 +42,14 @@ def is_roman_numeral(value):
 def should_remove_first_column(df):
     """Determines whether the first column should be removed."""
     first_column_values = df[df.columns[0]].dropna().astype(str)
+    logger.info(f"First column values: {first_column_values.tolist()}")
     
     # Count values that are Roman numerals, numbers, empty, or very short (≤5 chars)
     short_values = first_column_values.apply(lambda x: len(x.strip()) <= 5 or is_roman_numeral(x) or x.strip().isdigit()).sum()
-    
+    logger.info(f"Short values count in first column: {short_values}")
     # Percentage of such values
     threshold = short_values / len(first_column_values) if len(first_column_values) > 0 else 0
+    logger.info(f"First column threshold: {threshold}")
     
     # If more than 90% of first column values match this pattern, consider removing
     return threshold > 0.9
@@ -66,18 +68,21 @@ def process_table_extraction(result, filename, output_folder, progress_tracker, 
 
     if hasattr(result, 'tables') and result.tables:
         for table_idx, table in enumerate(result.tables):
+            logger.info(f"Processing Table {table_idx + 1}/{len(result.tables)}")
+
             structured_rows = {}
             max_columns = table.column_count
 
             # Process table cells
             for cell in table.cells:
+                logger.info(cell)
                 row_index = getattr(cell, "row_index", getattr(cell, "rowIndex", None))
                 col_index = getattr(cell, "column_index", getattr(cell, "columnIndex", None))
                 column_span = getattr(cell, "column_span", getattr(cell, "columnSpan", 1))
-                
+
                 if row_index is None or col_index is None:
                     continue
-                
+
                 if row_index not in structured_rows:
                     structured_rows[row_index] = [""] * max_columns
                 
@@ -88,22 +93,36 @@ def process_table_extraction(result, filename, output_folder, progress_tracker, 
                         structured_rows[row_index][col_index + span_offset] = (
                             cell.content if row_index != 0 else ""  # Keep headers clean
                         )
+            logger.info(f"Structured Rows: {structured_rows}")
             
             sorted_rows = [structured_rows[row] for row in sorted(structured_rows.keys())]
             df_table = pd.DataFrame(sorted_rows)
 
-            headers = [cell.content for cell in table.cells if getattr(cell, "kind", "") == "columnHeader"]
-            logger.info(f"Extracted Headers: {headers}")
+            logger.info(f"Raw extracted table shape: {df_table.shape}")
 
-            if headers:
-                headers = [h.strip() if isinstance(h, str) else "" for h in headers]
-                headers = headers[:df_table.shape[1]] if len(headers) > df_table.shape[1] else headers + [f"Column_{i}" for i in range(len(headers), df_table.shape[1])]
+            headers = [""] * max_columns
+            for cell in table.cells:
+                if getattr(cell, "kind", "") == "columnHeader":
+                    col_index = getattr(cell, "column_index", getattr(cell, "columnIndex", None))
+                    column_span = getattr(cell, "column_span", getattr(cell, "columnSpan", 1))
+                    if col_index is not None:
+                        headers[col_index] = cell.content.strip() if isinstance(cell.content, str) else ""
+                        for span_offset in range(1, column_span):
+                            if col_index + span_offset < max_columns:
+                                headers[col_index + span_offset] = f"Column_{col_index + span_offset}"
+
+            logger.info(f"Extracted Headers Before Cleaning: {headers}")
+
+            if any(headers):
                 df_table.columns = headers
             else:
                 df_table.columns = df_table.iloc[0]  # Assume first row as header
                 df_table = df_table[1:].reset_index(drop=True)
 
+            logger.info(f"Assigned Headers: {list(df_table.columns)}")
+
             df_table = df_table.loc[:, ~df_table.columns.duplicated()]
+            logger.info(f"Table Shape After Removing Duplicates: {df_table.shape}")
 
             first_column_name = df_table.columns[0]
 
@@ -119,18 +138,22 @@ def process_table_extraction(result, filename, output_folder, progress_tracker, 
                 
                 df_table = df_table.drop(columns=[first_column_name])
 
+            logger.info(f"Table Columns After First Column Removal: {list(df_table.columns)}")
+
             # Remove duplicate headers in the first row
             if df_table.iloc[0].equals(df_table.columns):
                 logger.info("Detected duplicate column headers in the first row. Removing...")
                 df_table = df_table[1:].reset_index(drop=True)
 
+            logger.info(f"Table Shape After Removing Duplicate Headers: {df_table.shape}")
+
             # Drop fully empty columns
             df_table = df_table.dropna(axis=1, how="all")
+            logger.info(f"Table Shape After Dropping Empty Columns: {df_table.shape}")
 
             # Remove fully empty rows
             df_table = df_table.dropna(how="all")
-
-            logger.info(f"Processed Table Shape: {df_table.shape}")
+            logger.info(f"Final Processed Table Shape: {df_table.shape}")
 
             tables.append(df_table)
             progress_tracker.update_progress(progress_file, table_idx + 1, total_pages)
@@ -146,18 +169,21 @@ def process_table_extraction(result, filename, output_folder, progress_tracker, 
             csv_file.write("No data extracted\n")
     outputs['csv'] = csv_path
 
+    logger.info(f"CSV file saved: {csv_path}")
+
     # Save extracted tables to text format
     text_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_tables.txt")
     with open(text_path, "w", encoding="utf-8") as text_file:
         text_data = "\n\n".join([table.to_string(index=False, header=False) for table in tables])
         text_file.write(text_data if text_data else "No data extracted\n")
     outputs['text'] = text_path
+
+    logger.info(f"Text file saved: {text_path}")
+
     outputs['raw_tables'] = tables if tables else [pd.DataFrame(["No Data Extracted"])]
     outputs['original_lines'] = text_data if text_data else ""
 
     return outputs
-
-
 
 
 def process_text_extraction(result, filename, output_folder, progress_tracker, progress_file, total_pages, extra_requirements = None):
