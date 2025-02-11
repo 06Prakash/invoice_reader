@@ -12,6 +12,7 @@ import csv
 import json
 from concurrent.futures import ThreadPoolExecutor
 from azure.core.exceptions import HttpResponseError
+from pdf2image import convert_from_path
 import re  # To detect Roman numerals
 
 logger = setup_logger(__name__)
@@ -100,16 +101,18 @@ def process_table_extraction(result, filename, output_folder, progress_tracker, 
 
             logger.info(f"Raw extracted table shape: {df_table.shape}")
 
-            headers = [""] * max_columns
+            headers = [" "] * max_columns
             for cell in table.cells:
                 if getattr(cell, "kind", "") == "columnHeader":
                     col_index = getattr(cell, "column_index", getattr(cell, "columnIndex", None))
                     column_span = getattr(cell, "column_span", getattr(cell, "columnSpan", 1))
                     if col_index is not None:
-                        headers[col_index] = cell.content.strip() if isinstance(cell.content, str) else ""
-                        for span_offset in range(1, column_span):
-                            if col_index + span_offset < max_columns:
-                                headers[col_index + span_offset] = f"Column_{col_index + span_offset}"
+                        if column_span > 1:
+                            target_index = col_index + column_span - 1
+                            if target_index < max_columns:
+                                headers[target_index] = cell.content.strip() if isinstance(cell.content, str) else ""
+                        else:
+                            headers[col_index] = cell.content.strip() if isinstance(cell.content, str) else ""
 
             logger.info(f"Extracted Headers Before Cleaning: {headers}")
 
@@ -392,29 +395,49 @@ def extract_with_azure(
                         pages = ",".join(map(str, chunk))
                         logger.info(f"Processing chunk for section {section}: {pages}")
 
-                        with open(temp_pdf_path, "rb") as document:
-                            poller = document_analysis_client.begin_analyze_document(mapped_model, document, pages=pages)
-                            result = poller.result()
+                        # Convert the specified pages to images
+                        images = convert_from_path(temp_pdf_path, first_page=min(chunk), last_page=max(chunk))
 
-                        section_outputs = process_based_on_model(
-                            result, filename, section, output_folder, progress_tracker, progress_file, pages_to_process, mapped_model
-                        )
+                        # Convert images to bytes and send to Azure Form Recognizer in parallel
+                        def analyze_image(image):
+                            # Convert image to black and white
+                            bw_image = image.convert("L")
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_image_file:
+                                bw_image.save(temp_image_file, format="PNG")
+                                temp_image_file.seek(0)
+                                image_bytes = temp_image_file.read()
+                            try:
+                                poller = document_analysis_client.begin_analyze_document(mapped_model, image_bytes)
+                                result = poller.result()
+                                return result
+                            except HttpResponseError as e:
+                                logger.error(f"Error analyzing image: {e}")
+                                return None
 
-                        # Process outputs and aggregate them
-                        if "raw_tables" in section_outputs:
-                            section_data.setdefault(section, {}).setdefault("raw_tables", []).extend(
-                                section_outputs["raw_tables"]
+                        with ThreadPoolExecutor() as executor:
+                            results = list(executor.map(analyze_image, images))
+
+                        # Combine results
+                        for result in results:
+                            section_outputs = process_based_on_model(
+                                result, filename, section, output_folder, progress_tracker, progress_file, pages_to_process, mapped_model
                             )
 
-                        if "json" in section_outputs:
-                            section_data.setdefault(section, {}).update(section_outputs["json"])
-                            outputs['json'] = section_outputs["json"]
+                            # Process outputs and aggregate them
+                            if "raw_tables" in section_outputs:
+                                section_data.setdefault(section, {}).setdefault("raw_tables", []).extend(
+                                    section_outputs["raw_tables"]
+                                )
 
-                        outputs["text_data"] += f"\n{section_outputs.get('text_data', '')}"
-                        outputs["original_lines"] += f"\n{section_outputs.get('original_lines', '')}"
+                            if "json" in section_outputs:
+                                section_data.setdefault(section, {}).update(section_outputs["json"])
+                                outputs['json'] = section_outputs["json"]
 
-                        if "csv" in section_outputs:
-                            outputs["csv"] = section_outputs["csv"]
+                            outputs["text_data"] += f"\n{section_outputs.get('text_data', '')}"
+                            outputs["original_lines"] += f"\n{section_outputs.get('original_lines', '')}"
+
+                            if "csv" in section_outputs:
+                                outputs["csv"] = section_outputs["csv"]
 
                 except HttpResponseError as e:
                     logger.error(f"Error processing section {section}: {e}")
