@@ -12,6 +12,7 @@ import csv
 import json
 from concurrent.futures import ThreadPoolExecutor
 from azure.core.exceptions import HttpResponseError
+import re  # To detect Roman numerals
 
 logger = setup_logger(__name__)
 
@@ -27,78 +28,104 @@ def extraction_model_mapping(model_name):
         "NIRA AI - handwritten": "MutualFundModelSundaramFinance",
         "NIRA AI - Invoice": "prebuilt-invoice",
         "NIRA AI - Printed Text": "prebuilt-read",
-        "NIRA AI - Printed Tables": "prebuilt-layout",
+        "NIRA AI - Printed Tables": "prebuilt-document",
         "NIRA AI - Printed business card": "prebuilt-businessCard",
         "NIRA AI - Printed receipt": "prebuilt-receipt",
     }
     return model_mapping.get(clean_model_name, "prebuilt-read")  # Default to "prebuilt-read"
 
+
+def is_roman_numeral(value):
+    """Helper function to check if a string is a Roman numeral (I, II, III, IV, V, etc.)"""
+    roman_pattern = r"^(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV|XVI|XVII|XVIII|XIX|XX)$"
+    return bool(re.match(roman_pattern, str(value).strip()))
+
 def process_table_extraction(result, filename, output_folder, progress_tracker, progress_file, total_pages):
     """
-    Processes the Azure Form Recognizer result for table extraction and generates outputs.
-    Includes raw table data and original lines in the return value.
+    Processes the Azure Form Recognizer result for table extraction.
+    - Fixes column merging issues.
+    - Removes unnecessary Roman numeral columns while preserving necessary structure.
+    - Fixes duplicate column headers and removes extra empty columns.
+    - Saves tables in Excel, CSV, and text formats.
     """
     tables = []
     outputs = {}
 
-    # Extract tables directly from result.tables
     if hasattr(result, 'tables') and result.tables:
-        for table in result.tables:
-            rows = []
-            for row_index in range(table.row_count):
-                row = []
-                for cell in table.cells:
-                    if cell.row_index == row_index:
-                        row.append(cell.content)
-                rows.append(row)
-            tables.append(pd.DataFrame(rows))
-            progress_tracker.update_progress(progress_file, 1, total_pages)
-    else:
-        logger.warning(f"No tables found in {filename}")
-        outputs['error'] = f"No tables found in {filename}"
+        for table_idx, table in enumerate(result.tables):
+            structured_rows = {}
+            max_columns = table.column_count
 
-    # Save CSV output
-    try:
-        csv_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_tables.csv")
-        with open(csv_path, "w", newline="", encoding="utf-8") as csv_file:
-            if tables:
-                for idx, table in enumerate(tables):
-                    table.to_csv(csv_file, index=False)
-                    csv_file.write("\n")  # Separate tables with a newline
+            for cell in table.cells:
+                row_index = getattr(cell, "row_index", getattr(cell, "rowIndex", None))
+                col_index = getattr(cell, "column_index", getattr(cell, "columnIndex", None))
+                column_span = getattr(cell, "column_span", getattr(cell, "columnSpan", 1))
+                
+                if row_index is None or col_index is None:
+                    continue
+                
+                if row_index not in structured_rows:
+                    structured_rows[row_index] = [""] * max_columns
+                
+                structured_rows[row_index][col_index] = cell.content
+                
+                for span_offset in range(1, column_span):
+                    if col_index + span_offset < max_columns:
+                        structured_rows[row_index][col_index + span_offset] = (
+                            cell.content if row_index != 0 else ""
+                        )
+            
+            sorted_rows = [structured_rows[row] for row in sorted(structured_rows.keys())]
+            df_table = pd.DataFrame(sorted_rows)
+
+            headers = [cell.content for cell in table.cells if getattr(cell, "kind", "") == "columnHeader"]
+            
+            if headers:
+                headers = [h.strip() if isinstance(h, str) else "" for h in headers]
+                if len(headers) > df_table.shape[1]:
+                    headers = headers[:df_table.shape[1]]
+                elif len(headers) < df_table.shape[1]:
+                    headers += [f"Column_{i}" for i in range(len(headers), df_table.shape[1])]
+                df_table.columns = headers
             else:
-                csv_file.write("No data extracted\n")  # Placeholder if no tables
-        logger.info(f"Tables saved as CSV at {csv_path}")
-        outputs['csv'] = csv_path
-    except Exception as e:
-        logger.error(f"Failed to save tables to CSV for {filename}: {e}")
-        outputs['csv_error'] = str(e)
+                df_table.columns = df_table.iloc[0]
+                df_table = df_table[1:].reset_index(drop=True)
+            
+            df_table = df_table.loc[:, ~df_table.columns.duplicated()]
+            
+            first_column_name = df_table.columns[0]
+            first_column_values = df_table[first_column_name].dropna().unique()
+            
+            if all(is_roman_numeral(val) or str(val).strip() == "" for val in first_column_values):
+                df_table = df_table.drop(columns=[first_column_name])
+            
+            if df_table.iloc[0].equals(df_table.columns):
+                df_table = df_table[1:].reset_index(drop=True)
+            
+            df_table = df_table.dropna(axis=1, how="all")
+            tables.append(df_table)
+            
+            progress_tracker.update_progress(progress_file, table_idx + 1, total_pages)
 
-    # Save Text output (structured data only)
-    try:
-        text_data = ""
+    csv_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_tables.csv")
+    with open(csv_path, "w", newline="", encoding="utf-8") as csv_file:
         if tables:
-            for idx, table in enumerate(tables):
-                text_data += f"Table {idx + 1}:\n"
-                text_data += table.to_string(index=False, header=False)
-                text_data += "\n\n"
+            for table in tables:
+                table.to_csv(csv_file, index=False)
+                csv_file.write("\n")
         else:
-            text_data = "No data extracted\n"  # Placeholder if no tables
-        text_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_tables.txt")
-        with open(text_path, "w", encoding="utf-8") as text_file:
-            text_file.write(text_data)
-        logger.info(f"Tables saved as Text at {text_path}")
-        outputs['text'] = text_path
-        outputs['text_data'] = text_data
-    except Exception as e:
-        logger.error(f"Failed to save tables to Text for {filename}: {e}")
-        outputs['text_error'] = str(e)
+            csv_file.write("No data extracted\n")
+    outputs['csv'] = csv_path
 
-    # Always include raw tables and original lines
-    outputs['raw_tables'] = tables if tables else [pd.DataFrame([["No Data Extracted"]])]
-    outputs['original_lines'] = outputs.get('text_data', '')
-
+    text_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_tables.txt")
+    with open(text_path, "w", encoding="utf-8") as text_file:
+        text_data = "\n\n".join([table.to_string(index=False, header=False) for table in tables])
+        text_file.write(text_data if text_data else "No data extracted\n")
+    outputs['text'] = text_path
+    outputs['raw_tables'] = tables if tables else [pd.DataFrame(["No Data Extracted"])]
+    outputs['original_lines'] = text_data if text_data else ""
+    
     return outputs
-
 
 
 def process_text_extraction(result, filename, output_folder, progress_tracker, progress_file, total_pages, extra_requirements = None):
@@ -227,7 +254,7 @@ def extract_original_lines(result):
     return "\n".join(original_lines)
 
 def process_based_on_model(result, filename, section, output_folder, progress_tracker, progress_file, total_pages, mapped_model):
-    if mapped_model == "prebuilt-layout":
+    if mapped_model == "prebuilt-document":
         return process_table_extraction(result, f"{filename}_{section}", output_folder, progress_tracker, progress_file, total_pages)
     elif mapped_model == "MutualFundModelSundaramFinance":
         return process_field_extraction(result, f"{filename}_{section}", output_folder, progress_tracker, progress_file, total_pages)
