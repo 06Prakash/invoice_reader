@@ -34,11 +34,23 @@ def extraction_model_mapping(model_name):
     }
     return model_mapping.get(clean_model_name, "prebuilt-read")  # Default to "prebuilt-read"
 
-
 def is_roman_numeral(value):
-    """Helper function to check if a string is a Roman numeral (I, II, III, IV, V, etc.)"""
+    """Helper function to check if a string is a Roman numeral (I, II, III, IV, etc.)"""
     roman_pattern = r"^(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV|XVI|XVII|XVIII|XIX|XX)$"
     return bool(re.match(roman_pattern, str(value).strip()))
+
+def should_remove_first_column(df):
+    """Determines whether the first column should be removed."""
+    first_column_values = df[df.columns[0]].dropna().astype(str)
+    
+    # Count values that are Roman numerals, numbers, empty, or very short (≤5 chars)
+    short_values = first_column_values.apply(lambda x: len(x.strip()) <= 5 or is_roman_numeral(x) or x.strip().isdigit()).sum()
+    
+    # Percentage of such values
+    threshold = short_values / len(first_column_values) if len(first_column_values) > 0 else 0
+    
+    # If more than 90% of first column values match this pattern, consider removing
+    return threshold > 0.9
 
 def process_table_extraction(result, filename, output_folder, progress_tracker, progress_file, total_pages):
     """
@@ -46,6 +58,7 @@ def process_table_extraction(result, filename, output_folder, progress_tracker, 
     - Fixes column merging issues.
     - Removes unnecessary Roman numeral columns while preserving necessary structure.
     - Fixes duplicate column headers and removes extra empty columns.
+    - Moves headers appropriately if the first column is removed.
     - Saves tables in Excel, CSV, and text formats.
     """
     tables = []
@@ -56,6 +69,7 @@ def process_table_extraction(result, filename, output_folder, progress_tracker, 
             structured_rows = {}
             max_columns = table.column_count
 
+            # Process table cells
             for cell in table.cells:
                 row_index = getattr(cell, "row_index", getattr(cell, "rowIndex", None))
                 col_index = getattr(cell, "column_index", getattr(cell, "columnIndex", None))
@@ -68,45 +82,60 @@ def process_table_extraction(result, filename, output_folder, progress_tracker, 
                     structured_rows[row_index] = [""] * max_columns
                 
                 structured_rows[row_index][col_index] = cell.content
-                
+
                 for span_offset in range(1, column_span):
                     if col_index + span_offset < max_columns:
                         structured_rows[row_index][col_index + span_offset] = (
-                            cell.content if row_index != 0 else ""
+                            cell.content if row_index != 0 else ""  # Keep headers clean
                         )
             
             sorted_rows = [structured_rows[row] for row in sorted(structured_rows.keys())]
             df_table = pd.DataFrame(sorted_rows)
 
             headers = [cell.content for cell in table.cells if getattr(cell, "kind", "") == "columnHeader"]
-            
+            logger.info(f"Extracted Headers: {headers}")
+
             if headers:
                 headers = [h.strip() if isinstance(h, str) else "" for h in headers]
-                if len(headers) > df_table.shape[1]:
-                    headers = headers[:df_table.shape[1]]
-                elif len(headers) < df_table.shape[1]:
-                    headers += [f"Column_{i}" for i in range(len(headers), df_table.shape[1])]
+                headers = headers[:df_table.shape[1]] if len(headers) > df_table.shape[1] else headers + [f"Column_{i}" for i in range(len(headers), df_table.shape[1])]
                 df_table.columns = headers
             else:
-                df_table.columns = df_table.iloc[0]
+                df_table.columns = df_table.iloc[0]  # Assume first row as header
                 df_table = df_table[1:].reset_index(drop=True)
-            
+
             df_table = df_table.loc[:, ~df_table.columns.duplicated()]
-            
+
             first_column_name = df_table.columns[0]
-            first_column_values = df_table[first_column_name].dropna().unique()
-            
-            if all(is_roman_numeral(val) or str(val).strip() == "" for val in first_column_values):
+
+            # Remove first column if it mostly contains Roman numerals, numbers, or short values
+            if should_remove_first_column(df_table):
+                logger.info(f"Removing first column: {first_column_name} and shifting headers")
+
+                # Move the first column header to the second column if it has no header
+                second_column_name = df_table.columns[1]
+                if second_column_name.strip() == "":
+                    df_table.columns = [df_table.iloc[0, 0]] + df_table.columns[2:].tolist()
+                    df_table = df_table[1:].reset_index(drop=True)
+                
                 df_table = df_table.drop(columns=[first_column_name])
-            
+
+            # Remove duplicate headers in the first row
             if df_table.iloc[0].equals(df_table.columns):
+                logger.info("Detected duplicate column headers in the first row. Removing...")
                 df_table = df_table[1:].reset_index(drop=True)
-            
+
+            # Drop fully empty columns
             df_table = df_table.dropna(axis=1, how="all")
+
+            # Remove fully empty rows
+            df_table = df_table.dropna(how="all")
+
+            logger.info(f"Processed Table Shape: {df_table.shape}")
+
             tables.append(df_table)
-            
             progress_tracker.update_progress(progress_file, table_idx + 1, total_pages)
 
+    # Save extracted tables to CSV
     csv_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_tables.csv")
     with open(csv_path, "w", newline="", encoding="utf-8") as csv_file:
         if tables:
@@ -117,6 +146,7 @@ def process_table_extraction(result, filename, output_folder, progress_tracker, 
             csv_file.write("No data extracted\n")
     outputs['csv'] = csv_path
 
+    # Save extracted tables to text format
     text_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_tables.txt")
     with open(text_path, "w", encoding="utf-8") as text_file:
         text_data = "\n\n".join([table.to_string(index=False, header=False) for table in tables])
@@ -124,8 +154,10 @@ def process_table_extraction(result, filename, output_folder, progress_tracker, 
     outputs['text'] = text_path
     outputs['raw_tables'] = tables if tables else [pd.DataFrame(["No Data Extracted"])]
     outputs['original_lines'] = text_data if text_data else ""
-    
+
     return outputs
+
+
 
 
 def process_text_extraction(result, filename, output_folder, progress_tracker, progress_file, total_pages, extra_requirements = None):
