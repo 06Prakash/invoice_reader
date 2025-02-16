@@ -392,153 +392,41 @@ def extract_with_azure(
     filename, user_id, azure_blob_service, output_folder, pages_to_process, total_pages, progress_file, progress_tracker,
     extraction_model, azure_endpoint, azure_key, page_config=None
 ):
-    """
-    Extracts data from a PDF using Azure Form Recognizer and processes it based on the extraction type.
-    Handles section-specific page configurations and supports chunked page processing.
-    Also integrates with Azure Blob Storage for file download and upload.
-    """
-    # Retrieve chunk size from environment variables or use default
+    logger.info(f"Starting extraction for {filename} with model {extraction_model}")
     chunk_size = int(os.getenv("AZURE_CHUNK_SIZE", 2))
-
-    # Generate user-specific file path for Azure Blob
     user_file_path = f"{user_id}/{filename}"
-    use_credit = False
+    use_credit = False  # Initialize use_credit
 
-    # Initialize Azure clients
     document_analysis_client = DocumentAnalysisClient(
         endpoint=azure_endpoint,
         credential=AzureKeyCredential(azure_key)
     )
 
-    temp_pdf_path = ""
-    try:
-        # Download the file from Azure Blob Storage
-        logger.info(f"Downloading file {user_file_path} from Azure Blob Storage")
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            temp_file.write(azure_blob_service.download_file(user_id, filename.split("/")[-1]))
-            temp_pdf_path = temp_file.name
-        logger.info(f"File downloaded to temporary path: {temp_pdf_path}")
-    except Exception as e:
-        logger.error(f"Failed to download file {filename} from Azure: {e}")
-        return {"filename": filename, "error": f"Failed to download file from Azure: {e}"}
+    temp_pdf_path = download_file_from_azure(azure_blob_service, user_id, filename)
+    if not temp_pdf_path:
+        logger.error(f"Failed to download file {filename} from Azure")
+        return {"filename": filename, "error": "Failed to download file from Azure"}
 
-    # Ensure extra_requirements is not None
     extra_requirements = page_config or {}
+    mapped_model = extraction_model_mapping(extraction_model)
+    logger.info(f"Using Azure model: {mapped_model} for extraction")
+
+    section_data = {}
+    outputs = {"json": None, "csv": None, "text": None, "excel": None, "text_data": "", "original_lines": ""}
 
     try:
-        mapped_model = extraction_model_mapping(extraction_model)
-        logger.info(f"Using Azure model: {mapped_model} for extraction")
-
-        section_data = {}
-        outputs = {"json": None, "csv": None, "text": None, "excel": None, "text_data": "", "original_lines": ""}
-
-        def split_pages(pages, chunk_size):
-            """Splits a list of pages into valid chunks."""
-            for i in range(0, len(pages), chunk_size):
-                chunk = pages[i:i + chunk_size]
-                if max(chunk) <= total_pages:
-                    yield chunk
-                else:
-                    logger.warning(f"Skipping invalid chunk: {chunk}")
-
         if page_config:
-            for section, config in page_config.items():
-                try:
-                    logger.info(f"Extracting section: {section} with config: {config}")
-                    page_range = config.get("pageRange")
-                    if not page_range:
-                        raise ValueError(f"Missing pageRange for section {section}")
-
-                    if isinstance(page_range, list):
-                        page_list = page_range
-                    elif isinstance(page_range, str):
-                        page_list = list(parse_page_ranges(page_range.replace(" ", "").strip()))
-                    else:
-                        raise ValueError(f"Invalid page_range format for section {section}: {page_range}")
-
-                    for chunk in split_pages(page_list, chunk_size):
-                        use_credit = True
-                        pages = ",".join(map(str, chunk))
-                        logger.info(f"Processing chunk for section {section}: {pages}")
-
-                        # Convert the specified pages to images
-                        images = convert_from_path(temp_pdf_path, first_page=min(chunk), last_page=max(chunk))
-
-                        # Convert images to bytes and send to Azure Form Recognizer in parallel
-                        def analyze_image(image):
-                            # Convert image to black and white
-                            bw_image = image.convert("L")
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_image_file:
-                                bw_image.save(temp_image_file, format="PNG")
-                                temp_image_file.seek(0)
-                                image_bytes = temp_image_file.read()
-                            try:
-                                poller = document_analysis_client.begin_analyze_document(mapped_model, image_bytes)
-                                result = poller.result()
-                                return result
-                            except HttpResponseError as e:
-                                logger.error(f"Error analyzing image: {e}")
-                                return None
-
-                        with ThreadPoolExecutor() as executor:
-                            results = list(executor.map(analyze_image, images))
-
-                        # Combine results
-                        for result in results:
-                            section_outputs = process_based_on_model(
-                                result, filename, section, output_folder, progress_tracker, progress_file, pages_to_process, mapped_model
-                            )
-
-                            # Process outputs and aggregate them
-                            if "raw_tables" in section_outputs:
-                                section_data.setdefault(section, {}).setdefault("raw_tables", []).extend(
-                                    section_outputs["raw_tables"]
-                                )
-
-                            if "json" in section_outputs:
-                                section_data.setdefault(section, {}).update(section_outputs["json"])
-                                outputs['json'] = section_outputs["json"]
-
-                            outputs["text_data"] += f"\n{section_outputs.get('text_data', '')}"
-                            outputs["original_lines"] += f"\n{section_outputs.get('original_lines', '')}"
-
-                            if "csv" in section_outputs:
-                                outputs["csv"] = section_outputs["csv"]
-
-                except HttpResponseError as e:
-                    logger.error(f"Error processing section {section}: {e}")
-                except Exception as section_error:
-                    logger.error(f"Unexpected error processing section {section}: {section_error}")
-
+            use_credit = process_sections(
+                page_config, chunk_size, temp_pdf_path, document_analysis_client, mapped_model, filename, 
+                output_folder, progress_tracker, progress_file, pages_to_process, section_data, outputs
+            )
         else:
-            all_pages = list(range(1, total_pages + 1))
-            for chunk in split_pages(all_pages, chunk_size):
-                use_credit = True
-                pages = ",".join(map(str, chunk))
-                logger.info(f"Processing chunk: {pages}")
+            use_credit = process_full_document(
+                chunk_size, temp_pdf_path, document_analysis_client, mapped_model, filename, 
+                output_folder, progress_tracker, progress_file, pages_to_process, total_pages, section_data, outputs
+            )
 
-                with open(temp_pdf_path, "rb") as document:
-                    poller = document_analysis_client.begin_analyze_document(mapped_model, document, pages=pages)
-                    result = poller.result()
-
-                full_outputs = process_based_on_model(
-                    result, filename, "Full Document", output_folder, progress_tracker, progress_file, pages_to_process, mapped_model
-                )
-
-                section_data.setdefault("Full Document", {}).setdefault("raw_tables", []).extend(
-                    full_outputs.get("raw_tables", [])
-                )
-                if "json" in full_outputs:
-                    outputs['json'] = full_outputs.get("json")
-
-                outputs["text_data"] += full_outputs.get("text_data", "")
-                outputs["original_lines"] += full_outputs.get("original_lines", "")
-                if full_outputs.get("csv"):
-                    outputs["csv"] = full_outputs.get("csv", "No CSV Data")
-
-        # Save results locally
         outputs = save_extraction_results(section_data, filename, output_folder, outputs, extra_requirements)
-
         logger.info(f"Extraction completed successfully for {filename}")
         return {"filename": filename, "extracted_data": outputs, "use_credit": use_credit}
 
@@ -550,6 +438,138 @@ def extract_with_azure(
         if os.path.exists(temp_pdf_path):
             os.unlink(temp_pdf_path)
             logger.info(f"Temporary file {temp_pdf_path} has been deleted.")
+
+
+def download_file_from_azure(azure_blob_service, user_id, filename):
+    try:
+        logger.info(f"Downloading file {user_id}/{filename} from Azure Blob Storage")
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file.write(azure_blob_service.download_file(user_id, filename.split("/")[-1]))
+            temp_pdf_path = temp_file.name
+        logger.info(f"File downloaded to temporary path: {temp_pdf_path}")
+        return temp_pdf_path
+    except Exception as e:
+        logger.error(f"Failed to download file {filename} from Azure: {e}")
+        return None
+
+
+def process_sections(
+    page_config, chunk_size, temp_pdf_path, document_analysis_client, mapped_model, filename, 
+    output_folder, progress_tracker, progress_file, pages_to_process, section_data, outputs
+):
+    use_credit = False
+    for section, config in page_config.items():
+        try:
+            logger.info(f"Extracting section: {section} with config: {config}")
+            page_range = config.get("pageRange")
+            if not page_range:
+                raise ValueError(f"Missing pageRange for section {section}")
+
+            page_list = parse_page_range(page_range)
+            for chunk in split_pages(page_list, chunk_size):
+                chunk_credit = process_chunk(
+                    chunk, temp_pdf_path, document_analysis_client, mapped_model, filename, section, 
+                    output_folder, progress_tracker, progress_file, pages_to_process, section_data, outputs
+                )
+                if chunk_credit:
+                    use_credit = True
+        except HttpResponseError as e:
+            logger.error(f"Error processing section {section}: {e}")
+        except Exception as section_error:
+            logger.error(f"Unexpected error processing section {section}: {section_error}")
+    return use_credit
+
+
+def process_full_document(
+    chunk_size, temp_pdf_path, document_analysis_client, mapped_model, filename, 
+    output_folder, progress_tracker, progress_file, pages_to_process, total_pages, section_data, outputs
+):
+    use_credit = False
+    all_pages = list(range(1, total_pages + 1))
+    for chunk in split_pages(all_pages, chunk_size):
+        chunk_credit = process_chunk(
+            chunk, temp_pdf_path, document_analysis_client, mapped_model, filename, "Full Document", 
+            output_folder, progress_tracker, progress_file, pages_to_process, section_data, outputs
+        )
+        if chunk_credit:
+            use_credit = True
+    return use_credit
+
+
+def process_chunk(
+    chunk, temp_pdf_path, document_analysis_client, mapped_model, filename, section, 
+    output_folder, progress_tracker, progress_file, pages_to_process, section_data, outputs
+):
+    pages = ",".join(map(str, chunk))
+    logger.info(f"Processing chunk for section {section}: {pages}")
+
+    images = convert_from_path(temp_pdf_path, first_page=min(chunk), last_page=max(chunk))
+    results = analyze_images(images, document_analysis_client, mapped_model)
+
+    if results:
+        # If results are obtained, credit usage should be counted
+        use_credit = True
+    else:
+        use_credit = False
+
+    for result in results:
+        section_outputs = process_based_on_model(
+            result, filename, section, output_folder, progress_tracker, progress_file, pages_to_process, mapped_model
+        )
+        aggregate_section_outputs(section_outputs, section_data, section, outputs)
+
+    return use_credit
+
+
+def analyze_images(images, document_analysis_client, mapped_model):
+    def analyze_image(image):
+        bw_image = image.convert("L")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_image_file:
+            bw_image.save(temp_image_file, format="PNG")
+            temp_image_file.seek(0)
+            image_bytes = temp_image_file.read()
+        try:
+            poller = document_analysis_client.begin_analyze_document(mapped_model, image_bytes)
+            result = poller.result()
+            return result
+        except HttpResponseError as e:
+            logger.error(f"Error analyzing image: {e}")
+            return None
+
+    with ThreadPoolExecutor() as executor:
+        results = list(executor.map(analyze_image, images))
+    return results
+
+
+def aggregate_section_outputs(section_outputs, section_data, section, outputs):
+    if "raw_tables" in section_outputs:
+        section_data.setdefault(section, {}).setdefault("raw_tables", []).extend(section_outputs["raw_tables"])
+
+    if "json" in section_outputs:
+        section_data.setdefault(section, {}).update(section_outputs["json"])
+        outputs['json'] = section_outputs["json"]
+
+    outputs["text_data"] += f"\n{section_outputs.get('text_data', '')}"
+    outputs["original_lines"] += f"\n{section_outputs.get('original_lines', '')}"
+
+    if "csv" in section_outputs:
+        outputs["csv"] = section_outputs["csv"]
+
+
+def parse_page_range(page_range):
+    if isinstance(page_range, list):
+        return page_range
+    elif isinstance(page_range, str):
+        return list(parse_page_ranges(page_range.replace(" ", "").strip()))
+    else:
+        raise ValueError(f"Invalid page_range format: {page_range}")
+
+
+def split_pages(pages, chunk_size):
+    for i in range(0, len(pages), chunk_size):
+        chunk = pages[i:i + chunk_size]
+        yield chunk
+
 
 def parse_page_ranges(page_ranges):
     """

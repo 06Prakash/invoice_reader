@@ -395,18 +395,24 @@ def register_extract_routes(app):
 
     # Step 6: Deduct Credits for Successful Pages
     def deduct_credits_for_successful_pages(successful_results, file_page_counts, page_config, user_id):
+        logger.info("Starting credit deduction process.")
         successful_pages = 0
 
         for result in successful_results:
             filename = result['filename']
+            logger.info(f"Processing file: {filename}")
             if filename in file_page_counts:
                 pages_to_process = calculate_file_pages_to_process(page_config.get(filename, None), file_page_counts[filename])
                 successful_pages += pages_to_process
+            else:
+                logger.warning(f"File {filename} not found in file_page_counts.")
 
+        logger.info(f"Total successful pages to deduct credits for: {successful_pages}")
         if successful_pages > 0:
             reduce_credits(user_id, successful_pages)
             logger.info(f"Deducted {successful_pages} credits for user {user_id}.")
         else:
+            logger.error("Extraction failed due to page config error.")
             raise ValueError("Extraction failed due to page config error.")
 
     def create_or_get_user_folder(user_id):
