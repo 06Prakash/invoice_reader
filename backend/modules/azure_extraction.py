@@ -55,113 +55,95 @@ def should_remove_first_column(df):
     # If more than 90% of first column values match this pattern, consider removing
     return threshold > 0.9
 
-def process_table_extraction(result, filename, output_folder, progress_tracker, progress_file, total_pages):
-    """
-    Processes the Azure Form Recognizer result for table extraction.
-    - Fixes column merging issues.
-    - Removes unnecessary Roman numeral columns while preserving necessary structure.
-    - Fixes duplicate column headers and removes extra empty columns.
-    - Moves headers appropriately if the first column is removed.
-    - Saves tables in Excel, CSV, and text formats.
-    """
-    tables = []
-    outputs = {}
+def extract_structured_rows(table):
+    """Extracts structured rows from Azure Form Recognizer table cells."""
+    structured_rows = {}
+    max_columns = table.column_count
 
-    if hasattr(result, 'tables') and result.tables:
-        for table_idx, table in enumerate(result.tables):
-            logger.info(f"Processing Table {table_idx + 1}/{len(result.tables)}")
+    for cell in table.cells:
+        row_index = getattr(cell, "row_index", getattr(cell, "rowIndex", None))
+        col_index = getattr(cell, "column_index", getattr(cell, "columnIndex", None))
+        column_span = getattr(cell, "column_span", getattr(cell, "columnSpan", 1))
 
-            structured_rows = {}
-            max_columns = table.column_count
+        if row_index is None or col_index is None:
+            continue
 
-            # Process table cells
-            for cell in table.cells:
-                logger.info(cell)
-                row_index = getattr(cell, "row_index", getattr(cell, "rowIndex", None))
-                col_index = getattr(cell, "column_index", getattr(cell, "columnIndex", None))
-                column_span = getattr(cell, "column_span", getattr(cell, "columnSpan", 1))
+        if row_index not in structured_rows:
+            structured_rows[row_index] = [""] * max_columns
 
-                if row_index is None or col_index is None:
-                    continue
+        structured_rows[row_index][col_index] = cell.content
 
-                if row_index not in structured_rows:
-                    structured_rows[row_index] = [""] * max_columns
-                
-                structured_rows[row_index][col_index] = cell.content
+        for span_offset in range(1, column_span):
+            if col_index + span_offset < max_columns:
+                structured_rows[row_index][col_index + span_offset] = (
+                    cell.content if row_index != 0 else ""  # Keep headers clean
+                )
 
-                for span_offset in range(1, column_span):
-                    if col_index + span_offset < max_columns:
-                        structured_rows[row_index][col_index + span_offset] = (
-                            cell.content if row_index != 0 else ""  # Keep headers clean
-                        )
-            logger.info(f"Structured Rows: {structured_rows}")
-            
-            sorted_rows = [structured_rows[row] for row in sorted(structured_rows.keys())]
-            df_table = pd.DataFrame(sorted_rows)
+    logger.info(f"Structured Rows: {structured_rows}")
+    return [structured_rows[row] for row in sorted(structured_rows.keys())]
 
-            logger.info(f"Raw extracted table shape: {df_table.shape}")
 
-            headers = [" "] * max_columns
-            for cell in table.cells:
-                if getattr(cell, "kind", "") == "columnHeader":
-                    col_index = getattr(cell, "column_index", getattr(cell, "columnIndex", None))
-                    column_span = getattr(cell, "column_span", getattr(cell, "columnSpan", 1))
-                    if col_index is not None:
-                        if column_span > 1:
-                            target_index = col_index + column_span - 1
-                            if target_index < max_columns:
-                                headers[target_index] = cell.content.strip() if isinstance(cell.content, str) else ""
-                        else:
-                            headers[col_index] = cell.content.strip() if isinstance(cell.content, str) else ""
+def extract_headers(table, max_columns):
+    """Extracts headers from Azure Form Recognizer table cells."""
+    headers = [" "] * max_columns
+    for cell in table.cells:
+        if getattr(cell, "kind", "") == "columnHeader":
+            col_index = getattr(cell, "column_index", getattr(cell, "columnIndex", None))
+            column_span = getattr(cell, "column_span", getattr(cell, "columnSpan", 1))
+            if col_index is not None:
+                if column_span > 1:
+                    target_index = col_index + column_span - 1
+                    if target_index < max_columns:
+                        headers[target_index] = cell.content.strip() if isinstance(cell.content, str) else ""
+                else:
+                    headers[col_index] = cell.content.strip() if isinstance(cell.content, str) else ""
 
-            logger.info(f"Extracted Headers Before Cleaning: {headers}")
+    logger.info(f"Extracted Headers Before Cleaning: {headers}")
+    return headers
 
-            if any(headers):
-                df_table.columns = headers
-            else:
-                df_table.columns = df_table.iloc[0]  # Assume first row as header
-                df_table = df_table[1:].reset_index(drop=True)
 
-            logger.info(f"Assigned Headers: {list(df_table.columns)}")
+def clean_table(df_table):
+    """Cleans the extracted table by removing duplicates, empty columns, and adjusting headers."""
+    # Remove duplicate columns
+    df_table = df_table.loc[:, ~df_table.columns.duplicated()]
+    logger.info(f"Table Shape After Removing Duplicates: {df_table.shape}")
 
-            df_table = df_table.loc[:, ~df_table.columns.duplicated()]
-            logger.info(f"Table Shape After Removing Duplicates: {df_table.shape}")
+    # Remove duplicate headers if the first row matches column names
+    if df_table.iloc[0].equals(df_table.columns):
+        logger.info("Detected duplicate column headers in the first row. Removing...")
+        df_table = df_table[1:].reset_index(drop=True)
 
-            first_column_name = df_table.columns[0]
+    # Drop fully empty columns
+    df_table = df_table.dropna(axis=1, how="all")
+    logger.info(f"Table Shape After Dropping Empty Columns: {df_table.shape}")
 
-            # Remove first column if it mostly contains Roman numerals, numbers, or short values
-            if should_remove_first_column(df_table):
-                logger.info(f"Removing first column: {first_column_name} and shifting headers")
+    # Drop fully empty rows
+    df_table = df_table.dropna(how="all")
+    logger.info(f"Final Processed Table Shape: {df_table.shape}")
 
-                # Move the first column header to the second column if it has no header
-                second_column_name = df_table.columns[1]
-                if second_column_name.strip() == "":
-                    df_table.columns = [df_table.iloc[0, 0]] + df_table.columns[2:].tolist()
-                    df_table = df_table[1:].reset_index(drop=True)
-                
-                df_table = df_table.drop(columns=[first_column_name])
+    return df_table
 
-            logger.info(f"Table Columns After First Column Removal: {list(df_table.columns)}")
 
-            # Remove duplicate headers in the first row
-            if df_table.iloc[0].equals(df_table.columns):
-                logger.info("Detected duplicate column headers in the first row. Removing...")
-                df_table = df_table[1:].reset_index(drop=True)
+def handle_first_column_removal(df_table):
+    """Handles removal of the first column and adjusts headers if needed."""
+    first_column_name = df_table.columns[0]
 
-            logger.info(f"Table Shape After Removing Duplicate Headers: {df_table.shape}")
+    if should_remove_first_column(df_table):
+        logger.info(f"Removing first column: {first_column_name} and shifting headers")
 
-            # Drop fully empty columns
-            df_table = df_table.dropna(axis=1, how="all")
-            logger.info(f"Table Shape After Dropping Empty Columns: {df_table.shape}")
+        second_column_name = df_table.columns[1]
+        if second_column_name.strip() == "":
+            df_table.columns = [df_table.iloc[0, 0]] + df_table.columns[2:].tolist()
+            df_table = df_table[1:].reset_index(drop=True)
 
-            # Remove fully empty rows
-            df_table = df_table.dropna(how="all")
-            logger.info(f"Final Processed Table Shape: {df_table.shape}")
+        df_table = df_table.drop(columns=[first_column_name])
 
-            tables.append(df_table)
-            progress_tracker.update_progress(progress_file, table_idx + 1, total_pages)
+    logger.info(f"Table Columns After First Column Removal: {list(df_table.columns)}")
+    return df_table
 
-    # Save extracted tables to CSV
+
+def save_to_csv(tables, output_folder, filename):
+    """Saves extracted tables to a CSV file."""
     csv_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_tables.csv")
     with open(csv_path, "w", newline="", encoding="utf-8") as csv_file:
         if tables:
@@ -170,21 +152,73 @@ def process_table_extraction(result, filename, output_folder, progress_tracker, 
                 csv_file.write("\n")
         else:
             csv_file.write("No data extracted\n")
-    outputs['csv'] = csv_path
 
     logger.info(f"CSV file saved: {csv_path}")
+    return csv_path
 
-    # Save extracted tables to text format
+
+def save_to_text(tables, output_folder, filename):
+    """Saves extracted tables to a text file."""
     text_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_tables.txt")
     with open(text_path, "w", encoding="utf-8") as text_file:
         text_data = "\n\n".join([table.to_string(index=False, header=False) for table in tables])
         text_file.write(text_data if text_data else "No data extracted\n")
-    outputs['text'] = text_path
 
     logger.info(f"Text file saved: {text_path}")
+    return text_path, text_data
 
-    outputs['raw_tables'] = tables if tables else [pd.DataFrame(["No Data Extracted"])]
-    outputs['original_lines'] = text_data if text_data else ""
+def process_table(table, total_pages, table_idx, progress_tracker, progress_file):
+    """Processes an individual table extracted from Azure Form Recognizer."""
+    logger.info(f"Processing table {table_idx + 1}/{total_pages}")
+    
+    structured_rows = extract_structured_rows(table)
+    df_table = pd.DataFrame(structured_rows)
+    logger.info(f"Raw extracted table shape: {df_table.shape}")
+    logger.debug(f"Raw extracted table data: {df_table}")
+
+    headers = extract_headers(table, df_table.shape[1])
+    logger.info(f"Extracted headers: {headers}")
+    if any(headers):
+        df_table.columns = headers
+    else:
+        df_table.columns = df_table.iloc[0]
+        df_table = df_table[1:].reset_index(drop=True)
+    logger.info(f"Table shape after setting headers: {df_table.shape}")
+    logger.debug(f"Table data after setting headers: {df_table}")
+
+    df_table = handle_first_column_removal(df_table)
+    logger.info(f"Table shape after handling first column removal: {df_table.shape}")
+    logger.debug(f"Table data after handling first column removal: {df_table}")
+
+    df_table = clean_table(df_table)
+    logger.info(f"Final cleaned table shape: {df_table.shape}")
+    logger.debug(f"Final cleaned table data: {df_table}")
+
+    progress_tracker.update_progress(progress_file, table_idx + 1, total_pages)
+    logger.info(f"Updated progress for table {table_idx + 1}/{total_pages}")
+
+    return df_table
+
+
+def process_table_extraction(result, filename, output_folder, progress_tracker, progress_file, total_pages):
+    """Main function to process table extraction from Azure Form Recognizer results."""
+    tables = []
+
+    if hasattr(result, 'tables') and result.tables:
+        for table_idx, table in enumerate(result.tables):
+            logger.info(f"Processing Table {table_idx + 1}/{len(result.tables)}")
+            df_table = process_table(table, total_pages, table_idx, progress_tracker, progress_file)
+            tables.append(df_table)
+
+    csv_path = save_to_csv(tables, output_folder, filename)
+    text_path, text_data = save_to_text(tables, output_folder, filename)
+
+    outputs = {
+        'csv': csv_path,
+        'text': text_path,
+        'raw_tables': tables if tables else [pd.DataFrame(["No Data Extracted"])],
+        'original_lines': text_data if text_data else "",
+    }
 
     return outputs
 
