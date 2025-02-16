@@ -15,7 +15,8 @@ from azure.core.exceptions import HttpResponseError
 from pdf2image import convert_from_path
 import re  # To detect Roman numerals
 
-logger = setup_logger(__name__)
+current_file = os.path.basename(__file__)
+logger = setup_logger(current_file.split(".")[0])
 
 # Mapping function for user-friendly model names to Azure-recognized model names
 def extraction_model_mapping(model_name):
@@ -52,8 +53,12 @@ def should_remove_first_column(df):
     threshold = short_values / len(first_column_values) if len(first_column_values) > 0 else 0
     logger.info(f"First column threshold: {threshold}")
     
-    # If more than 90% of first column values match this pattern, consider removing
-    return threshold > 0.9
+    # Check if the first column is fully empty or contains only NaN/None/null values
+    is_fully_empty = first_column_values.empty or first_column_values.isin(["", "nan", "none", "null"]).all()
+    logger.info(f"Is first column fully empty: {is_fully_empty}")
+    
+    # If more than 90% of first column values match this pattern or it is fully empty, consider removing
+    return threshold > 0.9 or is_fully_empty
 
 def extract_structured_rows(table):
     """Extracts structured rows from Azure Form Recognizer table cells."""
@@ -127,6 +132,7 @@ def clean_table(df_table):
 def handle_first_column_removal(df_table):
     """Handles removal of the first column and adjusts headers if needed."""
     first_column_name = df_table.columns[0]
+    logger.info(f"First column name: {first_column_name}")
 
     if should_remove_first_column(df_table):
         logger.info(f"Removing first column: {first_column_name} and shifting headers")
@@ -148,7 +154,8 @@ def save_to_csv(tables, output_folder, filename):
     with open(csv_path, "w", newline="", encoding="utf-8") as csv_file:
         if tables:
             for table in tables:
-                table.to_csv(csv_file, index=False)
+                logger.info(f"First 3 rows of the table:\n{table.head(3)}")
+                table.to_csv(csv_file, index=False, header=False)
                 csv_file.write("\n")
         else:
             csv_file.write("No data extracted\n")
@@ -192,21 +199,46 @@ def process_table(table, total_pages, table_idx, progress_tracker, progress_file
 
     df_table = clean_table(df_table)
     logger.info(f"Final cleaned table shape: {df_table.shape}")
-    logger.debug(f"Final cleaned table data: {df_table}")
+    logger.info(f"Final cleaned table data: {df_table}")
 
     progress_tracker.update_progress(progress_file, table_idx + 1, total_pages)
     logger.info(f"Updated progress for table {table_idx + 1}/{total_pages}")
 
     return df_table
 
+def is_financial_table(structured_rows):
+    """Determine if a table is a financial table based on keywords only."""
+    financial_keywords = [
+        'revenue', 'income', 'expenses', 'profit', 'loss', 
+        'tax', 'earnings', 'depreciation', 'amortization', 
+        'comprehensive', 'share', 'equity', 'cash', 'liabilities', 'assets'
+    ]
 
-def process_table_extraction(result, filename, output_folder, progress_tracker, progress_file, total_pages):
+    text = " ".join([" ".join(row).lower() for row in structured_rows])
+    logger.info(f"Text from structured rows: {text}")
+    
+    # Count how many financial keywords appear
+    keyword_hits = sum(keyword in text for keyword in financial_keywords)
+
+    # If at least 3 financial keywords are found, consider it a financial table
+    return keyword_hits >= 3
+
+def process_table_extraction(result, filename, output_folder, progress_tracker, progress_file, total_pages, model='financial'):
     """Main function to process table extraction from Azure Form Recognizer results."""
     tables = []
 
     if hasattr(result, 'tables') and result.tables:
         for table_idx, table in enumerate(result.tables):
             logger.info(f"Processing Table {table_idx + 1}/{len(result.tables)}")
+            
+            if model == 'financial':
+                structured_rows = extract_structured_rows(table)
+                if not is_financial_table(structured_rows):
+                    logger.info(f"Skipping non-financial table {table_idx + 1}")
+                    # Log details about the skipped table for future analysis
+                    logger.info(f"Skipped Table {table_idx + 1}/{len(result.tables)}: {structured_rows}")
+                    continue  # Skip the table
+                
             df_table = process_table(table, total_pages, table_idx, progress_tracker, progress_file)
             tables.append(df_table)
 
