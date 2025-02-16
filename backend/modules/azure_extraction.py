@@ -14,7 +14,10 @@ from concurrent.futures import ThreadPoolExecutor
 from azure.core.exceptions import HttpResponseError
 from pdf2image import convert_from_path
 import re  # To detect Roman numerals
-
+import fitz  # PyMuPDF
+import subprocess
+from PyPDF2 import PdfWriter, PdfReader
+import io
 current_file = os.path.basename(__file__)
 logger = setup_logger(current_file.split(".")[0])
 
@@ -37,28 +40,108 @@ def extraction_model_mapping(model_name):
     return model_mapping.get(clean_model_name, "prebuilt-read")  # Default to "prebuilt-read"
 
 def is_roman_numeral(value):
-    """Helper function to check if a string is a Roman numeral (I, II, III, IV, etc.)"""
+    """Check if a string is a Roman numeral (e.g., I, II, III, IV)."""
     roman_pattern = r"^(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV|XVI|XVII|XVIII|XIX|XX)$"
     return bool(re.match(roman_pattern, str(value).strip()))
 
-def should_remove_first_column(df):
-    """Determines whether the first column should be removed."""
-    first_column_values = df[df.columns[0]].dropna().astype(str)
-    logger.info(f"First column values: {first_column_values.tolist()}")
+def is_short_or_pattern(value):
+    """Check if value matches short patterns: Roman numerals, numbers, or symbols."""
+    if not isinstance(value, str) or not value.strip():
+        return False
     
-    # Count values that are Roman numerals, numbers, empty, or very short (≤5 chars)
-    short_values = first_column_values.apply(lambda x: len(x.strip()) <= 5 or is_roman_numeral(x) or x.strip().isdigit()).sum()
-    logger.info(f"Short values count in first column: {short_values}")
-    # Percentage of such values
-    threshold = short_values / len(first_column_values) if len(first_column_values) > 0 else 0
-    logger.info(f"First column threshold: {threshold}")
+    roman_numeral_pattern = re.compile(r'^(?=[MDCLXVI])M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$')
+    numeric_pattern = re.compile(r'^\d+(\.\d+)?$')  # Numbers
+    symbol_pattern = re.compile(r'^[=\-:]+$')      # Section symbols
+
+    if len(value.strip()) <= 5:
+        if (roman_numeral_pattern.match(value) or
+            numeric_pattern.match(value) or
+            symbol_pattern.match(value)):
+            return True
+    return False
+
+def count_financial_keywords(values, threshold=0.25):
+    """Count financial keywords in the column and return True if above threshold."""
+    financial_keywords = [
+        'revenue', 'income', 'expenses', 'profit', 'loss', 'tax', 'earnings', 
+        'depreciation', 'amortization', 'comprehensive', 'share', 'equity', 
+        'cash', 'liabilities', 'assets', 'interest', 'dividend', 'reserve', 
+        'financial', 'investment', 'retained'
+    ]
+    pattern = re.compile('|'.join(financial_keywords), re.IGNORECASE)
     
-    # Check if the first column is fully empty or contains only NaN/None/null values
-    is_fully_empty = first_column_values.empty or first_column_values.isin(["", "nan", "none", "null"]).all()
-    logger.info(f"Is first column fully empty: {is_fully_empty}")
+    matches = sum(bool(pattern.search(str(value))) for value in values if isinstance(value, str))
+    ratio = matches / len(values) if len(values) > 0 else 0
     
-    # If more than 90% of first column values match this pattern or it is fully empty, consider removing
-    return threshold > 0.9 or is_fully_empty
+    logger.info(f"Financial keyword match count: {matches}, Ratio: {ratio:.2f}, Threshold: {threshold}, total values: {len(values)}")
+    
+    return ratio >= threshold
+
+def should_remove_first_column(df, financial_threshold=0.25):
+    """Determines whether the first column should be removed based on financial keyword presence."""
+    try:
+        if df.empty or len(df.columns) < 2:
+            logger.warning("DataFrame is empty or has less than two columns. Skipping first column removal.")
+            return False
+
+        first_column_values = df[df.columns[0]].dropna().astype(str).str.strip()
+        logger.info(f"First column values: {first_column_values.tolist()}")
+
+        total_values = len(first_column_values)
+        if total_values == 0:
+            logger.warning("First column has no values. It will not be removed.")
+            return False
+
+        # 1️⃣ Priority Check: Financial Keyword Presence
+        has_enough_financial_keywords = count_financial_keywords(first_column_values, threshold=financial_threshold)
+
+        # If the column passes financial keyword check, keep it immediately
+        if has_enough_financial_keywords:
+            logger.info("First column retained due to sufficient financial keywords.")
+            return False
+        
+        # Check if the first column contains mostly Roman numerals or numbers with or without empty values
+        roman_or_numeric_count = sum(first_column_values.apply(lambda x: is_roman_numeral(x) or x.isnumeric() or x.strip() == ""))
+        roman_or_numeric_ratio = roman_or_numeric_count / total_values if total_values > 0 else 0
+
+        if roman_or_numeric_ratio > 0.40:
+            logger.info("First column removed due to mostly Roman numerals or numeric values with or without empty values.")
+            return True
+
+        # 2️⃣ Pattern Check (Backup if no financial keywords)
+        valid_short_count = sum(first_column_values.apply(is_short_or_pattern))
+        short_value_ratio = valid_short_count / total_values if total_values > 0 else 0
+
+        # 3️⃣ Repeated Patterns
+        unique_values = first_column_values.unique()
+        repeated_pattern = len(unique_values) > 5 and all(is_short_or_pattern(v) for v in unique_values)
+
+        # 4️⃣ Numeric-Only Check
+        numeric_only_ratio = sum(value.isnumeric() for value in first_column_values) / total_values if total_values > 0 else 0
+
+        # 5️⃣ Fully Empty Check
+        is_fully_empty = first_column_values.isin(["", "nan", "none", "null"]).all()
+
+        logger.info(f"Short value ratio: {short_value_ratio:.2f}, "
+                    f"Numeric-only ratio: {numeric_only_ratio:.2f}, "
+                    f"Repeated pattern: {repeated_pattern}, "
+                    f"Fully empty: {is_fully_empty}")
+
+        # Final Removal Decision
+        remove_column = (
+            short_value_ratio > 0.85 or        # Short pattern dominant
+            numeric_only_ratio > 0.9 or        # Numeric only
+            repeated_pattern or                # Repeated pattern
+            is_fully_empty                     # Fully empty
+        )
+
+        logger.info(f"Final Decision to remove first column: {remove_column}")
+        return remove_column
+
+    except Exception as e:
+        logger.error(f"Error determining if first column should be removed: {str(e)}")
+        return False
+
 
 def extract_structured_rows(table):
     """Extracts structured rows from Azure Form Recognizer table cells."""
@@ -128,7 +211,6 @@ def clean_table(df_table):
 
     return df_table
 
-
 def handle_first_column_removal(df_table):
     """Handles removal of the first column and adjusts headers if needed."""
     first_column_name = df_table.columns[0]
@@ -137,15 +219,16 @@ def handle_first_column_removal(df_table):
     if should_remove_first_column(df_table):
         logger.info(f"Removing first column: {first_column_name} and shifting headers")
 
-        second_column_name = df_table.columns[1]
-        if second_column_name.strip() == "":
+        # Shift headers if the second column is blank (common in merged headers)
+        if df_table.columns[1].strip() == "":
             df_table.columns = [df_table.iloc[0, 0]] + df_table.columns[2:].tolist()
-            df_table = df_table[1:].reset_index(drop=True)
-
-        df_table = df_table.drop(columns=[first_column_name])
+            df_table = df_table.iloc[1:].reset_index(drop=True)
+        else:
+            df_table = df_table.drop(columns=[first_column_name])
 
     logger.info(f"Table Columns After First Column Removal: {list(df_table.columns)}")
     return df_table
+
 
 
 def save_to_csv(tables, output_folder, filename):
@@ -394,7 +477,6 @@ def extract_with_azure(
 ):
     logger.info(f"Starting extraction for {filename} with model {extraction_model}")
     chunk_size = int(os.getenv("AZURE_CHUNK_SIZE", 2))
-    user_file_path = f"{user_id}/{filename}"
     use_credit = False  # Initialize use_credit
 
     document_analysis_client = DocumentAnalysisClient(
@@ -503,14 +585,104 @@ def process_chunk(
     pages = ",".join(map(str, chunk))
     logger.info(f"Processing chunk for section {section}: {pages}")
 
-    images = convert_from_path(temp_pdf_path, first_page=min(chunk), last_page=max(chunk))
-    results = analyze_images(images, document_analysis_client, mapped_model)
+    # 1️⃣ Convert PDF pages to high-resolution images
+    logger.info("Converting PDF pages to high-resolution images (300 DPI)")
+    try:
+        images = convert_from_path(
+            temp_pdf_path, 
+            dpi=300, 
+            first_page=min(chunk), 
+            last_page=max(chunk)
+        )
+    except Exception as e:
+        logger.error(f"Error converting PDF pages to images: {e}")
+        return False
 
-    if results:
-        # If results are obtained, credit usage should be counted
-        use_credit = True
-    else:
-        use_credit = False
+    if not images:
+        logger.error("No pages converted to images. Aborting.")
+        return False
+
+    # 2️⃣ Create a searchable, single-page PDF from images
+    logger.info("Creating single-page searchable PDF from images")
+    pdf_writer = PdfWriter()
+
+    for img in images:
+        img_bytes = io.BytesIO()
+        # Convert image to grayscale for better OCR
+        img.convert("L").save(img_bytes, format="PNG")
+        img_bytes.seek(0)
+
+        # Convert image to PDF page using PyMuPDF
+        image_doc = fitz.open("png", img_bytes.read())
+        pdf_bytes = image_doc.convert_to_pdf()
+        image_pdf = fitz.open("pdf", pdf_bytes)
+
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+        for page_num in range(len(reader.pages)):
+            pdf_writer.add_page(reader.pages[page_num])
+
+    # Save the searchable PDF
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_image_pdf:
+        pdf_writer.write(temp_image_pdf)
+        searchable_pdf_path = temp_image_pdf.name
+        logger.info(f"Searchable PDF created: {searchable_pdf_path}")
+
+    # 3️⃣ Optimize the searchable PDF using qpdf
+    optimized_pdf_path = searchable_pdf_path.replace('.pdf', '_optimized.pdf')
+    logger.info("Optimizing searchable PDF using qpdf for Azure compatibility")
+
+    try:
+        subprocess.run(
+            ["qpdf", "--linearize", searchable_pdf_path, optimized_pdf_path],
+            check=True
+        )
+        logger.info(f"Optimized PDF created: {optimized_pdf_path}")
+    except subprocess.CalledProcessError as e:
+        logger.error(f"qpdf optimization failed: {e}")
+        optimized_pdf_path = searchable_pdf_path  # Use the original if qpdf fails
+
+    # 4️⃣ Read the optimized PDF bytes for Azure extraction
+    try:
+        with open(optimized_pdf_path, "rb") as f:
+            pdf_bytes = f.read()
+        logger.info(f"Final PDF ready for Azure extraction, size: {len(pdf_bytes)} bytes")
+    except Exception as e:
+        logger.error(f"Error reading optimized PDF: {e}")
+        return False
+
+    # 5️⃣ Send optimized PDF to Azure Form Recognizer
+    results = []
+    try:
+        logger.info(f"Sending PDF chunk to Azure Form Recognizer for analysis")
+        poller = document_analysis_client.begin_analyze_document(
+            model_id=mapped_model,
+            document=pdf_bytes
+        )
+        result = poller.result()
+        results = [result]
+        logger.info(f"Received analysis result for chunk: {chunk}")
+    except HttpResponseError as e:
+        logger.error(f"Error analyzing PDF chunk with Azure: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error sending data to Azure: {e}")
+
+    # 6️⃣ Process extraction results
+    use_credit = bool(results)
+
+    for result in results:
+        section_outputs = process_based_on_model(
+            result, filename, section, output_folder, progress_tracker, 
+            progress_file, pages_to_process, mapped_model
+        )
+        aggregate_section_outputs(section_outputs, section_data, section, outputs)
+
+    # 7️⃣ Clean up temporary files
+    for path in [searchable_pdf_path, optimized_pdf_path]:
+        if path and os.path.exists(path):
+            os.remove(path)
+            logger.info(f"Temporary file deleted: {path}")
+
+    return use_credit
 
     for result in results:
         section_outputs = process_based_on_model(
@@ -519,26 +691,6 @@ def process_chunk(
         aggregate_section_outputs(section_outputs, section_data, section, outputs)
 
     return use_credit
-
-
-def analyze_images(images, document_analysis_client, mapped_model):
-    def analyze_image(image):
-        bw_image = image.convert("L")
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_image_file:
-            bw_image.save(temp_image_file, format="PNG")
-            temp_image_file.seek(0)
-            image_bytes = temp_image_file.read()
-        try:
-            poller = document_analysis_client.begin_analyze_document(mapped_model, image_bytes)
-            result = poller.result()
-            return result
-        except HttpResponseError as e:
-            logger.error(f"Error analyzing image: {e}")
-            return None
-
-    with ThreadPoolExecutor() as executor:
-        results = list(executor.map(analyze_image, images))
-    return results
 
 
 def aggregate_section_outputs(section_outputs, section_data, section, outputs):
