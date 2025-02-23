@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     dos2unix \
     curl \
+    qpdf \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

@@ -86,11 +86,18 @@ def should_remove_first_column(df, financial_threshold=0.25):
 
         first_column_values = df[df.columns[0]].dropna().astype(str).str.strip()
         logger.info(f"First column values: {first_column_values.tolist()}")
-
         total_values = len(first_column_values)
         if total_values == 0:
             logger.warning("First column has no values. It will not be removed.")
             return False
+        # Check if the first and second columns have mostly equal values
+        second_column_values = df[df.columns[1]].dropna().astype(str).str.strip()
+        equal_values_count = sum(first_column_values == second_column_values)
+        equal_values_ratio = equal_values_count / total_values if total_values > 0 else 0
+
+        if equal_values_ratio > 0.85:
+            logger.info("First column removed due to mostly equal values with the second column.")
+            return True
 
         # 1️⃣ Priority Check: Financial Keyword Presence
         has_enough_financial_keywords = count_financial_keywords(first_column_values, threshold=financial_threshold)
@@ -197,7 +204,7 @@ def clean_table(df_table):
     logger.info(f"Table Shape After Removing Duplicates: {df_table.shape}")
 
     # Remove duplicate headers if the first row matches column names
-    if df_table.iloc[0].equals(df_table.columns):
+    if df_table.iloc[0].tolist() == df_table.columns.tolist():
         logger.info("Detected duplicate column headers in the first row. Removing...")
         df_table = df_table[1:].reset_index(drop=True)
 
@@ -210,6 +217,25 @@ def clean_table(df_table):
     logger.info(f"Final Processed Table Shape: {df_table.shape}")
 
     return df_table
+
+def remove_roman_numerals(df):
+    """
+    Removes leading Roman numerals from the first column of a DataFrame, ensuring that only valid 
+    numerals are removed while preserving regular text.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame with Roman numerals in the first column.
+
+    Returns:
+        pd.DataFrame: The updated DataFrame with Roman numerals removed.
+    """
+    roman_pattern = r'^\s*\b(M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3}))\b[\s.]*'
+
+    # Process only the first column
+    first_column = df.columns[0]
+    df[first_column] = df[first_column].astype(str).apply(lambda x: re.sub(roman_pattern, '', x).strip())
+
+    return df
 
 def handle_first_column_removal(df_table):
     """Handles removal of the first column and adjusts headers if needed."""
@@ -225,7 +251,7 @@ def handle_first_column_removal(df_table):
             df_table = df_table.iloc[1:].reset_index(drop=True)
         else:
             df_table = df_table.drop(columns=[first_column_name])
-
+    df_table = remove_roman_numerals(df_table)
     logger.info(f"Table Columns After First Column Removal: {list(df_table.columns)}")
     return df_table
 
@@ -251,11 +277,86 @@ def save_to_text(tables, output_folder, filename):
     """Saves extracted tables to a text file."""
     text_path = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}_tables.txt")
     with open(text_path, "w", encoding="utf-8") as text_file:
-        text_data = "\n\n".join([table.to_string(index=False, header=False) for table in tables])
+        text_data = "\n\n".join([table.to_string(index=False, header=True) for table in tables])
         text_file.write(text_data if text_data else "No data extracted\n")
 
     logger.info(f"Text file saved: {text_path}")
     return text_path, text_data
+
+def should_remove_first_row(df):
+    """Determines whether the first row should be removed based on year values in column headers."""
+    try:
+        # Check if any column header contains a year value
+        year_pattern = re.compile(r'^(19|20)\d{2}$')
+        has_year_header = any(year_pattern.match(str(header).strip()) for header in df.columns)
+
+        if not has_year_header:
+            logger.info("First row removed due to absence of year values in column headers.")
+            return True
+
+        logger.info("First row retained due to presence of year values in column headers.")
+        return False
+
+    except Exception as e:
+        logger.error(f"Error determining if first row should be removed: {str(e)}")
+        return False
+
+def handle_wrong_header_removal(df_table):
+    if should_remove_first_row(df_table):
+        df_table = df_table[1:].reset_index(drop=True)
+    # Remove the first row if it is a duplicate of the header
+    # log first row and header
+    logger.info(f"First row: {df_table.iloc[0].tolist()}")
+    logger.info(f"Header: {df_table.columns.tolist()}")
+    if df_table.iloc[0].tolist() == df_table.columns.tolist():
+        logger.info("Detected duplicate row matching the header. Removing the first row.")
+        df_table = df_table[1:].reset_index(drop=True)
+        logger.info(f"First row removed. New first row: {df_table.iloc[0].tolist()}")
+    return df_table
+
+def extract_year_columns(df):
+    """Extract columns that contain year values."""
+    year_columns = {}
+    for col in df.columns:
+        match = re.search(r'(\b(19|20|21)\d{2}\b)', col)  # Match years from 1900 to 2199
+        if match:
+            year_columns[col] = int(match.group(1))
+    return year_columns
+
+def find_most_recent_year(year_columns):
+    """Find the most recent year from the extracted year columns."""
+    return max(year_columns.values()) if year_columns else None
+
+def identify_columns_to_remove(df, year_columns, most_recent_year):
+    """Identify columns to remove based on year values and other criteria."""
+    columns_to_remove = []
+    for i, col in enumerate(df.columns):
+        if col in year_columns and year_columns[col] == most_recent_year:
+            # Remove if the column contains the most recent year
+            columns_to_remove.append(col)
+        elif not re.search(r'(\b(19|20|21)\d{2}\b)', col) and i != 0:
+            # Remove columns that don't have a year (except the first column)
+            columns_to_remove.append(col)
+    return columns_to_remove
+
+def handle_unnecessary_column_removal(df):
+    """Handle the removal of unnecessary columns from the DataFrame."""
+    year_columns = extract_year_columns(df)
+    most_recent_year = find_most_recent_year(year_columns)
+    columns_to_remove = identify_columns_to_remove(df, year_columns, most_recent_year)
+    df = df.drop(columns=columns_to_remove, errors='ignore')
+    return df
+
+def convert_first_column_to_particulars(df):
+    """Convert the first column header to 'Particulars' if it is not already set."""
+    if df.columns[0].strip().lower() != 'particulars':
+        df.columns = ['Particulars'] + df.columns[1:].tolist()
+    return df
+
+def remove_column_with_no_heading(df):
+    """Remove columns that have no heading or only whitespace characters."""
+    df = df.loc[:, df.columns.str.strip() != ""]
+    return df
 
 def process_table(table, total_pages, table_idx, progress_tracker, progress_file):
     """Processes an individual table extracted from Azure Form Recognizer."""
@@ -274,11 +375,18 @@ def process_table(table, total_pages, table_idx, progress_tracker, progress_file
         df_table.columns = df_table.iloc[0]
         df_table = df_table[1:].reset_index(drop=True)
     logger.info(f"Table shape after setting headers: {df_table.shape}")
-    logger.debug(f"Table data after setting headers: {df_table}")
+    logger.info(f"Table data after setting headers: {df_table}")
 
     df_table = handle_first_column_removal(df_table)
-    logger.info(f"Table shape after handling first column removal: {df_table.shape}")
-    logger.debug(f"Table data after handling first column removal: {df_table}")
+    df_table = handle_wrong_header_removal(df_table)
+    df_table = handle_unnecessary_column_removal(df_table)
+    df_table = handle_wrong_header_removal(df_table)
+    # Remove the first row if it is a duplicate of the header
+    df_table = convert_first_column_to_particulars(df_table)
+    df_table = remove_column_with_no_heading(df_table)
+
+    logger.info(f"Table shape after processing: {df_table.shape}")
+    logger.debug(f"Table content after processing: {df_table}")
 
     df_table = clean_table(df_table)
     logger.info(f"Final cleaned table shape: {df_table.shape}")
@@ -333,6 +441,7 @@ def process_table_extraction(result, filename, output_folder, progress_tracker, 
         'text': text_path,
         'raw_tables': tables if tables else [pd.DataFrame(["No Data Extracted"])],
         'original_lines': text_data if text_data else "",
+        'text_data': text_data if text_data else ""
     }
 
     return outputs
@@ -577,7 +686,6 @@ def process_full_document(
             use_credit = True
     return use_credit
 
-
 def process_chunk(
     chunk, temp_pdf_path, document_analysis_client, mapped_model, filename, section, 
     output_folder, progress_tracker, progress_file, pages_to_process, section_data, outputs
@@ -700,7 +808,6 @@ def aggregate_section_outputs(section_outputs, section_data, section, outputs):
     if "json" in section_outputs:
         section_data.setdefault(section, {}).update(section_outputs["json"])
         outputs['json'] = section_outputs["json"]
-
     outputs["text_data"] += f"\n{section_outputs.get('text_data', '')}"
     outputs["original_lines"] += f"\n{section_outputs.get('original_lines', '')}"
 

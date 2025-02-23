@@ -25,6 +25,7 @@ numpy==1.21.6
 openpyxl==3.0.9
 
 # PDF and document processing
+PyMuPDF==1.21.1
 PyPDF2==3.0.1
 
 # Other utilities

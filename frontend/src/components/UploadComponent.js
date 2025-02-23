@@ -25,7 +25,7 @@ const UploadComponent = ({ onUploadSuccess }) => {
     
         setUploading(true);
         let uploadedFileNames = [];
-        const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+        const CHUNK_SIZE = 5 * 1024 * 1024; // 10MB chunks
     
         for (let file of selectedFiles) {
             let start = 0;
