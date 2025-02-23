@@ -16,6 +16,7 @@ const RegisterComponent = ({ setToken, userRole }) => {
     const [password, setPassword] = useState('');
     const [companyName, setCompanyName] = useState('');
     const [message, setMessage] = useState({ text: '', type: '' });
+    // eslint-disable-next-line no-unused-vars
     const [isSpecialAdmin, setIsSpecialAdmin] = useState(userRole === 'special_admin');
     const [isUsernameValid, setIsUsernameValid] = useState(false);
     const [checkingUsername, setCheckingUsername] = useState(false);

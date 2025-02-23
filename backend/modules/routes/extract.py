@@ -15,6 +15,8 @@ from modules.services.upload_service import upload_files
 from tempfile import NamedTemporaryFile
 from io import BytesIO
 import copy
+import fitz  # PyMuPDF
+import tempfile
 import os
 logger = setup_logger(__name__)
 
@@ -84,8 +86,7 @@ def register_extract_routes(app):
 
     def create_small_pdf_with_config(file_paths, page_config, user_id, azure_blob_service):
         """
-        Updates the content of the files in file_paths based on the page configuration.
-        The modified files overwrite the originals and are uploaded to Azure Blob Storage.
+        Creates smaller PDFs based on page configurations and uploads them to Azure Blob Storage.
 
         Args:
             file_paths (dict): Dictionary where keys are file names and values are input PDF file paths.
@@ -95,7 +96,7 @@ def register_extract_routes(app):
 
         Returns:
             tuple: (file_paths, updated_page_config)
-                - file_paths: The same dictionary passed as input, ensuring no changes.
+                - file_paths: The same dictionary passed as input.
                 - updated_page_config: Updated page configuration reflecting new page numbers and preserving other attributes.
         """
         updated_page_config = {}
@@ -104,8 +105,8 @@ def register_extract_routes(app):
             for file_name, file_path in file_paths.items():
                 if file_name in page_config:
                     logger.info(f"Processing file: {file_path}")
-                    pdf_reader = PdfReader(file_path)
-                    pdf_writer = PdfWriter()
+                    pdf_document = fitz.open(file_path)
+                    new_pdf = fitz.open()
 
                     config = page_config[file_name]
                     new_page_config = {}
@@ -115,47 +116,66 @@ def register_extract_routes(app):
                     for section, details in config.items():
                         page_range = details['pageRange']
                         ranges = parse_page_ranges(page_range)
-                        
-                        page_numbers = [int(p) - 1 for p in ranges]
 
+                        logger.info(f"Page ranges for {section}: {ranges}")
                         new_page_numbers = []
-                        for page_num in page_numbers:
-                            if 0 <= page_num < len(pdf_reader.pages):
-                                pdf_writer.add_page(pdf_reader.pages[page_num])
+
+                        for page_num in ranges:
+                            page_index = int(page_num) - 1
+                            if 0 <= page_index < len(pdf_document):
+                                new_pdf.insert_pdf(pdf_document, from_page=page_index, to_page=page_index)
                                 new_page_numbers.append(current_page_number)
                                 current_page_number += 1
                             else:
-                                logger.warning(f"Page {page_num + 1} out of range for {file_name}")
+                                logger.warning(f"Page {page_num} out of range for {file_name}")
 
                         if new_page_numbers:
                             updated_section = details.copy()  # Copy all existing keys in section
                             updated_section['pageRange'] = ",".join(map(str, new_page_numbers))
                             new_page_config[section] = updated_section
                         else:
-                            logger.warning(f"No valid pages for section {section} in file {file_name}. Preserving original config.")
+                            logger.warning(
+                                f"No valid pages for section {section} in file {file_name}. "
+                                "Preserving original config."
+                            )
                             new_page_config[section] = details  # Preserve original config if no pages are valid
 
-                    # Overwrite the original file with the modified PDF
-                    with open(file_path, "wb") as output_file:
-                        pdf_writer.write(output_file)
+                    # Save the new PDF to a temporary file
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_output_file:
+                        new_pdf.save(temp_output_file.name)
+                        modified_file_path = temp_output_file.name
+                        logger.info(f"Modified PDF created at: {modified_file_path}")
+
+                    # Close documents
+                    pdf_document.close()
+                    new_pdf.close()
+
+                    # Upload the modified file to Azure Blob Storage
+                    logger.info(f"Uploading modified file {file_name} for user {user_id} to Azure.")
+                    azure_blob_service.upload_file(
+                        user_id=user_id,
+                        local_file_path=modified_file_path,
+                        folder_type="user_upload",
+                        destination_filename=file_name
+                    )
 
                     # Update the page configuration
                     updated_page_config[file_name] = new_page_config
 
-                    # Upload the modified file to Azure Blob Storage
-                    logger.info(f"Uploading modified file {file_path} for user {user_id}.")
-                    azure_blob_service.upload_file(
-                        user_id=user_id,
-                        local_file_path=file_path,
-                        folder_type="user_upload",  # Adjust folder type as needed
-                        destination_filename=file_name
-                    )
+                    import shutil
+
+                    # Replace the original file with the modified one, handling cross-device moves
+                    shutil.move(modified_file_path, file_path)
+                    logger.info(f"Replaced original file with modified version: {file_path}")
+
+                    logger.info(f"Replaced original file with modified version: {file_path}")
 
             return file_paths, updated_page_config
 
         except Exception as e:
-            logger.error(f"Error in processing files: {str(e)}")
-            raise
+            logger.error(f"Error processing files: {str(e)}")
+            raise Exception("Error processing files. Please try again later.")
+
 
 
     def get_excel_files_to_combine(user_folder, filenames, page_config):
@@ -252,6 +272,7 @@ def register_extract_routes(app):
     def initialize_extraction(data, user_id):
         logger.info(f"Initializing extraction for user {user_id}")
         page_config = data.get("page_config", {})
+        logger.info(f"Page Config: {page_config}")
         filenames = data["filenames"]
         extraction_model = data.get('extraction_model', 'NIRA AI - Printed Text (PB)').strip()
 
@@ -394,18 +415,24 @@ def register_extract_routes(app):
 
     # Step 6: Deduct Credits for Successful Pages
     def deduct_credits_for_successful_pages(successful_results, file_page_counts, page_config, user_id):
+        logger.info("Starting credit deduction process.")
         successful_pages = 0
 
         for result in successful_results:
             filename = result['filename']
+            logger.info(f"Processing file: {filename}")
             if filename in file_page_counts:
                 pages_to_process = calculate_file_pages_to_process(page_config.get(filename, None), file_page_counts[filename])
                 successful_pages += pages_to_process
+            else:
+                logger.warning(f"File {filename} not found in file_page_counts.")
 
+        logger.info(f"Total successful pages to deduct credits for: {successful_pages}")
         if successful_pages > 0:
             reduce_credits(user_id, successful_pages)
             logger.info(f"Deducted {successful_pages} credits for user {user_id}.")
         else:
+            logger.error("Extraction failed due to page config error.")
             raise ValueError("Extraction failed due to page config error.")
 
     def create_or_get_user_folder(user_id):

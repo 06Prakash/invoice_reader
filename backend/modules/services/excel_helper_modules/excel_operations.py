@@ -21,7 +21,9 @@ def save_sheet(writer, df, sheet_name, config):
         logger.warning(f"Skipping empty DataFrame for sheet: {safe_sheet_name}")
         return
     try:
-        df.to_excel(writer, sheet_name=safe_sheet_name, index=False, header=False)
+        # Convert headers to uppercase
+        df.columns = [col.upper() for col in df.columns]
+        df.to_excel(writer, sheet_name=safe_sheet_name, index=False, header=True)
         beautify_excel(writer, safe_sheet_name)  # Beautify the sheet
         if config.get("gridLinesRemoval", False) and safe_sheet_name in writer.sheets:
             remove_gridlines(writer, safe_sheet_name)

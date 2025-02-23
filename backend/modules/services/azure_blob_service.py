@@ -5,8 +5,9 @@ import os
 from datetime import datetime, timedelta
 from modules.logging_util import setup_logger
 import tempfile
-from PyPDF2 import PdfReader
+import fitz  # PyMuPDF
 import re
+import tempfile
 
 logger = setup_logger(__name__)
 
@@ -220,11 +221,7 @@ class AzureBlobService:
 
     def get_total_pages_from_azure(self, blob_name):
         """
-        Calculates the total number of pages in a PDF stored in Azure Blob Storage.
-        :param connection_string: Azure Storage connection string.
-        :param container_name: The name of the Azure Blob Storage container.
-        :param blob_name: The name of the blob (PDF file).
-        :return: Total number of pages in the PDF.
+        Calculates the total number of pages in a PDF stored in Azure Blob Storage using PyMuPDF.
         """
         blob_client = self.container_client.get_blob_client(blob_name)
 
@@ -235,10 +232,10 @@ class AzureBlobService:
                 temp_file.write(blob_data.readall())
                 temp_file_path = temp_file.name
 
-            # Use PyPDF2 to calculate the total number of pages
-            reader = PdfReader(temp_file_path)
-            total_pages = len(reader.pages)
-            logger.info(f"Total pages in {blob_name}: {total_pages}")
+            # Use PyMuPDF to calculate the total number of pages
+            with fitz.open(temp_file_path) as pdf_document:
+                total_pages = pdf_document.page_count
+                logger.info(f"Total pages in {blob_name}: {total_pages}")
         except Exception as e:
             logger.error(f"Error calculating total pages for {blob_name}: {e}")
             raise

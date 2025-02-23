@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useHistory, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import './styles/NavBar.css';
@@ -12,7 +12,7 @@ const NavBar = ({ token, setToken, userRole, setUserRole }) => {
     const currentPath = location.pathname;
     const dropdownRef = useRef(null);
     const username = localStorage.getItem('username');
-    const excludedPaths = ['/login', '/register', '/forgot-password'];
+    const excludedPaths = useMemo(() => ['/login', '/register', '/forgot-password'], []);
 
     const fetchCredits = async () => {
         try {
@@ -90,7 +90,7 @@ const NavBar = ({ token, setToken, userRole, setUserRole }) => {
 
             return () => clearInterval(interval);
         }
-    }, [token, currentPath, setUserRole]);
+    }, [token, currentPath, setUserRole, excludedPaths]);
 
     return (
         <nav className="navbar">

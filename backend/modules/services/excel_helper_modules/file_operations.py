@@ -62,7 +62,7 @@ def save_sections_to_excel_and_csv(section_data, filename, output_folder, config
     config = config or {}
     base_filename = os.path.splitext(filename)[0]
     excel_path = os.path.join(output_folder, f"{base_filename}_sections_processed.xlsx")
-    combined_csv_path = os.path.join(output_folder, f"{base_filename}_combined.csv")
+    combined_csv_path = os.path.join(output_folder, f"{base_filename}_tables.csv")
     logger.info(f"====section_data====={section_data}")
 
     try:
@@ -72,10 +72,14 @@ def save_sections_to_excel_and_csv(section_data, filename, output_folder, config
         with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
             for section, content in section_data.items():
                 table_content = content.get("raw_tables", None)
+                logger.info(f"Table content for section '{section}': {table_content}")
                 if table_content == None:
                     table_content = content
                 section_dfs = process_and_save_section(table_content, section, writer, config)
                 combined_dataframes.extend(section_dfs)
+                # Log the combined DataFrames for each section
+                for idx, df in enumerate(section_dfs):
+                    logger.info(f"Combined DataFrame {idx + 1} for section {section}:\n{df}")
                 has_data = True
 
         if not has_data:
@@ -85,7 +89,9 @@ def save_sections_to_excel_and_csv(section_data, filename, output_folder, config
         # Combine all DataFrames into a single CSV
         if combined_dataframes:
             combined_df = pd.concat(combined_dataframes, ignore_index=True)
-            combined_df.to_csv(combined_csv_path, index=False)
+            logger.info(f"Combined DataFrame shape: {combined_df.shape}")
+            logger.info(f"Combined DataFrame content:\n{combined_df}")
+            combined_df.to_csv(combined_csv_path, index=False, header=True)
             logger.info(f"Saved combined CSV at {combined_csv_path}")
 
         logger.info(f"Processed section data saved to Excel at {excel_path}")
@@ -122,8 +128,7 @@ def drop_nan_text_columns(df):
 
 def process_and_save_section(content, section, writer, config):
     """
-    Processes a single section and saves its data to both Excel and returns the DataFrame for CSV combination.
-    Consolidates rows with the same value in the first column, maintains their original order from the extracted PDF.
+    Processes a single section and saves its data to Excel by stacking tables vertically without merging columns.
 
     Args:
         content (any): Section content (list, dict, or str).
@@ -140,54 +145,98 @@ def process_and_save_section(content, section, writer, config):
     grid_lines_removal = section_config.get('gridLinesRemoval', False)
     rows_to_remove = section_config.get('rowsToRemove', [])
 
-    logger.info(f"Processing section: {section} with config: {section_config}, Content Type: {type(content)}")
+    logger.info(f"Processing section: {section}")
+    logger.info(f"Current Content is: {content}")
+
+    # List to accumulate raw table data without aligning columns
+    raw_tables = []
 
     if isinstance(content, list):  # Process tables
-        combined_df = pd.DataFrame()
         for idx, table in enumerate(content):
             if isinstance(table, pd.DataFrame) and not table.empty:
                 logger.info(f"Processing table {idx + 1} for section {section}, shape: {table.shape}")
-                
-                # Handle duplicate rows in the first column
-                first_column_name = table.columns[0]
-                table = add_unique_suffix_to_duplicates(table, first_column_name)
 
-                # Consolidate related rows while preserving order
+                # Handle duplicate rows and consolidate rows
+                first_column_name = table.columns[0]
+                logger.info(f"Column headers for table {idx + 1} in section {section}: {table.columns.tolist()}")
+                table = add_unique_suffix_to_duplicates(table, first_column_name)
                 table = consolidate_related_rows_with_order(table)
 
-                # Concatenate tables
-                combined_df = pd.concat([combined_df, table], ignore_index=True)
+                # Convert table to raw data as lists instead of NumPy arrays
+                raw_tables.append(table.values.tolist())
+
+                # Add a separator row of dashes (to match table width)
+                separator = [["---"] * table.shape[1]]
+                raw_tables.append(separator)
+
+                logger.info(f"Raw tables for section {section} after processing table {idx + 1}:\n{raw_tables}")
+
             else:
                 logger.warning(f"Skipping empty or invalid table for section: {section}")
 
-        if not combined_df.empty:
-            # Apply transformations (row removal, column removal, grid line removal)
+        if raw_tables:
+            # Extract column headers from the first valid table
+            first_valid_table = next((tbl for tbl in content if isinstance(tbl, pd.DataFrame) and not tbl.empty), None)
+            if first_valid_table is not None:
+                column_headers = [col for col in first_valid_table.columns.tolist() if col != '_temp_lowercase_key']
+            else:
+                column_headers = None
+
+            # Flatten raw_tables into a single list of lists
+            combined_data = [row for table in raw_tables for row in table]
+            logger.info(f"I am here with combined data {combined_data}")
+            logger.info(f"Collected column headers for section {section}: {column_headers}")
+
+            # Ensure that combined_data has consistent rows before creating DataFrame
+            if all(isinstance(row, list) and len(row) == len(column_headers) for row in combined_data):
+                combined_df = pd.DataFrame(combined_data, columns=column_headers)
+            else:
+                logger.error(f"Invalid combined_data format for section {section}: {combined_data}")
+                # Determine the number of columns in combined_data
+                max_columns = max(len(row) for row in combined_data)
+                
+                # Generate column headers if not available
+                if column_headers is None:
+                    column_headers = [f"Column_{i+1}" for i in range(max_columns)]
+                else:
+                    # Extend column headers if they are fewer than the max columns
+                    column_headers.extend(
+                        [f"repeated_sanitized_row_{i+1}" for i in range(max_columns - len(column_headers))]
+                    )
+
+                combined_df = pd.DataFrame(combined_data, columns=column_headers)
+
+
+            # Apply transformations
             combined_df = process_table_data(
                 combined_df,
-                {"columnsToRemove": columns_to_remove, "gridLinesRemoval": grid_lines_removal, "rowsToRemove": rows_to_remove}
+                {
+                    "columnsToRemove": columns_to_remove,
+                    "gridLinesRemoval": grid_lines_removal,
+                    "rowsToRemove": rows_to_remove,
+                }
             )
-
-            # Remove columns with all NaN or empty values
+            logger.info(f"Combined DataFrame for section {section} shape: {combined_df.shape}")
+            logger.info(f"Combined DataFrame content after processing:\n{combined_df}")
             combined_df = drop_nan_text_columns(combined_df)
 
             # Save the sheet
             safe_sheet_name = sanitize_sheet_name(section)
-            logger.info(f"Writing combined sheet for section {section}, shape: {combined_df.shape}")
             save_sheet(
                 writer,
                 combined_df,
                 safe_sheet_name,
                 {"gridLinesRemoval": grid_lines_removal}
             )
+
             combined_df["Section"] = section
             section_dataframes.append(combined_df)
         else:
             logger.warning(f"No valid tables to combine for section: {section}")
+
     elif isinstance(content, dict):  # Process field-based data
-        logger.info(f"Dictionary content: {content}")
         df = pd.DataFrame(content.items(), columns=["Field", "Value"])
         if not df.empty:
-            # Apply transformations before saving
             df = process_table_data(
                 df,
                 {"columnsToRemove": columns_to_remove, "gridLinesRemoval": grid_lines_removal}
@@ -195,12 +244,8 @@ def process_and_save_section(content, section, writer, config):
             df = drop_nan_text_columns(df)
 
             safe_sheet_name = sanitize_sheet_name(section)
-            save_sheet(
-                writer,
-                df,
-                safe_sheet_name,
-                {"gridLinesRemoval": grid_lines_removal}
-            )
+            save_sheet(writer, df, safe_sheet_name, {"gridLinesRemoval": grid_lines_removal})
+
             df["Section"] = section
             section_dataframes.append(df)
         else:
@@ -210,7 +255,6 @@ def process_and_save_section(content, section, writer, config):
         rows = [row.split() for row in content.split("\n") if row.strip()]
         df = pd.DataFrame(rows)
         if not df.empty:
-            # Apply transformations before saving
             df = process_table_data(
                 df,
                 {"columnsToRemove": columns_to_remove, "gridLinesRemoval": grid_lines_removal}
@@ -218,12 +262,8 @@ def process_and_save_section(content, section, writer, config):
             df = drop_nan_text_columns(df)
 
             safe_sheet_name = sanitize_sheet_name(section)
-            save_sheet(
-                writer,
-                df,
-                safe_sheet_name,
-                {"gridLinesRemoval": grid_lines_removal}
-            )
+            save_sheet(writer, df, safe_sheet_name, {"gridLinesRemoval": grid_lines_removal})
+
             df["Section"] = section
             section_dataframes.append(df)
         else:
@@ -233,3 +273,4 @@ def process_and_save_section(content, section, writer, config):
         logger.warning(f"Unsupported content type for section: {section}. Skipping.")
 
     return section_dataframes
+

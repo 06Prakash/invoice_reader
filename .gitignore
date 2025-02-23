@@ -28,6 +28,5 @@ yarn-error.log*
 
 **/*.pyc
 *.pdf
-*.log
 /uploads
-*.txt
+/drafts
