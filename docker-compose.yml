@@ -10,7 +10,7 @@ services:
     ports:
       - "5001:5000"
     volumes:
-      - ./backend:/app
+      - ./backend:/app  # ✅ Corrected mount path
       - ./migrations:/app/migrations
       - ./logs:/app/logs
       - ./resources:/app/resources
@@ -20,9 +20,6 @@ services:
     networks:
       - shared_network
     command: ["/bin/sh", "-c", "flask db upgrade && flask run --host=0.0.0.0 --port=5000 --reload"]
-    # depends_on:
-    #   redis:
-    #     condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health/check"]
       interval: 30s
@@ -50,19 +47,19 @@ services:
       backend:
         condition: service_healthy
 
-  # redis:
-  #   image: "redis:alpine"
-  #   container_name: invoice_reader_redis
-  #   restart: always
-  #   ports:
-  #     - "6379:6379"
-  #   networks:
-  #     - shared_network
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 10s
-  #     timeout: 5s
-      # retries: 3
+  redis:
+    image: "redis:alpine"
+    container_name: invoice_reader_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - shared_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   celery_worker:
     build:
@@ -70,15 +67,22 @@ services:
       dockerfile: Dockerfile
       target: dev
     container_name: invoice_reader_celery
-    command: ["celery", "-A", "modules.services.background_service.upload_worker", "worker", "--loglevel=info"]
+    restart: always
+    command: ["/bin/sh", "-c", "sleep 10 && celery -A modules.services.background_service.upload_worker worker --loglevel=info"]
     depends_on:
-      # redis:
-      #   condition: service_healthy
+      redis:
+        condition: service_healthy
       backend:
         condition: service_healthy
     environment:
+      - FLASK_APP=app:create_app
+      - PYTHONPATH=/app
       - CELERY_BROKER_URL=${CELERY_BROKER_URL}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - KEY_VAULT_URL=${KEY_VAULT_URL}  # ✅ Ensure this is set
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}  # ✅ Ensure this is set
+      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}  # ✅ Ensure this is set
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}  # ✅ Ensure this is set
     volumes:
       - ./backend:/app
     networks:

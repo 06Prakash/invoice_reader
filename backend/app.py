@@ -24,6 +24,7 @@ def import_all_models(package_name):
             importlib.import_module(module_name)
 
 def create_app():
+    """Flask Application Factory Pattern"""
     app = Flask(__name__, static_folder='static', static_url_path='')
     CORS(app)
 
@@ -55,11 +56,6 @@ def create_app():
     # Register routes
     register_routes(app)
 
-    # # Health Check Route for Docker
-    # @app.route('/health', methods=['GET'])
-    # def health_check():
-    #     return jsonify({'status': 'healthy'}), 200
-
     # Static file serving for frontend (React)
     @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
@@ -69,14 +65,18 @@ def create_app():
         else:
             return send_from_directory(app.static_folder, 'index.html')
 
-    return app
+    return app  # ✅ Return the app instance
 
+# ✅ Create a global Flask app instance
 app = create_app()
+
+# ✅ Lazy import Celery after app creation to avoid circular imports
+from modules.services.background_service import upload_worker
 
 if __name__ == "__main__":
     cleanup_old_logs()
     
-    # Set port dynamicall
+    # Set port dynamically
     port = 5000 if os.getenv("FLASK_ENV", "production") == "development" else 80
 
     app.run(host="0.0.0.0", port=port, debug=app.config['DEBUG'])

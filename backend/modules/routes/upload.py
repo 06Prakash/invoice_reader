@@ -1,9 +1,10 @@
-from flask import request, jsonify
+from flask import request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from modules.services.upload_service import upload_files
 from modules.services.background_service.upload_worker import process_upload  # Celery Task
 
 def register_upload_routes(app):
+
     @app.route('/upload', methods=['POST'])
     @jwt_required()
     def upload_file():
@@ -34,5 +35,11 @@ def register_upload_routes(app):
         chunk_index = int(request.form['chunkIndex'])
         total_chunks = int(request.form['totalChunks'])
 
+        # ✅ Ensure each chunk writes safely (Fixing Race Conditions)
         response, status = upload_files(user_id, [chunk], filename, chunk_index, total_chunks)
+
+        # ✅ When all chunks are received, invoke Celery to process the file in the background
+        if chunk_index + 1 == total_chunks:
+            process_upload.delay(user_id, [filename])  # Celery Task starts now
+
         return jsonify(response), status
