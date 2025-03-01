@@ -343,6 +343,12 @@ def handle_unnecessary_column_removal(df):
     """Handle the removal of unnecessary columns from the DataFrame."""
     year_columns = extract_year_columns(df)
     most_recent_year = find_most_recent_year(year_columns)
+    
+    # Check if the most recent year is the past year
+    ref_year = pd.Timestamp.now().year - 1
+    if most_recent_year == ref_year:
+        logger.info(f"Most recent year is the current year ({ref_year}). No columns will be removed.")
+        most_recent_year = ""
     columns_to_remove = identify_columns_to_remove(df, year_columns, most_recent_year)
     df = df.drop(columns=columns_to_remove, errors='ignore')
     return df
