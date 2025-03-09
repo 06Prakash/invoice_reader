@@ -798,15 +798,6 @@ def process_chunk(
 
     return use_credit
 
-    for result in results:
-        section_outputs = process_based_on_model(
-            result, filename, section, output_folder, progress_tracker, progress_file, pages_to_process, mapped_model
-        )
-        aggregate_section_outputs(section_outputs, section_data, section, outputs)
-
-    return use_credit
-
-
 def aggregate_section_outputs(section_outputs, section_data, section, outputs):
     if "raw_tables" in section_outputs:
         section_data.setdefault(section, {}).setdefault("raw_tables", []).extend(section_outputs["raw_tables"])

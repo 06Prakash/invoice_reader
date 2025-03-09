@@ -14,7 +14,7 @@ import CreditUpdateComponent from './components/CreditUpdateComponent';
 import CompanyRegisterComponent from './components/CompanyRegisterComponent';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
-
+import AlertTitle from '@mui/material/node/AlertTitle';
 import './App.css';
 
 const App = () => {
@@ -33,6 +33,7 @@ const App = () => {
     const [userRole, setUserRole] = useState(
         localStorage.getItem('special_admin') === 'true' ? 'special_admin' : 'user'
     );
+    const [failedFiles, setFailedFiles] = useState([]);
     const MAX_FILES = 5;
 
     // Update Axios headers on token change
@@ -175,6 +176,10 @@ const App = () => {
                 console.log('Data extracted successfully:', response.data);
                 setExtractedData(response.data);
                 setOriginalLines(response.data.lines_data || {});
+                // Check for failed files in response
+                if (response.data.failed_files && response.data.failed_files.length > 0) {
+                    setFailedFiles(response.data.failed_files);
+                } 
                 showToast('Data extracted successfully.', 'success');
                 setMessage('Data extracted successfully.');
             })
@@ -272,6 +277,17 @@ const App = () => {
                                     </div>
                                     {message && <p>{message}</p>}
                                     {loading && ( <LinearProgress variant="determinate" value={progress}/> )}
+
+                                    {Object.keys(failedFiles).length > 0 && (
+                                        <div className="error-container">
+                                            <Alert severity="error">
+                                                <AlertTitle>Extraction Failed for Some Files</AlertTitle>
+                                                {Object.entries(failedFiles).map(([file, error]) => (
+                                                    <div key={file}><strong>{file}:</strong> {error}</div>
+                                                ))}
+                                            </Alert>
+                                        </div>
+                                    )}
                                     {extractedData && (
                                         <DataReview extractedData={extractedData} originalLines={originalLines} token={token} />
                                     )}

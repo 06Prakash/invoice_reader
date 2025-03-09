@@ -33,33 +33,33 @@ def register_extract_routes(app):
         user_id = get_jwt_identity()
 
         # Step 1: Validate Input and Initialize
-        azure_blob_service, progress_tracker, page_config, filenames, extraction_model, upload_folder, azure_endpoint, azure_key, progress_file = initialize_extraction(data, user_id)
+        azure_blob_service, progress_tracker, page_config, filenames, extraction_model, upload_folder, azure_endpoint, azure_key, progress_file, error_response, status_code = initialize_extraction(data, user_id)
+        if error_response is not None:
+            return error_response, status_code
         saved_config = copy.deepcopy(page_config)
 
         # Step 2: Download Files from Azure
         file_paths, local_file_paths = download_files_from_azure(filenames, azure_blob_service, user_id, upload_folder)
 
-        # step 3: Creating new pdfs with the provided page configs alone.
+        # Step 3: Creating new PDFs with the provided page configs alone.
         logger.info(f"file_paths: {file_paths}")
         file_paths, page_config = create_small_pdf_with_config(file_paths, page_config, user_id, azure_blob_service)
-        logger.info(f"file_paths: {file_paths}")
-        logger.info(f"updated page_config: {page_config}")
+        logger.info(f"Updated file_paths: {file_paths}")
         saved_config = copy.deepcopy(page_config)
 
-        # Step 3: Calculate Pages to Process
+        # Step 4: Calculate Pages to Process
         total_pages, pages_to_process = calculate_pages_and_validate_credits(file_paths, page_config, progress_tracker, user_id, upload_folder)
 
-        # Step 4: Perform Extraction
-        results, file_page_counts = perform_extraction_with_error_handling(
+        # Step 5: Perform Extraction
+        results, file_page_counts, failed_files = perform_extraction_with_error_handling(
             filenames, file_paths, user_id, upload_folder, extraction_model,
             azure_endpoint, azure_key, azure_blob_service, progress_tracker, page_config, pages_to_process
         )
 
-        # Retrieve Excel files to combine
+        # Step 6: Retrieve and Combine Excel Files
         excel_files_to_combine = get_excel_files_to_combine(upload_folder, filenames, saved_config)
         logger.info(f"Excel files to combine: {excel_files_to_combine}")
         consolidated_file_path = None
-        # Perform combining logic (if needed)
         if excel_files_to_combine:
             consolidated_file_path = os.path.join(upload_folder, f"{filenames[0].split('.')[0]}_Combined_Sections.xlsx")
             consolidate_excel_sheets(excel_files_to_combine, consolidated_file_path, saved_config)
@@ -69,18 +69,20 @@ def register_extract_routes(app):
                 logger.info(f"Uploaded consolidated file to Azure: {uploaded_files}")
             except Exception as e:
                 logger.error(f"Failed to upload consolidated file to Azure: {e}")
-            
 
-        # Step 5: Upload Results to Azure
-        response, successful_results = upload_results_to_azure(results, file_page_counts, page_config, azure_blob_service, user_id, consolidated_file_path)
+        # Step 7: Upload Results to Azure
+        response, successful_results, failed_results = upload_results_to_azure(results, file_page_counts, page_config, azure_blob_service, user_id, consolidated_file_path)
 
-        # Step 6: Deduct Credits for Successful Pages
+        # Step 8: Deduct Credits for Successful Pages
         deduct_credits_for_successful_pages(successful_results, file_page_counts, page_config, user_id)
 
         progress_tracker.update_progress(progress_file, 0, pages_to_process, True)
 
-        # Step 7: Clean Up Local Files
+        # Step 9: Clean Up Local Files
         cleanup_local_files(upload_folder, filenames)
+
+        # Include failure details in response
+        response['failed_files_grouped'] = failed_results
 
         return jsonify(response), 200 if successful_results else 500
 
@@ -290,10 +292,10 @@ def register_extract_routes(app):
         is_valid, error_response, status_code = validate_input(data, user_id, azure_blob_service)
         if not is_valid:
             logger.error("Input validation failed.")
-            return error_response, status_code
+            return azure_blob_service, progress_tracker, page_config, filenames, extraction_model, upload_folder, azure_endpoint, azure_key, progress_file, error_response, status_code
 
         logger.info(f"Page Config: {page_config}")
-        return azure_blob_service, progress_tracker, page_config, filenames, extraction_model, upload_folder, azure_endpoint, azure_key, progress_file
+        return azure_blob_service, progress_tracker, page_config, filenames, extraction_model, upload_folder, azure_endpoint, azure_key, progress_file, None, None
 
     # Step 2: Download Files from Azure
     def download_files_from_azure(filenames, azure_blob_service, user_id, upload_folder):
@@ -342,8 +344,17 @@ def register_extract_routes(app):
                 filenames, file_paths, user_id, upload_folder, progress_file, extraction_model,
                 azure_endpoint, azure_key, azure_blob_service, progress_tracker, page_config, pages_to_process
             )
-            logger.info(f"Extraction progress updated in {progress_file}")
-            return results, file_page_counts
+             # Track failures grouped by filename
+            failed_files = {}
+            for result in results:
+                if "error" in result:
+                    failed_files[result["filename"]] = result["error"]
+
+            if failed_files:
+                logger.error(f"Extraction failed for the following files: {failed_files}")
+
+            return results, file_page_counts, failed_files  # Return failed files info
+
         except Exception as e:
             logger.error(f"Extraction failed: {e}")
             raise Exception("Extraction process failed. Please try again later.")
@@ -368,6 +379,7 @@ def register_extract_routes(app):
         """
         response = {"extracted_files": {}, "failed_files": []}
         successful_results = []
+        failed_results = {}
 
         # Process individual extraction results
         for result in results:
@@ -375,6 +387,7 @@ def register_extract_routes(app):
             if "error" in result:
                 logger.error(f"Extraction failed for {filename}: {result['error']}")
                 response["failed_files"].append(filename)
+                failed_results[filename] = result['error']
                 continue
             if result['use_credit']:
                 successful_results.append(result)
@@ -409,7 +422,7 @@ def register_extract_routes(app):
         })
 
 
-        return response, successful_results
+        return response, successful_results, failed_results
 
 
 
