@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import BetaExcelView from './BetaExcelView';
 import './styles/DataReview.css';
 
 const DataReview = ({ extractedData, originalLines }) => {
+    const [isBetaView, setIsBetaView] = useState(false);
     const [selectedFile, setSelectedFile] = useState('');
     const [currentFormat, setCurrentFormat] = useState('');
     const [availableFormats, setAvailableFormats] = useState([]);
@@ -18,10 +20,9 @@ const DataReview = ({ extractedData, originalLines }) => {
             if (extractedData.csv_data[selectedFile]) formats.push('csv');
             if (extractedData.excel_paths[selectedFile]) formats.push('excel');
             if (extractedData.text_data[selectedFile]) formats.push('text');
-            // Safely handle combined_excel_paths
             if (extractedData.combined_excel_paths[selectedFile]) formats.push('combined_excel');
             setAvailableFormats(formats);
-            setCurrentFormat(formats[0] || ''); // Default to the first available format
+            setCurrentFormat(formats[0] || '');
         } else {
             setAvailableFormats([]);
             setCurrentFormat('');
@@ -30,7 +31,7 @@ const DataReview = ({ extractedData, originalLines }) => {
 
     const handleFileSelection = (fileName) => {
         setSelectedFile(fileName);
-        setCurrentPage(1); // Reset pagination when changing files
+        setCurrentPage(1);
     };
 
     const handleFormatChange = (event) => {
@@ -140,31 +141,49 @@ const DataReview = ({ extractedData, originalLines }) => {
     return (
         <div className="data-review-container">
             <h2>Review Extracted Data</h2>
-            <div className="file-selection">
-                <label>Select File:</label>
-                <select value={selectedFile} onChange={(e) => handleFileSelection(e.target.value)}>
-                    <option value="">-- Select a file --</option>
-                    {fileList.map((file) => (
-                        <option key={file} value={file}>
-                            {file}
-                        </option>
-                    ))}
-                </select>
-            </div>
-            {selectedFile && (
-                <div className="format-selection">
-                    <label>Select Format:</label>
-                    <select value={currentFormat} onChange={handleFormatChange}>
-                        {availableFormats.map((format) => (
-                            <option key={format} value={format}>
-                                {format.toUpperCase()}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+
+            <label className="beta-toggle">
+                <input 
+                    type="checkbox" 
+                    checked={isBetaView} 
+                    onChange={() => setIsBetaView(!isBetaView)} 
+                />
+                <span>Beta View</span>
+            </label>
+
+            {isBetaView ? (
+                <BetaExcelView extractedData={extractedData} />
+            ) : (
+                <>
+                    <div className="file-selection">
+                        <label>Select File:</label>
+                        <select value={selectedFile} onChange={(e) => handleFileSelection(e.target.value)}>
+                            <option value="">-- Select a file --</option>
+                            {fileList.map((file) => (
+                                <option key={file} value={file}>
+                                    {file}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {selectedFile && (
+                        <div className="format-selection">
+                            <label>Select Format:</label>
+                            <select value={currentFormat} onChange={handleFormatChange}>
+                                {availableFormats.map((format) => (
+                                    <option key={format} value={format}>
+                                        {format.toUpperCase()}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    <div className="data-viewer">{renderData()}</div>
+                    <div className="original-lines-viewer">{renderOriginalLines()}</div>
+                </>
             )}
-            <div className="data-viewer">{renderData()}</div>
-            <div className="original-lines-viewer">{renderOriginalLines()}</div>
         </div>
     );
 };

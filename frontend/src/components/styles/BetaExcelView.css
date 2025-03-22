@@ -1,0 +1,461 @@
+/* Beta Excel View Component Specific Styles */
+.beta-excel-container {
+    max-width: 90%;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: white;
+    box-shadow: var(--box-shadow);
+    border-radius: var(--border-radius);
+}
+
+/* Tabs for File Selection */
+.excel-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.tab {
+    background-color: var(--secondary-color);
+    color: var(--primary-color);
+    padding: 10px 15px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    transition: var(--transition);
+    min-width: 120px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.tab:hover {
+    background-color: var(--secondary-hover-color);
+    color: var(--primary-hover-color);
+}
+
+.tab.active {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: bold;
+}
+
+/* Sheet Selection Dropdown */
+.sheet-selection {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+.sheet-selection label {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-right: 10px;
+}
+
+.sheet-selection select {
+    padding: 10px;
+    border: 1px solid var(--primary-color);
+    border-radius: var(--border-radius);
+    font-size: 16px;
+    background-color: var(--light-bg-color);
+    color: var(--primary-color);
+    transition: var(--transition);
+}
+
+.sheet-selection select:focus {
+    border-color: var(--primary-hover-color);
+    outline: none;
+}
+
+/* Undo/Redo/Reset Controls */
+.controls {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.controls button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 14px;
+    transition: var(--transition);
+}
+
+.controls button:hover {
+    background-color: var(--primary-hover-color);
+}
+
+.controls button:disabled {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    cursor: not-allowed;
+}
+
+/* Column Reduction Selection */
+.column-reduction {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.column-reduction label {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.column-reduction select {
+    padding: 8px;
+    border: 1px solid var(--primary-color);
+    border-radius: var(--border-radius);
+    font-size: 14px;
+    background-color: var(--light-bg-color);
+    color: var(--primary-color);
+    transition: var(--transition);
+}
+
+.column-reduction select:focus {
+    border-color: var(--primary-hover-color);
+    outline: none;
+}
+
+/* Excel Table */
+.excel-table {
+    overflow-x: auto;
+    background-color: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 10px;
+    margin-top: 10px;
+}
+
+.excel-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.excel-table th {
+    background-color: var(--table-header-bg-color);
+    color: var(--table-header-text-color);
+    padding: 12px;
+    text-align: left;
+    font-weight: bold;
+}
+
+.excel-table td {
+    padding: 10px;
+    border-top: 1px solid #ddd;
+    font-size: 14px;
+    text-align: center;
+}
+
+.excel-table input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: var(--border-radius);
+    text-align: center;
+}
+
+.excel-table input:focus {
+    border-color: var(--focus-outline-color);
+    outline: none;
+}
+
+/* Download Button */
+.download-btn {
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    margin: 20px auto;
+    background-color: var(--muted-green);
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 16px;
+    text-align: center;
+    transition: var(--transition);
+}
+
+.download-btn:hover {
+    background-color: var(--dark-muted-green);
+}
+/* 📌 Ensure Table is Contained */
+.excel-table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    background-color: white;
+    border-radius: 5px;
+    box-shadow: var(--box-shadow);
+    padding: 10px;
+}
+
+/* 📌 Ensure the DataGrid does not stretch unnecessarily */
+.react-data-grid {
+    width: 100% !important; /* ✅ Ensures it takes full width */
+    border: 1px solid #ccc;
+    background-color: white;
+    border-radius: 5px;
+}
+
+/* 📌 Header Styling */
+.react-data-grid .rdg-header-row {
+    position: sticky;
+    top: 0;
+    background-color: #002b5b !important; /* Dark Blue for better contrast */
+    color: white !important;
+    font-weight: bold;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 2px solid #ccc;
+    z-index: 2; /* Ensures header stays on top */
+}
+
+
+/* 📌 Ensure Headers and Body Cells Stay in Sync */
+.react-data-grid .rdg-cell {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    text-align: center;
+    border-right: 1px solid #ddd;
+    background-color: #ffffff; /* Keep cells white */
+    color: #000; /* Dark text for visibility */
+    font-weight: 500;
+    min-width: 150px; /* Prevents collapsing */
+    transition: width 0.3s ease-in-out;
+}
+
+/* 📌 Darker Font Colors for Visibility */
+.react-data-grid .rdg-cell input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    text-align: center;
+    font-size: 14px;
+    background-color: #fff;
+    outline: none;
+    color: black; /* Ensure dark text */
+}
+
+
+/* 📌 Header Cells */
+.react-data-grid .rdg-cell[role="columnheader"] {
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    width: auto !important;
+    min-width: 150px;
+    background-color: #002b5b !important; /* Dark background */
+    color: white !important; /* Ensure readability */
+    font-size: 16px;
+    font-weight: bold;
+    border-bottom: 2px solid #ccc;
+    z-index: 2; /* Ensure it doesn't get hidden */
+}
+
+
+/* 📌 Row Alternating Colors */
+.react-data-grid .rdg-row:nth-child(odd) {
+    background-color: #f1f1f1;
+}
+
+.react-data-grid .rdg-row:nth-child(even) {
+    background-color: #e0e0e0;
+}
+
+/* 📌 Row Hover Effect */
+.react-data-grid .rdg-row:hover {
+    background-color: #d6e9f9;
+}
+
+/* 📌 Ensure DataGrid Takes Up Correct Space */
+.react-data-grid-container {
+    height: 500px;
+    overflow-y: auto;
+    position: relative;
+    background: white;
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* 📌 Make the Table Fit Inside a Wrapper */
+.table-wrapper {
+    max-width: 100%;
+    overflow-x: auto;
+    display: block;
+}
+
+
+/* 📌 Ensure Action Buttons Stay in a Single Line */
+.action-buttons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin: 15px 0;
+}
+
+/* 📌 Style Action Buttons */
+.action-buttons button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #02330d;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: 0.3s;
+}
+
+.action-buttons button:hover {
+    background-color: #0056b3;
+}
+
+/* 📌 Disabled Buttons */
+.action-buttons button:disabled {
+    background-color: #ccc;
+    color: #666;
+    cursor: not-allowed;
+}
+
+/* ✅ Section Container for File & Sheet Selection */
+.selection-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f8f9fa; /* Light grey background */
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+    margin-bottom: 15px;
+    gap: 15px;
+}
+
+/* ✅ Label Styling */
+.selection-container label {
+    font-size: 16px;
+    font-weight: 600;
+    color: #002b5b;
+    margin-right: 10px;
+}
+
+/* ✅ Dropdown and Input Field Styling */
+.selection-container select,
+.selection-container input {
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: white;
+    transition: all 0.3s ease-in-out;
+    min-width: 180px;
+}
+
+/* ✅ Focus Styling */
+.selection-container select:focus,
+.selection-container input:focus {
+    border-color: #0056b3;
+    outline: none;
+    box-shadow: 0px 0px 5px rgba(0, 86, 179, 0.5);
+}
+
+/* ✅ Dropdown Styling */
+.selection-container select {
+    cursor: pointer;
+}
+
+/* ✅ Apply Reduction Button */
+.apply-reduction-btn {
+    background-color: #02330d;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.3s ease-in-out;
+    font-weight: 600;
+    min-width: 160px;
+}
+
+.apply-reduction-btn:hover {
+    background-color: #0056b3;
+}
+
+/* ✅ Disabled Button */
+.apply-reduction-btn:disabled {
+    background-color: #ccc;
+    color: #666;
+    cursor: not-allowed;
+}
+
+
+/* 📌 Responsive Design */
+@media (max-width: 768px) {
+    .excel-table {
+        font-size: 12px;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .beta-excel-container {
+        padding: 15px;
+    }
+
+    .excel-table-container {
+        font-size: 12px;
+    }
+
+    .excel-tabs {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .tab {
+        width: 100%;
+    }
+
+    .controls {
+        flex-direction: column;
+    }
+
+    .column-reduction {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .excel-table table {
+        font-size: 12px;
+    }
+}
