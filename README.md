@@ -46,16 +46,31 @@ NIRA is a sophisticated AI-powered application designed to extract and process d
     Create a `.env` file in the root directory and add the following variables:
     ```plaintext
     FLASK_ENV=development
-    DATABASE_URI=postgresql://<db_user>:<db_password>@db/nira_db
+    DATABASE_URI=postgresql://<db_user>:<db_password>@db/<POSTGRES_DB>
     SECRET_KEY=<your_secret_key>
     JWT_SECRET_KEY=<your_jwt_secret_key>
     POSTGRES_USER=<db_user>
     POSTGRES_PASSWORD=<db_password>
-    POSTGRES_DB=nira_db
+    POSTGRES_DB=<POSTGRES_DB>
     AZURE_CLIENT_ID=<azure_client_id>
     AZURE_TENANT_ID=<azure_tenant_id>
     AZURE_CLIENT_SECRET=<azure_client_secret>
     KEY_VAULT_URL=<key_vault_url>
+    MY_RAZORPAY_KEY_ID=<MY_RAZORPAY_KEY_ID>
+    MY_RAZORPAY_KEY_SECRET=<MY_RAZORPAY_KEY_SECRET>
+    RAZORPAY_KEY_ID=<RAZORPAY_KEY_ID>
+    RAZORPAY_KEY_SECRET=<RAZORPAY_KEY_SECRET>
+    AZURE_CHUNK_SIZE=<AZURE_CHUNK_SIZE>
+    MAIL_USERNAME=<MAIL_USERNAME>
+    MAIL_PASSWORD=<MAIL_PASSWORD>
+    MAIL_USE_TLS=<MAIL_USE_TLS>
+    MAIL_USE_SSL=<MAIL_USE_SSL>
+    MAIL_PORT=<MAIL_PORT>
+    MAIL_SERVER=<MAIL_SERVER>
+    UPSTASH_REDIS_REST_URL=<UPSTASH_REDIS_REST_URL>
+    UPSTASH_REDIS_REST_TOKEN=<UPSTASH_REDIS_REST_TOKEN>
+    CELERY_BROKER_URL=<CELERY_BROKER_URL>
+    CELERY_RESULT_BACKEND=<CELERY_RESULT_BACKEND>
     ```
 
 3. **Start the database**:
@@ -63,17 +78,42 @@ NIRA is a sophisticated AI-powered application designed to extract and process d
     docker-compose -f .\docker-compose-db.yml up --build
     ```
 
-4. **Start the application**:
+4. **For first time setup Initialize the database**:
+    ```bash
+    docker-compose -f .\docker-compose-init-db.yml up --build
+    ```
+
+5. **Start the application**:
     ```bash
     docker-compose up --build
     ```
 
-    These commands will build the Docker images, set up the containers, and start the application.
+## 🛠️ Database Migration Setup (Docker)
+    To create the required tables for the application, follow these steps:
+
+### 1. Navigate to Docker Desktop
+   - Open Docker Desktop on your machine.
+
+### 2. Access the Running Container
+  - Go to the **Containers** section.
+  - Find and click on the `invoice_reader_backend` container.
+  - Navigate to the **Exec** tab.
+
+### 3. Run the Database Migration Command
+    In the container terminal, run the following command:
+    ```bash
+    flask db upgrade
+    ```
+
+### 💡 If you face any errors, you can use ChatGPT to help resolve them — most issues are typically related to:
+    - Alembic version mismatches
+    - Migration ID conflicts
+    - Table column nullable constraints
 
 ### Usage
 
 1. **Access the application**:
-    Open your web browser and navigate to `http://localhost:5001`.
+    Open your web browser and navigate to `http://localhost:3000`.
 
 2. **Register and login**:
     - Register a new user.
