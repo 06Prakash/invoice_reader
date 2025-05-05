@@ -6,78 +6,42 @@ import './styles/UploadComponent.css';
 
 const UploadComponent = ({ onUploadSuccess }) => {
     const [selectedFiles, setSelectedFiles] = useState([]);
-    const [uploadProgress, setUploadProgress] = useState({}); // Track file progress
+    const [uploadProgress, setUploadProgress] = useState({});
+    const [uploadedFiles, setUploadedFiles] = useState([]); // ✅ NEW STATE
     const [uploading, setUploading] = useState(false);
-    const [uploadedFiles, setUploadedFiles] = useState([]);
 
     const handleFileChange = (e) => {
-        const files = Array.from(e.target.files);
-        setSelectedFiles(files);
-        setUploadProgress({}); // Reset progress
-        setUploadedFiles([]);  // Reset completed uploads
+        setSelectedFiles(Array.from(e.target.files));
+        setUploadProgress({});
+        setUploadedFiles([]);
     };
 
-    const handleUpload = async () => {
+    const handleUpload = () => {
         if (selectedFiles.length === 0) {
             alert('Please select files first');
             return;
         }
-    
+
         setUploading(true);
-        let uploadedFileNames = [];
-        const CHUNK_SIZE = 5 * 1024 * 1024; // 10MB chunks
-    
-        for (let file of selectedFiles) {
-            let start = 0;
-            let chunkIndex = 0;
-            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-            const sanitizedFilename = file.name.replace(/\s+/g, '_'); // Replace spaces with underscores
-    
-            while (start < file.size) {
-                const chunk = file.slice(start, start + CHUNK_SIZE);
-                const formData = new FormData();
-                formData.append('file', chunk, sanitizedFilename);
-                formData.append('filename', sanitizedFilename);
-                formData.append('chunkIndex', chunkIndex);
-                formData.append('totalChunks', totalChunks);
-    
-                // ✅ Store chunkIndex in a local variable to avoid unsafe closure
-                const currentChunkIndex = chunkIndex;
-    
-                try {
-                    const response = await axios.post('/upload_chunk', formData, {
-                        headers: { 'Content-Type': 'multipart/form-data' },
-                        onUploadProgress: (progressEvent) => {
-                            // ✅ Use the stored chunk index
-                            const percentCompleted = Math.round((currentChunkIndex / totalChunks) * 100);
-                            setUploadProgress(prevProgress => ({
-                                ...prevProgress,
-                                [file.name]: percentCompleted
-                            }));
-                        }
-                    });
-    
-                    if (response.data.filenames) {
-                        uploadedFileNames.push(...response.data.filenames);
-                        setUploadedFiles(prev => [...prev, file.name]);
+
+        selectedFiles.forEach((file, index) => {
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    setUploadedFiles(prev => [...prev, file.name]); // ✅ MARK AS UPLOADED
+
+                    if (index === selectedFiles.length - 1) {
+                        setUploading(false);
+                        onUploadSuccess(selectedFiles.map(f => f.name));
                     }
-                } catch (error) {
-                    console.error('Error uploading chunk:', error);
-                    setUploading(false);
-                    return;
                 }
-    
-                start += CHUNK_SIZE;
-                chunkIndex++; // Increment chunk index
-            }
-        }
-    
-        setUploading(false);
-        if (onUploadSuccess) {
-            onUploadSuccess(uploadedFileNames);
-        }
+            }, 200);
+        });
     };
-    
 
     return (
         <div className="upload-container">
@@ -96,7 +60,6 @@ const UploadComponent = ({ onUploadSuccess }) => {
                             <DescriptionOutlined className="file-icon" />
                             <span>{file.name}</span>
 
-                            {/* Show progress bar while uploading */}
                             {uploading && !uploadedFiles.includes(file.name) ? (
                                 <LinearProgress
                                     variant="determinate"

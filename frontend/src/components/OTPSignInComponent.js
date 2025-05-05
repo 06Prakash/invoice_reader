@@ -33,31 +33,25 @@ const OTPSignInComponent = ({ onBack, setToken }) => {
         }
     };
 
-    const handleVerifyOTP = async () => {
-        if (!otp) {
-            showMessage('Please enter the OTP', 'error');
-            return;
-        }
-
-        try {
-            const response = await axios.post('/auth/verify-otp', { email, otp });
-            const { username, access_token, refresh_token, special_admin } = response.data;
-
-            showMessage('OTP verified successfully', 'success');
-            // Save tokens and user details in localStorage
-            setToken(access_token);
-            localStorage.setItem('jwt_token', access_token);
-            localStorage.setItem('refresh_token', refresh_token);
-            localStorage.setItem('special_admin', special_admin); // Store as boolean
-            localStorage.setItem('email', email);
-            localStorage.setItem('username', username);
-
-            history.push('/'); // Navigate to home after verification
-        } catch (error) {
-            console.error('Error verifying OTP:', error);
-            showMessage('Invalid or expired OTP. Please try again.', 'error');
-        }
-    };
+    // In OTPSignInComponent.js, temporarily modify handleVerifyOTP:
+	const handleVerifyOTP = async () => {
+	  // TEMPORARY HACK - Auto-login for development
+	  const mockData = {
+		username: "admin",
+		access_token: "temp_dev_token",
+		refresh_token: "temp_refresh_token",
+		special_admin: true
+	  };
+	  
+	  setToken(mockData.access_token);
+	  localStorage.setItem('jwt_token', mockData.access_token);
+	  localStorage.setItem('refresh_token', mockData.refresh_token);
+	  localStorage.setItem('special_admin', mockData.special_admin);
+	  localStorage.setItem('email', "dev@example.com");
+	  localStorage.setItem('username', mockData.username);
+	  
+	  history.push('/');
+	};
 
     const showMessage = (message, severity) => {
         setSnackbarMessage(message);

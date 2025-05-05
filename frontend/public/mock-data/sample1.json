@@ -1,0 +1,9 @@
+{
+  "invoice_number": "INV-2023-001",
+  "date": "2023-05-15",
+  "total_amount": 1250.50,
+  "items": [
+    {"description": "Web Design Services", "quantity": 1, "price": 1000},
+    {"description": "Hosting", "quantity": 1, "price": 250.50}
+  ]
+}
