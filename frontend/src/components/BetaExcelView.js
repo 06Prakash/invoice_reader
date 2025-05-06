@@ -1,433 +1,278 @@
 import 'react-data-grid/lib/styles.css';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FaUndo, FaRedo, FaDownload, FaSyncAlt } from "react-icons/fa";
 import * as XLSX from 'xlsx';
 import DataGrid from 'react-data-grid';
 import './styles/BetaExcelView.css';
 
-const BetaExcelView = ({ extractedData }) => {
-    const [excelFiles, setExcelFiles] = useState([]);
-    const [selectedFile, setSelectedFile] = useState("");
-    const [selectedSheet, setSelectedSheet] = useState("");
-    const [sheetNames, setSheetNames] = useState({});
-    const [gridRows, setGridRows] = useState([]);
-    const [gridColumns, setGridColumns] = useState([]);
+const BetaExcelView = () => {
+    // State variables
+    const [rows, setRows] = useState([]);
+    const [columns, setColumns] = useState([]);
+    const [selectedFile, setSelectedFile] = useState('');
+    const [selectedSheet, setSelectedSheet] = useState('');
     const [history, setHistory] = useState([]);
     const [historyIndex, setHistoryIndex] = useState(-1);
-    const [originalData, setOriginalData] = useState({});
-    const [columnReduction, setColumnReduction] = useState({});
-    const [selectedColumn, setSelectedColumn] = useState("");
+    const [selectedColumn, setSelectedColumn] = useState('');
     const [reductionFactor, setReductionFactor] = useState(1);
 
-    const downloadedFilesRef = useRef(new Set());
-
-    const handleCellEdit = useCallback((rowId, columnKey, newValue) => {
-        setGridRows((prevRows) => {
-            const updatedRows = prevRows.map(row =>
-                row.id === rowId ? { ...row, [columnKey]: newValue } : row
-            );
-    
-            setHistory(prevHistory => {
-                const newHistory = prevHistory.slice(0, historyIndex + 1);
-                newHistory.push({ rows: updatedRows, columns: gridColumns });
-                return newHistory;
-            });
-    
-            setHistoryIndex(prevIndex => prevIndex + 1);
-            return updatedRows;
-        });
-    }, [historyIndex, gridColumns]);
-       
-    
-    const loadSheetData = useCallback((file, sheet) => {
-        try {
-            console.log(`Loading sheet data for file: ${file}, sheet: ${sheet}`);
-            
-            const excelFile = excelFiles.find(f => f.name === file);
-            if (!excelFile) {
-                console.error(`Excel file ${file} not found.`);
-                return;
+    // Mock Excel data - completely frontend
+    const mockExcelFiles = {
+        'document1.xlsx': {
+            sheets: ['Sheet1', 'Sheet2'],
+            data: {
+                Sheet1: [
+                    ['Name', 'Age', 'Email'],
+                    ['John Doe', 32, 'john@example.com'],
+                    ['Jane Smith', 28, 'jane@example.com']
+                ],
+                Sheet2: [
+                    ['Product', 'Price', 'Stock'],
+                    ['Laptop', 999, 15],
+                    ['Phone', 699, 30]
+                ]
             }
-            console.log(`Found excel file:`, excelFile);
-    
-            if (!excelFile.workbook.Sheets[sheet]) {
-                console.error(`Sheet ${sheet} not found in file ${file}`);
-                return;
+        },
+        'document2.xlsx': {
+            sheets: ['Data', 'Summary'],
+            data: {
+                Data: [
+                    ['ID', 'Value', 'Date'],
+                    [1, 150, '2023-01-01'],
+                    [2, 200, '2023-01-02']
+                ],
+                Summary: [
+                    ['Total', 'Average'],
+                    [350, 175]
+                ]
             }
-            console.log(`Found sheet: ${sheet}`);
-    
-            const worksheet = excelFile.workbook.Sheets[sheet];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
-            console.log(`Converted worksheet to JSON:`, jsonData);
-    
-            // Column Definitions with Editable Cells
-            const columns = jsonData[0]?.map((col, index) => ({
-                key: `col-${index}`,
-                name: col?.toString().trim() || `Column ${index + 1}`,
-                editable: true,
-                width: 200,
-                resizable: true,
-                editor: ({ row, column, onRowChange }) => (
-                    <input
-                        type="text"
-                        value={row[column.key] || ""}
-                        onChange={(e) => onRowChange({ ...row, [column.key]: e.target.value })}
-                        autoFocus
-                    />
-                ),
-                headerRenderer: ({ column }) => (
-                    <input
-                        type="text"
-                        value={column.name}
-                        onChange={(e) => {
-                            const newColumns = [...columns];
-                            newColumns[index].name = e.target.value;
-                            setGridColumns(newColumns);
-                        }}
-                    />
-                ),
-            })) || [];
-            
-            console.log(`Generated columns:`, columns);
-    
-            const rows = jsonData.slice(1).map((row, rowIndex) => {
-                const rowData = {};
-                columns.forEach((col, colIndex) => {
-                    rowData[col.key] = row[colIndex] !== undefined ? row[colIndex] : ""; // Ensure every column is included
-                });
-                return { id: rowIndex, ...rowData };
-            });
-            console.log(`Generated rows:`, rows);
-    
-            setGridColumns(columns);
-            setGridRows(rows);
-            setOriginalData({ file, sheet, rows, columns });
-    
-            setHistory([{ rows, columns }]);
-            setHistoryIndex(0);
-        } catch (error) {
-            console.error(`Error loading sheet data:`, error);
-        }
-    }, [excelFiles, handleCellEdit ])
-    
-
-    /** ✅ Download and Load Excel Files */
-    const downloadAndLoadExcels = useCallback(async (excelPaths, filesToDownload) => {
-        console.log("Excel Paths:", excelPaths);
-        console.log("Files to Download:", filesToDownload);
-        const newExcelFiles = [...excelFiles];
-        const newSheetNames = { ...sheetNames };
-    
-        for (const filePath of filesToDownload) {
-            try {
-                if (!filePath) continue;
-    
-                const cleanFileName = filePath.split('/').pop();
-                if (!cleanFileName.endsWith('.xlsx') && !cleanFileName.endsWith('.xls')) {
-                    console.warn(`Skipping non-Excel file: ${cleanFileName}`);
-                    continue;
-                }
-                const fileUrl = `/downloads/${cleanFileName}`;
-                console.log(`Downloading file from: ${fileUrl}`);
-    
-                const response = await fetch(fileUrl, {
-                    method: 'GET',
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem('jwt_token')}`,
-                    },
-                });
-    
-                if (!response.ok) throw new Error(`Failed to download: ${cleanFileName}`);
-    
-                const blob = await response.blob();
-                const reader = new FileReader();
-    
-                reader.onload = (e) => {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-    
-                        newExcelFiles.push({ name: filePath, workbook });
-                        newSheetNames[filePath] = workbook.SheetNames || [];
-    
-                        if (!selectedFile) {
-                            setSelectedFile(filePath);
-                            setSelectedSheet(workbook.SheetNames[0]);
-                            loadSheetData(filePath, workbook.SheetNames[0]);
-                        }
-                    } catch (error) {
-                        console.error(`Error processing file ${filePath}:`, error);
-                    }
-                };
-                reader.readAsArrayBuffer(blob);
-            } catch (error) {
-                console.error(`Error fetching file ${filePath}:`, error);
-            }
-        }
-    
-        setExcelFiles(newExcelFiles);
-        setSheetNames(newSheetNames);
-    }, [excelFiles, sheetNames, selectedFile, loadSheetData]); // ✅ Now includes `loadSheetData`
-    
-
-     /** ✅ Process Extracted Data */
-     useEffect(() => {
-        if (extractedData) {
-            console.log("Extracted Data as obtained by Beta Excel View:", extractedData);
-
-            const allExcelPaths = [
-                ...new Set([
-                    ...Object.values(extractedData.excel_paths || {}),
-                    ...Object.values(extractedData.combined_excel_paths || {})
-                ])
-            ];
-
-            console.log("Processed Excel Paths:", allExcelPaths);
-            console.log("Downloaded Files Ref:", Array.from(downloadedFilesRef.current));
-            const newFilesToDownload = allExcelPaths
-                .map((path) => path.split('/').pop())
-                .filter((fileName) => !downloadedFilesRef.current.has(fileName));
-            console.log("New Files to Download:", newFilesToDownload);
-
-            if (newFilesToDownload.length > 0) {
-                downloadAndLoadExcels(extractedData.excel_paths, newFilesToDownload);
-                newFilesToDownload.forEach((fileName) => downloadedFilesRef.current.add(fileName));
-            }
-        }
-    }, [extractedData, downloadAndLoadExcels]);
-    
-    /** ✅ Handles File Selection */
-    const handleFileSelection = (fileName) => {
-        setSelectedFile(fileName);
-        if (sheetNames[fileName]?.length > 0) {
-            setSelectedSheet(sheetNames[fileName][0]);
-            loadSheetData(fileName, sheetNames[fileName][0]);
         }
     };
 
+    // Load sheet data from mock files
+    const loadSheetData = useCallback((filename, sheetname) => {
+        const fileData = mockExcelFiles[filename];
+        if (!fileData || !fileData.data[sheetname]) return;
 
-    /** ✅ Handles Sheet Selection */
-    const handleSheetSelection = (sheetName) => {
-        setSelectedSheet(sheetName);
-        loadSheetData(selectedFile, sheetName);
-    };
-
-    /** ✅ Handles Grid Changes */
-    const handleGridChange = (updatedRows) => {
-        if (!updatedRows || updatedRows.length === 0) return; // ✅ Avoid empty updates
-    
-        // ✅ Compare with existing gridRows to prevent unnecessary updates
-        if (JSON.stringify(updatedRows) === JSON.stringify(gridRows)) return;
-    
-        setGridRows(updatedRows);
-    
-        // ✅ Maintain Undo/Redo History immutably
-        setHistory((prevHistory) => [
-            ...prevHistory.slice(0, historyIndex + 1),
-            { rows: updatedRows, columns: gridColumns },
-        ]);
+        const sheetData = fileData.data[sheetname];
         
-        setHistoryIndex((prevIndex) => prevIndex + 1);
-    };
-    
+        // Create columns
+        const newColumns = sheetData[0].map((header, index) => ({
+            key: `col-${index}`,
+            name: header.toString(),
+            editable: true,
+            width: 150,
+            resizable: true,
+            editor: ({ row, column, onRowChange }) => (
+                <input
+                    type="text"
+                    value={row[column.key] || ""}
+                    onChange={(e) => onRowChange({ ...row, [column.key]: e.target.value })}
+                    autoFocus
+                />
+            )
+        }));
 
-    /** ✅ Column Reduction */
-    const applyColumnReduction = (colKey, factor) => {
-        const newRows = gridRows.map(row => {
-            const value = row[colKey];
-            const numericValue = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : value;
-            const originalValue = typeof value === 'number' ? value : numericValue;
-            const reducedValue = !isNaN(numericValue) ? (originalValue / factor).toFixed(2) : value;
-            return {
-                ...row,
-                [colKey]: typeof reducedValue === 'number' ? reducedValue.toLocaleString() : reducedValue
-            };
+        // Create rows
+        const newRows = sheetData.slice(1).map((row, rowIndex) => {
+            const rowObj = { id: rowIndex };
+            newColumns.forEach((col, colIndex) => {
+                rowObj[col.key] = row[colIndex] !== undefined ? row[colIndex] : "";
+            });
+            return rowObj;
         });
 
-        const newColumns = gridColumns.map(col =>
-            col.key === colKey ? { ...col, name: `${col.name} x${factor}` } : col
+        setColumns(newColumns);
+        setRows(newRows);
+        setHistory([{ rows: newRows, columns: newColumns }]);
+        setHistoryIndex(0);
+    }, []);
+
+    // Handle file selection
+    const handleFileChange = (e) => {
+        const filename = e.target.value;
+        setSelectedFile(filename);
+        if (filename && mockExcelFiles[filename]) {
+            setSelectedSheet(mockExcelFiles[filename].sheets[0]);
+            loadSheetData(filename, mockExcelFiles[filename].sheets[0]);
+        }
+    };
+
+    // Handle sheet selection
+    const handleSheetChange = (e) => {
+        const sheetname = e.target.value;
+        setSelectedSheet(sheetname);
+        loadSheetData(selectedFile, sheetname);
+    };
+
+    // Handle grid changes
+    const handleGridChange = (newRows) => {
+        setRows(newRows);
+        const newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push({ rows: newRows, columns });
+        setHistory(newHistory);
+        setHistoryIndex(newHistory.length - 1);
+    };
+
+    // Undo functionality
+    const undo = () => {
+        if (historyIndex > 0) {
+            const prevState = history[historyIndex - 1];
+            setRows(prevState.rows);
+            setColumns(prevState.columns);
+            setHistoryIndex(historyIndex - 1);
+        }
+    };
+
+    // Redo functionality
+    const redo = () => {
+        if (historyIndex < history.length - 1) {
+            const nextState = history[historyIndex + 1];
+            setRows(nextState.rows);
+            setColumns(nextState.columns);
+            setHistoryIndex(historyIndex + 1);
+        }
+    };
+
+    // Column reduction
+    const applyColumnReduction = () => {
+        if (!selectedColumn) return;
+        
+        const newRows = rows.map(row => {
+            const value = row[selectedColumn];
+            const numValue = typeof value === 'string' ? parseFloat(value) : value;
+            const reducedValue = !isNaN(numValue) ? (numValue / reductionFactor).toFixed(2) : value;
+            return { ...row, [selectedColumn]: reducedValue };
+        });
+
+        const newColumns = columns.map(col => 
+            col.key === selectedColumn 
+                ? { ...col, name: `${col.name} (÷${reductionFactor})` } 
+                : col
         );
 
-        setGridRows(newRows);
-        setGridColumns(newColumns);
-        setColumnReduction({ ...columnReduction, [colKey]: factor });
-
+        setRows(newRows);
+        setColumns(newColumns);
+        
         const newHistory = history.slice(0, historyIndex + 1);
         newHistory.push({ rows: newRows, columns: newColumns });
         setHistory(newHistory);
         setHistoryIndex(newHistory.length - 1);
     };
 
-    /** ✅ Undo & Redo */
-    const undo = () => {
-        if (historyIndex > 0) {
-            setHistoryIndex(historyIndex - 1);
-            setGridRows(history[historyIndex - 1].rows);
-            setGridColumns(history[historyIndex - 1].columns);
-        }
-    };
-
-    const redo = () => {
-        if (historyIndex < history.length - 1) {
-            setHistoryIndex(historyIndex + 1);
-            setGridRows(history[historyIndex + 1].rows);
-            setGridColumns(history[historyIndex + 1].columns);
-        }
-    };
-
-    const handleColumnReset = (colKey) => {
-        setGridColumns((prevColumns) => {
-            const newColumns = prevColumns.map(col =>
-                col.key === colKey ? { ...col, width: 200 } : col
-            );
-    
-            // ✅ Store in history for Undo/Redo
-            setHistory((prevHistory) => [
-                ...prevHistory.slice(0, historyIndex + 1),
-                { rows: gridRows, columns: newColumns },
-            ]);
-            setHistoryIndex((prevIndex) => prevIndex + 1);
-    
-            return newColumns;
-        });
-    };
-    
-    
-
-    /** ✅ Reset to Original Data */
-    const resetFileContent = () => {
-        if (originalData.file === selectedFile && originalData.sheet === selectedSheet) {
-            setGridRows(originalData.rows);
-            setGridColumns(originalData.columns);
-            setColumnReduction({});
-            setHistory([{ rows: originalData.rows, columns: originalData.columns }]);
-            setHistoryIndex(0);
-        }
-    };
-
-    /** ✅ Download the Updated Excel File */
-    const downloadUpdatedExcel = () => {
-        if (!selectedFile || !selectedSheet) return;
-
-        const worksheet = XLSX.utils.json_to_sheet(gridRows.map(row => {
-            const formattedRow = {};
-            gridColumns.forEach(col => {
-                formattedRow[col.name] = row[col.key];
-            });
-            return formattedRow;
-        }));
-
+    // Export to Excel
+    const exportToExcel = () => {
+        const worksheet = XLSX.utils.json_to_sheet(
+            rows.map(row => {
+                const obj = {};
+                columns.forEach(col => {
+                    obj[col.name] = row[col.key];
+                });
+                return obj;
+            })
+        );
+        
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, selectedSheet);
+        XLSX.writeFile(workbook, `${selectedFile}-edited.xlsx`);
+    };
 
-        XLSX.writeFile(workbook, `${selectedFile}-updated.xlsx`);
+    // Reset to original data
+    const resetData = () => {
+        if (selectedFile && selectedSheet) {
+            loadSheetData(selectedFile, selectedSheet);
+        }
     };
 
     return (
         <div className="beta-excel-container">
-            <h3>Excel Review & Editing</h3>
-
-            {/* File Selection */}
-            <div className='selection-container'>
-                <label htmlFor="file-select">Select File:</label>
-                <select 
-                    id="file-select" 
-                    onChange={(e) => handleFileSelection(e.target.value)} 
-                    value={selectedFile} 
-                    disabled={excelFiles.length === 0}
-                >
-                    {excelFiles.length > 0 ? (
-                        excelFiles.map((file) => (
-                            <option key={file.name} value={file.name}>{file.name.split('/').pop()}</option>
-                        ))
-                    ) : (
-                        <option value="">No files available</option>
-                    )}
-                </select>
-
-                {/* ✅ Select Sheet */}
-                <label htmlFor="sheet-select">Select Sheet:</label>
-                <select 
-                    id="sheet-select" 
-                    onChange={(e) => handleSheetSelection(e.target.value)} 
-                    value={selectedSheet}
-                >
-                    {sheetNames[selectedFile]?.map((sheet) => (
-                        <option key={sheet} value={sheet}>{sheet}</option>
-                    ))}
-                </select>
-
-                {/* Column Reduction UI */}
-                {/* ✅ Select Column to Reduce */}
-                <label htmlFor="column-select">Select Column to Reduce:</label>
-                <select 
-                    id="column-select" 
-                    onChange={(e) => setSelectedColumn(e.target.value)} 
-                    value={selectedColumn}
-                    >
-                    <option value="">Select Column</option>
-                    {gridColumns.map((col) => (
-                        <option key={col.key} value={col.key}>{col.name}</option>
-                    ))}
-                </select>
-
-                {/* ✅ Reduction Factor Input */}
-                <label htmlFor="reduction-factor">Reduction Factor:</label>
-                <input 
-                    id="reduction-factor"
-                    type="number"
-                    value={reductionFactor}
-                    onChange={(e) => setReductionFactor(Number(e.target.value))}
-                    min="1"
-                    step="0.1"
-                    />
+            <h2>Excel Data Editor (Beta)</h2>
+            
+            <div className="controls">
+                <div className="file-control">
+                    <label>File:</label>
+                    <select value={selectedFile} onChange={handleFileChange}>
+                        <option value="">Select a file</option>
+                        {Object.keys(mockExcelFiles).map(file => (
+                            <option key={file} value={file}>{file}</option>
+                        ))}
+                    </select>
                 </div>
-
-                {/* ✅ Apply Reduction Button */}
-                <button 
-                    className="apply-reduction-btn"
-                    onClick={() => applyColumnReduction(selectedColumn, reductionFactor)} 
-                    disabled={!selectedColumn || reductionFactor <= 0}
+                
+                {selectedFile && (
+                    <div className="sheet-control">
+                        <label>Sheet:</label>
+                        <select value={selectedSheet} onChange={handleSheetChange}>
+                            {mockExcelFiles[selectedFile].sheets.map(sheet => (
+                                <option key={sheet} value={sheet}>{sheet}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+                
+                <div className="column-control">
+                    <label>Column:</label>
+                    <select 
+                        value={selectedColumn} 
+                        onChange={(e) => setSelectedColumn(e.target.value)}
+                        disabled={columns.length === 0}
                     >
-                    APPLY REDUCTION
-                </button>
-
-            {/* Action Buttons - with Icons */}
+                        <option value="">Select column</option>
+                        {columns.map(col => (
+                            <option key={col.key} value={col.key}>{col.name}</option>
+                        ))}
+                    </select>
+                </div>
+                
+                <div className="factor-control">
+                    <label>Divide by:</label>
+                    <input
+                        type="number"
+                        min="1"
+                        step="0.1"
+                        value={reductionFactor}
+                        onChange={(e) => setReductionFactor(Number(e.target.value))}
+                    />
+                    <button 
+                        onClick={applyColumnReduction}
+                        disabled={!selectedColumn}
+                    >
+                        Apply
+                    </button>
+                </div>
+            </div>
+            
             <div className="action-buttons">
-                <button onClick={undo} title="Undo">
-                <FaUndo /> Undo
+                <button onClick={undo} disabled={historyIndex <= 0}>
+                    <FaUndo /> Undo
                 </button>
-                <button onClick={redo} title="Redo">
-                <FaRedo /> Redo
+                <button onClick={redo} disabled={historyIndex >= history.length - 1}>
+                    <FaRedo /> Redo
                 </button>
-                <button onClick={resetFileContent} title="Reset">
-                <FaSyncAlt /> Reset
+                <button onClick={resetData} disabled={!selectedFile}>
+                    <FaSyncAlt /> Reset
                 </button>
-                <button onClick={downloadUpdatedExcel} title="Download Excel" disabled={gridRows.length === 0}>
-                <FaDownload /> Download
+                <button onClick={exportToExcel} disabled={rows.length === 0}>
+                    <FaDownload /> Export
                 </button>
             </div>
-
-            {/* Data Grid */}
-            <div className="excel-table-container">
-                {gridRows.length > 0 && gridColumns.length > 0 ? (
-                    <div className="table-wrapper">
-                        <DataGrid
-                            columns={gridColumns}
-                            rows={gridRows}
-                            onRowsChange={handleGridChange} // ✅ Handles Grid Changes
-                            className="react-data-grid excel-table"
-                            style={{ minHeight: "400px", width: "100%" }}
-                            rowHeight={35}
-                            headerRowHeight={40}
-                            editable
-                        />
-                    </div>
+            
+            <div className="grid-container">
+                {rows.length > 0 ? (
+                    <DataGrid
+                        columns={columns}
+                        rows={rows}
+                        onRowsChange={handleGridChange}
+                        rowHeight={35}
+                        headerRowHeight={40}
+                        style={{ height: '500px' }}
+                    />
                 ) : (
-                    <p>No data available. Please select an Excel file.</p>
+                    <div className="no-data">
+                        {selectedFile ? 'Select a sheet to view data' : 'Select a file to begin'}
+                    </div>
                 )}
             </div>
-
         </div>
     );
 };
