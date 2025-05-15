@@ -5,7 +5,7 @@ FROM node:18-alpine AS build-frontend
 WORKDIR /frontend
 
 # Increase Node.js memory limit for large builds
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 # Install dependencies separately for better caching
 COPY frontend/package*.json ./
