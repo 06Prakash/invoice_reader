@@ -17,7 +17,12 @@ from io import BytesIO
 import copy
 import fitz  # PyMuPDF
 import tempfile
+from datetime import datetime
+from io import BytesIO
+import openpyxl
+import traceback
 import os
+
 logger = setup_logger(__name__)
 
 
@@ -516,7 +521,483 @@ def register_extract_routes(app):
         except Exception as e:
             logger.error(f"Error while downloading file {filename} for user {user_id}: {e}")
             return {"error": f"Failed to download the file: {e}"}, 500
+
+    @app.route('/excel/add-row', methods=['POST'])
+    @jwt_required()
+    def add_excel_row():
+        try:
+            data = request.json
+            user_id = get_jwt_identity()
+            filename = data['filename']
+            
+            azure_blob_service = app.config["AZURE_BLOB_SERVICE"]
+            
+            # Download the Excel file
+            excel_content = azure_blob_service.download_file(user_id, filename, 'user_extract')
+            
+            # Modify the Excel file
+            workbook = openpyxl.load_workbook(BytesIO(excel_content))
+            sheet = workbook.active
+            
+            # Add empty row at the end
+            sheet.append(["" for _ in range(sheet.max_column)])
+            
+            # Save to temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+                workbook.save(tmp_file.name)
+                tmp_file_path = tmp_file.name
+            
+            # Upload the modified file back to Azure
+            azure_blob_service.upload_files(
+                user_id=user_id,
+                files=[tmp_file_path],
+                folder_type='user_extract'
+            )
+
+            # Clean up temporary file
+            os.unlink(tmp_file_path)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Row added successfully'
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"Error adding row: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Failed to add row: {str(e)}'
+            }), 500
+
+    @app.route('/excel/add-column', methods=['POST'])
+    @jwt_required()
+    def add_excel_column():
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'success': False, 'message': 'No data provided'}), 400
+
+            user_id = get_jwt_identity()
+            filename = data.get('filename')
+            column_name = data.get('column_name', f'Column {datetime.now().strftime("%Y%m%d%H%M%S")}')
+
+            if not filename:
+                return jsonify({'success': False, 'message': 'Filename is required'}), 400
+
+            azure_blob_service = app.config["AZURE_BLOB_SERVICE"]
+            
+            # Download the Excel file
+            excel_content = azure_blob_service.download_file(user_id, filename, 'user_extract')
+            if not excel_content:
+                return jsonify({'success': False, 'message': 'File not found'}), 404
+
+            # Modify the Excel file
+            workbook = openpyxl.load_workbook(BytesIO(excel_content))
+            sheet = workbook.active
+            
+            # Add column header
+            column_letter = openpyxl.utils.get_column_letter(sheet.max_column + 1)
+            sheet[f"{column_letter}1"] = column_name
+            
+            # Save to temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+                workbook.save(tmp_file.name)
+                tmp_file_path = tmp_file.name
+            
+            # Upload the modified file back to Azure
+            try:
+                azure_blob_service.upload_files(
+                    user_id=user_id,
+                    files=[tmp_file_path],
+                    folder_type='user_extract'
+                )
+            except Exception as upload_error:
+                logger.error(f"Upload failed: {str(upload_error)}")
+                return jsonify({'success': False, 'message': 'File upload failed'}), 500
+            finally:
+                # Clean up temporary file
+                if os.path.exists(tmp_file_path):
+                    os.unlink(tmp_file_path)
+
+            return jsonify({
+                'success': True,
+                'message': 'Column added successfully',
+                'column_name': column_name
+            }), 200
+        
+        except Exception as e:
+            logger.error(f"Error adding column: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Internal server error'
+            }), 500  
+
+    @app.route('/excel/update-column-name', methods=['POST'])
+    @jwt_required()
+    def update_column_name():
+        try:
+            data = request.get_json()
+            user_id = get_jwt_identity()
+            filename = data.get('filename')
+            column_index = data.get('column_index')
+            new_name = data.get('new_name')
+
+            if not all([filename, column_index is not None, new_name]):
+                return jsonify({'success': False, 'message': 'Missing required parameters'}), 400
+
+            azure_blob_service = app.config["AZURE_BLOB_SERVICE"]
+            
+            # Download the Excel file
+            excel_content = azure_blob_service.download_file(user_id, filename, 'user_extract')
+            workbook = openpyxl.load_workbook(BytesIO(excel_content))
+            sheet = workbook.active
+
+            # Update column name (header in first row)
+            column_letter = openpyxl.utils.get_column_letter(int(column_index) + 1)  # +1 because Excel is 1-based
+            sheet[f"{column_letter}1"] = new_name
+
+            # Save to temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+                workbook.save(tmp_file.name)
+                tmp_file_path = tmp_file.name
+            
+            # Upload back to Azure
+            azure_blob_service.upload_files(
+                user_id=user_id,
+                files=[tmp_file_path],
+                folder_type='user_extract'
+            )
+            
+            # Clean up
+            os.unlink(tmp_file_path)
+
+            return jsonify({
+                'success': True,
+                'message': 'Column name updated successfully',
+                'new_name': new_name,
+                'column_index': column_index
+            }), 200
+
+        except Exception as e:
+            logger.error(f"Error updating column name: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Failed to update column name: {str(e)}'
+            }), 500
+            
+    @app.route('/excel/update-cell', methods=['POST'])
+    @jwt_required()
+    def update_excel_cell():
+        """Update a cell value in the Excel file"""
+        try:
+            data = request.get_json()
+            user_id = get_jwt_identity()
+            filename = data.get('filename')
+            cell_ref = data.get('cell_ref')
+            new_value = data.get('new_value')
+
+            if not filename or not cell_ref:
+                raise ValueError("Missing filename or cell reference")
+
+            azure_blob_service = app.config.get("AZURE_BLOB_SERVICE")
+            if not azure_blob_service:
+                raise RuntimeError("Azure Blob Service not configured")
+
+            # Download the Excel file
+            excel_content = azure_blob_service.download_file(user_id, filename, 'user_extract')
+            if not excel_content:
+                raise FileNotFoundError("Could not download the Excel file from Azure")
+
+            # Modify the Excel file
+            workbook = openpyxl.load_workbook(BytesIO(excel_content))
+            sheet = workbook.active
+            
+            # Handle formulas
+            if isinstance(new_value, str) and new_value.startswith('='):
+                sheet[cell_ref] = new_value
+            else:
+                sheet[cell_ref].value = new_value
+
+            # Save to temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+                workbook.save(tmp_file.name)
+                tmp_file_path = tmp_file.name
+
+            # Upload the modified file back to Azure using upload_files
+            azure_blob_service.upload_files(
+                user_id=user_id,
+                files=[tmp_file_path],
+                folder_type='user_extract'
+            )
+
+            # Clean up temporary file
+            os.unlink(tmp_file_path)
+
+            return jsonify({
+                'success': True,
+                'message': 'Cell updated successfully'
+            }), 200
+
+        except Exception as e:
+            logger.error(f"Error updating cell: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Failed to update cell: {str(e)}'
+            }), 500
+
+    @app.route('/excel/merge-cells', methods=['POST'])
+    @jwt_required()
+    def merge_excel_cells():
+        """Merge cells in the Excel file"""
+        try:
+            data = request.json
+            user_id = get_jwt_identity()
+            filename = data['filename']
+            range_ref = data['range_ref']
+            merge_value = data.get('merge_value', '')
+            
+            azure_blob_service = app.config["AZURE_BLOB_SERVICE"]
+            
+            # Download the Excel file
+            excel_content = azure_blob_service.download_file(user_id, filename, 'user_extract')
+            
+            # Modify the Excel file
+            workbook = openpyxl.load_workbook(BytesIO(excel_content))
+            sheet = workbook.active
+            
+            # Merge cells and set value
+            sheet.merge_cells(range_ref)
+            start_cell = range_ref.split(':')[0]
+            sheet[start_cell] = merge_value
+            
+            # Save and upload back to Azure
+            output = BytesIO()
+            workbook.save(output)
+            output.seek(0)
+            
+            azure_blob_service.upload_file(
+                user_id=user_id,
+                file_content=output.getvalue(),
+                folder_type='user_extract',
+                destination_filename=filename
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': 'Cells merged successfully'
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"Error merging cells: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Failed to merge cells: {str(e)}'
+            }), 500
+
+    @app.route('/excel/delete-rows', methods=['POST'])
+    @jwt_required()
+    def delete_excel_rows():
+        """Delete rows from the Excel file"""
+        try:
+            data = request.json
+            user_id = get_jwt_identity()
+            filename = data['filename']
+            rows_to_delete = data['rows']
+            
+            azure_blob_service = app.config["AZURE_BLOB_SERVICE"]
+            
+            # Download the Excel file
+            excel_content = azure_blob_service.download_file(user_id, filename, 'user_extract')
+            
+            # Modify the Excel file
+            workbook = openpyxl.load_workbook(BytesIO(excel_content))
+            sheet = workbook.active
+            
+            # Delete rows (need to delete from bottom to top)
+            for row_idx in sorted(rows_to_delete, reverse=True):
+                sheet.delete_rows(row_idx)
+            
+            # Save and upload back to Azure
+            output = BytesIO()
+            workbook.save(output)
+            output.seek(0)
+            
+            azure_blob_service.upload_file(
+                user_id=user_id,
+                file_content=output.getvalue(),
+                folder_type='user_extract',
+                destination_filename=filename
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': 'Rows deleted successfully'
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"Error deleting rows: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Failed to delete rows: {str(e)}'
+            }), 500
     
+    @app.route('/excel/merge-rows', methods=['POST'])
+    @jwt_required()
+    def merge_excel_rows():
+        """Merge selected rows in the Excel file"""
+        try:
+            data = request.json
+            user_id = get_jwt_identity()
+            filename = data['filename']
+            rows = data['rows']
+            merge_method = data.get('method', 'concat')  # 'concat', 'sum', 'average', etc.
+            
+            azure_blob_service = app.config["AZURE_BLOB_SERVICE"]
+            
+            # Download the Excel file
+            excel_content = azure_blob_service.download_file(user_id, filename, 'user_extract')
+            workbook = openpyxl.load_workbook(BytesIO(excel_content))
+            sheet = workbook.active
+            
+            # Create merged row
+            merged_row = []
+            for col_idx in range(1, sheet.max_column + 1):
+                values = []
+                for row_idx in rows:
+                    values.append(sheet.cell(row=row_idx, column=col_idx).value)
+                
+                # Apply merge method
+                if merge_method == 'concat':
+                    merged_value = ' | '.join(str(v) for v in values if v)
+                elif merge_method == 'sum':
+                    merged_value = sum(float(v) for v in values if isinstance(v, (int, float)))
+                elif merge_method == 'average':
+                    nums = [float(v) for v in values if isinstance(v, (int, float))]
+                    merged_value = sum(nums) / len(nums) if nums else ''
+                else:
+                    merged_value = values[0] if values else ''
+                
+                merged_row.append(merged_value)
+            
+            # Delete original rows (from bottom to top)
+            for row_idx in sorted(rows, reverse=True):
+                sheet.delete_rows(row_idx)
+            
+            # Add merged row at the first deleted row position
+            sheet.insert_rows(min(rows))
+            for col_idx, value in enumerate(merged_row, 1):
+                sheet.cell(row=min(rows), column=col_idx, value=value)
+            
+            # Save and upload back to Azure
+            output = BytesIO()
+            workbook.save(output)
+            output.seek(0)
+            
+            azure_blob_service.upload_file(
+                user_id=user_id,
+                file_content=output.getvalue(),
+                folder_type='user_extract',
+                destination_filename=filename
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': 'Rows merged successfully'
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"Error merging rows: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Failed to merge rows: {str(e)}'
+            }), 500
+
+    @app.route('/excel/merge-columns', methods=['POST'])
+    @jwt_required()
+    def merge_excel_columns():
+        """Merge selected columns in the Excel file"""
+        try:
+            data = request.json
+            user_id = get_jwt_identity()
+            filename = data['filename']
+            columns = data['columns']  # List of column letters (A, B, etc.)
+            merge_method = data.get('method', 'concat')
+            new_column_name = data.get('new_column_name', 'Merged')
+            
+            azure_blob_service = app.config["AZURE_BLOB_SERVICE"]
+            
+            # Download the Excel file
+            excel_content = azure_blob_service.download_file(user_id, filename, 'user_extract')
+            workbook = openpyxl.load_workbook(BytesIO(excel_content))
+            sheet = workbook.active
+            
+            # Create new merged column
+            new_col_idx = sheet.max_column + 1
+            sheet.cell(row=1, column=new_col_idx, value=new_column_name)
+            
+            for row_idx in range(2, sheet.max_row + 1):
+                values = []
+                for col_letter in columns:
+                    col_idx = openpyxl.utils.column_index_from_string(col_letter)
+                    values.append(sheet.cell(row=row_idx, column=col_idx).value)
+                
+                # Apply merge method
+                if merge_method == 'concat':
+                    merged_value = ' | '.join(str(v) for v in values if v)
+                elif merge_method == 'sum':
+                    merged_value = sum(float(v) for v in values if isinstance(v, (int, float)))
+                elif merge_method == 'average':
+                    nums = [float(v) for v in values if isinstance(v, (int, float))]
+                    merged_value = sum(nums) / len(nums) if nums else ''
+                else:
+                    merged_value = values[0] if values else ''
+                
+                sheet.cell(row=row_idx, column=new_col_idx, value=merged_value)
+            
+            # Save and upload back to Azure
+            output = BytesIO()
+            workbook.save(output)
+            output.seek(0)
+            
+            azure_blob_service.upload_file(
+                user_id=user_id,
+                file_content=output.getvalue(),
+                folder_type='user_extract',
+                destination_filename=filename
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': 'Columns merged successfully'
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"Error merging columns: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Failed to merge columns: {str(e)}'
+            }), 500
+
+    @app.route('/list-files', methods=['GET'])
+    @jwt_required()
+    def list_files():
+        """List all files for the current user in the specified folder type"""
+        try:
+            user_id = get_jwt_identity()
+            folder_type = request.args.get('folder_type', 'user_upload')
+            
+            azure_blob_service = app.config["AZURE_BLOB_SERVICE"]
+            files = azure_blob_service.list_files(user_id, folder_type)
+            
+            # Extract just the filenames for the response
+            filenames = [os.path.basename(file['name']) for file in files]
+            
+            return jsonify(filenames), 200
+        except Exception as e:
+            logger.error(f"Failed to list files: {e}")
+            return jsonify({'error': str(e)}), 500
+
+   
     ##############################################################
     ################ Non routing functions #######################
     ##############################################################

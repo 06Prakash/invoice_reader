@@ -1,87 +1,3 @@
-/* Action Buttons Cell */
-.action-buttons-cell {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    height: 100%;
-    width: 100%;
-}
-
-.action-btn {
-    border: none;
-    background: none;
-    cursor: pointer;
-    padding: 5px;
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.action-btn:hover {
-    transform: scale(1.1);
-}
-
-.edit-btn {
-    color: #007bff;
-}
-
-.edit-btn:hover {
-    background-color: rgba(0, 123, 255, 0.1);
-}
-
-.delete-btn {
-    color: #dc3545;
-}
-
-.delete-btn:hover {
-    background-color: rgba(220, 53, 69, 0.1);
-}
-
-.merge-btn {
-    color: #28a745;
-}
-
-.merge-btn:hover {
-    background-color: rgba(40, 167, 69, 0.1);
-}
-
-.save-btn {
-    color: #28a745;
-}
-
-.save-btn:hover {
-    background-color: rgba(40, 167, 69, 0.1);
-}
-
-.cancel-btn {
-    color: #6c757d;
-}
-
-.cancel-btn:hover {
-    background-color: rgba(108, 117, 125, 0.1);
-}
-
-/* Formula Input Styling */
-.react-data-grid .rdg-cell input[value^="="] {
-    font-style: italic;
-    color: #007bff;
-    font-weight: bold;
-}
-
-/* Responsive Adjustments */
-@media (max-width: 768px) {
-    .action-buttons-cell {
-        flex-direction: column;
-        gap: 5px;
-    }
-    
-    .action-btn {
-        padding: 2px;
-    }
-}
-
 /* Beta Excel View Component Specific Styles */
 .beta-excel-container {
     max-width: 90%;
@@ -542,4 +458,214 @@
     .excel-table table {
         font-size: 12px;
     }
+}
+
+/* Merge Mode Styles */
+.merge-selection-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    z-index: 1000;
+    max-width: 80%;
+    max-height: 80vh;
+    overflow: auto;
+}
+
+.row-selection, .column-selection {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 15px 0;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.row-item, .column-item {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.row-item:hover, .column-item:hover {
+    background-color: #f0f0f0;
+}
+
+.row-item.selected, .column-item.selected {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.merge-method, .new-column-name {
+    margin: 15px 0;
+}
+
+.merge-method select, .new-column-name input {
+    margin-left: 10px;
+    padding: 5px;
+}
+
+.merge-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* Highlight merge mode */
+.merge-mode-active {
+    outline: 2px solid #ff9800;
+}
+
+/* Action Icons */
+.action-icons {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.action-icons button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #002b5b;
+    font-size: 14px;
+    padding: 5px;
+    transition: 0.2s;
+}
+
+.action-icons button:hover {
+    color: #0056b3;
+    transform: scale(1.1);
+}
+
+/* Alignment Buttons */
+.alignment-buttons {
+    display: flex;
+    gap: 5px;
+    margin-left: 10px;
+}
+
+.alignment-buttons button {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 5px 8px;
+    cursor: pointer;
+    color: #002b5b;
+}
+
+.alignment-buttons button:hover {
+    background: #e0e0e0;
+}
+
+/* Active mode button */
+.active-mode {
+    background-color: #002b5b !important;
+    color: white !important;
+}
+
+/* Selected row */
+.selected-row {
+    background-color: #d6e9f9 !important;
+}
+
+/* Merge notice */
+.merge-notice {
+    padding: 10px;
+    background-color: #fff3cd;
+    color: #856404;
+    border-radius: 4px;
+    margin: 10px 0;
+    text-align: center;
+}
+
+/* Formula cells */
+.formula-cell {
+    font-style: italic;
+    color: #007bff;
+}
+
+/* BetaExcelView.css */
+/* Previous styles remain the same, add these new ones */
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 24px;
+    z-index: 1000;
+}
+
+.delete-row-btn {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px;
+    transition: 0.2s;
+}
+
+.delete-row-btn:hover {
+    color: #a71d2a;
+    transform: scale(1.1);
+}
+
+.delete-row-btn:disabled {
+    color: #6c757d;
+    cursor: not-allowed;
+}
+
+.dragging-row {
+    background-color: #d6e9f9 !important;
+    opacity: 0.8;
+}
+
+.selected-cell {
+    background-color: #fff3cd !important;
+}
+
+/* Column header editing styles */
+.rdg-header-cell {
+  position: relative;
+  overflow: visible;
+  padding: 0 !important;
+}
+
+.rdg-header-cell > div {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.rdg-header-cell input {
+  width: 100%;
+  border: 2px solid #2684FF;
+  padding: 4px;
+  font-size: inherit;
+  font-family: inherit;
+  background: white;
+  box-sizing: border-box;
+}
+
+.rdg-header-cell > div > div {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

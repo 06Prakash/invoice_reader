@@ -41,7 +41,7 @@ def create_user(username, email, password, company_id=None):
         return {'error': 'Failed to create user'}, 500
 
     # Assign default personal credits
-    default_personal_credit = PersonalCredit(user_id=new_user.id, credit_count=5)
+    default_personal_credit = PersonalCredit(user_id=new_user.id, credit_count=1000)
     db.session.add(default_personal_credit)
     db.session.commit()
 

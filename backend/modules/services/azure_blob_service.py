@@ -116,24 +116,23 @@ class AzureBlobService:
 
 
     def list_files(self, user_id, folder_type='user_upload', date_folder=None):
-        """
-        List all files for a specific user in a specified folder type.
-        :param user_id: User ID whose files need to be listed.
-        :param folder_type: Subfolder type ('user_upload' or 'user_extract').
-        :param date_folder: If you want to list a particular date related content we can use this. But for now it has no use.
-        :return: List of blob names.
-        """
-        if date_folder == None:
-            date_folder = self._get_date_folder()
-        prefix = f"uploads/{date_folder}/{user_id}/{folder_type}/"
-        logger.info(f"Listing files for user {user_id} in folder {prefix}...")
-        try:
-            files = [blob.name for blob in self.container_client.list_blobs(name_starts_with=prefix)]
-            logger.info(f"Found {len(files)} files for user {user_id} in folder {prefix}.")
-        except Exception as e:
-            logger.error(f"Failed to list files for user {user_id} in folder {prefix}: {e}")
-            raise
-        return files
+            """List all files for a specific user in a specified folder type"""
+            if date_folder is None:
+                date_folder = datetime.now().strftime('%d_%m_%Y')
+            
+            prefix = f"uploads/{date_folder}/{user_id}/{folder_type}/"
+            try:
+                blobs = self.container_client.list_blobs(name_starts_with=prefix)
+                files = [{
+                    'name': blob.name,
+                    'url': f"{self.container_client.url}/{blob.name}",
+                    'last_modified': blob.last_modified,
+                    'size': blob.size
+                } for blob in blobs]
+                return files
+            except Exception as e:
+                logger.error(f"Failed to list files: {e}")
+                raise
 
     def download_file(self, user_id, filename, folder_type='user_upload'):
         """
