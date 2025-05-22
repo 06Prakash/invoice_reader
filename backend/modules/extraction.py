@@ -8,7 +8,7 @@ import json
 
 logger = logging.getLogger(__name__)
 
-def extract_value(text, keyword, separator, boundaries, capture_mode, data_type, indices, multiline, logger, default=""):
+def extract_value(text, keyword, separator, boundaries, capture_mode, data_type, indices, multiline, logger, default="",  fix_columns=False):
     """
     Extracts a value from text based on keyword, boundaries, and data type.
     """
@@ -58,6 +58,11 @@ def extract_value(text, keyword, separator, boundaries, capture_mode, data_type,
         value = match.group(1).strip() if match else value
     value = validate_data_type(value.strip(), data_type)
     return value if value else default
+
+    if fix_columns:
+        # Merge split columns (e.g., ["Revenue", "100M", "2022"] → "Revenue: 100M (2022)")
+        value = " ".join(parts).strip()  # Combine all parts
+    return value
 
 def validate_data_type(value, data_type):
     """
@@ -116,6 +121,16 @@ def extract_with_boundaries(text, left_boundary, right_boundary, capture_mode, l
 
     # If no matching boundary is found, return the original text
     return text
+
+def clean_extracted_data(extracted_data, year):
+    """Merge split columns into one key-value pair per field."""
+    cleaned = {}
+    for key, value in extracted_data.items():
+        if isinstance(value, list):  # If value is split into multiple columns
+            cleaned[key] = " ".join(map(str, value))  # Merge them
+        else:
+            cleaned[key] = f"{value} ({year})"  # Add year suffix
+    return cleaned
 
 def format_output_to_pandas(extracted_data):
     """

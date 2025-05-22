@@ -745,53 +745,134 @@ def register_extract_routes(app):
                 'message': f'Failed to update cell: {str(e)}'
             }), 500
 
-    @app.route('/excel/merge-cells', methods=['POST'])
+    @app.route('/excel/insert-column', methods=['POST'])
     @jwt_required()
-    def merge_excel_cells():
-        """Merge cells in the Excel file"""
+    def insert_excel_column():
         try:
-            data = request.json
+            data = request.get_json()
+            if not data:
+                return jsonify({'success': False, 'message': 'No data provided'}), 400
+
             user_id = get_jwt_identity()
-            filename = data['filename']
-            range_ref = data['range_ref']
-            merge_value = data.get('merge_value', '')
-            
+            filename = data.get('filename')
+            column_name = data.get('column_name', f'Column {datetime.now().strftime("%Y%m%d%H%M%S")}')
+            position = data.get('position')  # 1-based index
+
+            if not filename or position is None:
+                return jsonify({'success': False, 'message': 'Filename and position are required'}), 400
+
             azure_blob_service = app.config["AZURE_BLOB_SERVICE"]
             
             # Download the Excel file
             excel_content = azure_blob_service.download_file(user_id, filename, 'user_extract')
-            
+            if not excel_content:
+                return jsonify({'success': False, 'message': 'File not found'}), 404
+
             # Modify the Excel file
             workbook = openpyxl.load_workbook(BytesIO(excel_content))
             sheet = workbook.active
             
-            # Merge cells and set value
-            sheet.merge_cells(range_ref)
-            start_cell = range_ref.split(':')[0]
-            sheet[start_cell] = merge_value
+            # Insert column at specified position
+            sheet.insert_cols(position)
             
-            # Save and upload back to Azure
-            output = BytesIO()
-            workbook.save(output)
-            output.seek(0)
+            # Add column header
+            column_letter = openpyxl.utils.get_column_letter(position)
+            sheet[f"{column_letter}1"] = column_name
             
-            azure_blob_service.upload_file(
-                user_id=user_id,
-                file_content=output.getvalue(),
-                folder_type='user_extract',
-                destination_filename=filename
-            )
+            # Save to temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+                workbook.save(tmp_file.name)
+                tmp_file_path = tmp_file.name
             
+            # Upload the modified file back to Azure
+            try:
+                azure_blob_service.upload_files(
+                    user_id=user_id,
+                    files=[tmp_file_path],
+                    folder_type='user_extract'
+                )
+            except Exception as upload_error:
+                logger.error(f"Upload failed: {str(upload_error)}")
+                return jsonify({'success': False, 'message': 'File upload failed'}), 500
+            finally:
+                # Clean up temporary file
+                if os.path.exists(tmp_file_path):
+                    os.unlink(tmp_file_path)
+
             return jsonify({
                 'success': True,
-                'message': 'Cells merged successfully'
+                'message': 'Column inserted successfully',
+                'column_name': column_name,
+                'position': position
             }), 200
-            
+        
         except Exception as e:
-            logger.error(f"Error merging cells: {str(e)}")
+            logger.error(f"Error inserting column: {str(e)}")
             return jsonify({
                 'success': False,
-                'message': f'Failed to merge cells: {str(e)}'
+                'message': 'Internal server error'
+            }), 500
+
+    @app.route('/excel/insert-row', methods=['POST'])
+    @jwt_required()
+    def insert_excel_row():
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'success': False, 'message': 'No data provided'}), 400
+
+            user_id = get_jwt_identity()
+            filename = data.get('filename')
+            position = data.get('position')  # 1-based index
+
+            if not filename or position is None:
+                return jsonify({'success': False, 'message': 'Filename and position are required'}), 400
+
+            azure_blob_service = app.config["AZURE_BLOB_SERVICE"]
+            
+            # Download the Excel file
+            excel_content = azure_blob_service.download_file(user_id, filename, 'user_extract')
+            if not excel_content:
+                return jsonify({'success': False, 'message': 'File not found'}), 404
+
+            # Modify the Excel file
+            workbook = openpyxl.load_workbook(BytesIO(excel_content))
+            sheet = workbook.active
+            
+            # Insert row at specified position
+            sheet.insert_rows(position)
+            
+            # Save to temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+                workbook.save(tmp_file.name)
+                tmp_file_path = tmp_file.name
+            
+            # Upload the modified file back to Azure
+            try:
+                azure_blob_service.upload_files(
+                    user_id=user_id,
+                    files=[tmp_file_path],
+                    folder_type='user_extract'
+                )
+            except Exception as upload_error:
+                logger.error(f"Upload failed: {str(upload_error)}")
+                return jsonify({'success': False, 'message': 'File upload failed'}), 500
+            finally:
+                # Clean up temporary file
+                if os.path.exists(tmp_file_path):
+                    os.unlink(tmp_file_path)
+
+            return jsonify({
+                'success': True,
+                'message': 'Row inserted successfully',
+                'position': position
+            }), 200
+        
+        except Exception as e:
+            logger.error(f"Error inserting row: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Internal server error'
             }), 500
 
     @app.route('/excel/delete-rows', methods=['POST'])

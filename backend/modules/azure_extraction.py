@@ -18,6 +18,7 @@ import fitz  # PyMuPDF
 import subprocess
 from PyPDF2 import PdfWriter, PdfReader
 import io
+from typing import List, Dict  # Add this at the top with other imports
 current_file = os.path.basename(__file__)
 logger = setup_logger(current_file.split(".")[0])
 
@@ -565,6 +566,123 @@ def process_field_extraction(result, filename, output_folder, progress_tracker, 
 
     # Add raw_tables key for further processing
     outputs['raw_tables'] = csv_data
+
+    return outputs
+
+# Add these new functions to your azure_extraction.py
+
+def is_cash_flow_table(table: pd.DataFrame) -> bool:
+    """Enhanced detection for cash flow statement tables"""
+    cash_flow_keywords = [
+        'operating activities', 'investing activities', 'financing activities',
+        'cash flow', 'depreciation', 'amortization', 'net cash', 'profit before tax'
+    ]
+    
+    # Check first 3 rows and column headers for keywords
+    text_data = " ".join([
+        " ".join(str(x) for x in table.head(3).values.flatten()),
+        " ".join(str(col) for col in table.columns)
+    ]).lower()
+    
+    return any(keyword in text_data for keyword in cash_flow_keywords)
+
+def extract_cash_flow_tables(result) -> List[pd.DataFrame]:
+    """Extract and process cash flow statement tables from Azure result"""
+    cash_flow_tables = []
+    
+    for table in result.tables:
+        # Convert Azure table to DataFrame
+        rows = []
+        for row_idx in range(table.row_count):
+            row = []
+            for cell in table.cells:
+                if cell.row_index == row_idx:
+                    row.append(cell.content)
+            rows.append(row)
+        
+        df = pd.DataFrame(rows)
+        
+        # Clean and validate the table
+        if is_cash_flow_table(df):
+            processed_df = process_cash_flow_table(df)
+            cash_flow_tables.append(processed_df)
+    
+    return cash_flow_tables
+
+def process_cash_flow_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Specialized processing for cash flow statement tables"""
+    # 1. Clean the DataFrame
+    df = df.dropna(how='all').reset_index(drop=True)
+    
+    # 2. Detect and handle multi-line headers
+    if len(df) > 1 and df.iloc[0].str.contains('31 March|year ended', case=False).any():
+        # Merge header rows
+        new_header = df.iloc[0] + " " + df.iloc[1].fillna('')
+        df.columns = new_header
+        df = df[2:].reset_index(drop=True)
+    
+    # 3. Identify particulars column
+    particulars_col = 0  # Default to first column
+    for i, col in enumerate(df.columns):
+        if isinstance(col, str) and any(kw in col.lower() for kw in ['particulars', 'description', 'item']):
+            particulars_col = i
+            break
+    
+    # 4. Identify year columns
+    year_columns = []
+    for col in df.columns:
+        if isinstance(col, str) and re.search(r'(19|20)\d{2}', col):
+            year_columns.append(col)
+    
+    # 5. If no year columns found, try to infer from data
+    if not year_columns and len(df.columns) > 1:
+        potential_years = []
+        for i in range(1, min(3, len(df.columns))):  # Check first 3 columns
+            if df.iloc[0, i] and re.match(r'^\d{1,3}(,\d{3})*(\.\d+)?$', str(df.iloc[0, i])):
+                potential_years.append(i)
+        
+        if potential_years:
+            year_columns = [f"Year_{i}" for i in potential_years]
+            df.columns = [df.columns[0]] + year_columns
+    
+    # 6. Final cleaning
+    df = df.dropna(how='all', axis=1)
+    df = df.rename(columns={df.columns[particulars_col]: "Particulars"})
+    
+    # 7. Remove empty rows and clean particulars
+    df = df[df['Particulars'].notna() & (df['Particulars'] != '')]
+    df['Particulars'] = df['Particulars'].str.replace(r'^\s*[IVXLCDM]+[\.\)]*\s*', '', regex=True)
+    
+    return df
+
+# Modify the existing process_table_extraction function:
+def process_table_extraction(result, filename, output_folder, progress_tracker, progress_file, total_pages, model='financial'):
+    """Updated main processing function with cash flow specialization"""
+    tables = []
+    
+    if hasattr(result, 'tables') and result.tables:
+        # First try to find cash flow tables
+        cash_flow_tables = extract_cash_flow_tables(result)
+        
+        if cash_flow_tables:
+            tables.extend(cash_flow_tables)
+        else:
+            # Fall back to general table processing
+            for table_idx, table in enumerate(result.tables):
+                df_table = process_table(table, total_pages, table_idx, progress_tracker, progress_file)
+                tables.append(df_table)
+    
+    # Rest of the function remains the same...
+    csv_path = save_to_csv(tables, output_folder, filename)
+    text_path, text_data = save_to_text(tables, output_folder, filename)
+
+    outputs = {
+        'csv': csv_path,
+        'text': text_path,
+        'raw_tables': tables if tables else [pd.DataFrame(["No Data Extracted"])],
+        'original_lines': text_data if text_data else "",
+        'text_data': text_data if text_data else ""
+    }
 
     return outputs
 

@@ -1,9 +1,6 @@
 import re
 from datetime import datetime
 
-import re
-from datetime import datetime
-
 def validate_date(input_str):
     """
     Extracts and validates a date from the input string.

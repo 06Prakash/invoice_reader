@@ -1,0 +1,139 @@
+/* Excel Edit Tools Component Specific Styles */
+.excel-edit-tools {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.reduction-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #e9ecef;
+    border-radius: 5px;
+}
+
+.reduction-controls label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #002b5b;
+}
+
+.reduction-controls select,
+.reduction-controls input {
+    padding: 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.apply-reduction-btn {
+    background-color: #02330d;
+    color: white;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.apply-reduction-btn:hover {
+    background-color: #0056b3;
+}
+
+.apply-reduction-btn:disabled {
+    background-color: #ced4da;
+    cursor: not-allowed;
+}
+
+.insert-position-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #e9ecef;
+    border-radius: 5px;
+}
+
+.insert-position-controls label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #002b5b;
+}
+
+.insert-position-controls input {
+    padding: 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 100px;
+}
+
+.action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+.action-buttons button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #002b5b;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: 0.3s;
+}
+
+.action-buttons button:hover {
+    background-color: #0056b3;
+}
+
+.action-buttons button:disabled {
+    background-color: #ced4da;
+    color: #6c757d;
+    cursor: not-allowed;
+}
+
+.alignment-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.alignment-buttons button {
+    background-color: #e9ecef;
+    color: #002b5b;
+    border: 1px solid #ced4da;
+    padding: 5px 10px;
+}
+
+.alignment-buttons button:hover {
+    background-color: #d1e7ff;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .reduction-controls,
+    .insert-position-controls {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+}
