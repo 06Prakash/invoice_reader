@@ -41,15 +41,15 @@ def extraction_model_mapping(model_name):
 
 def is_roman_numeral(value):
     """Check if a string is a Roman numeral (e.g., I, II, III, IV)."""
-    roman_pattern = r"^(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV|XVI|XVII|XVIII|XIX|XX)$"
-    return bool(re.match(roman_pattern, str(value).strip()))
+    roman_pattern =  r"^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})?$"
+    return bool(re.match(roman_pattern, str(value).upper().strip()))
 
 def is_short_or_pattern(value):
     """Check if value matches short patterns: Roman numerals, numbers, or symbols."""
     if not isinstance(value, str) or not value.strip():
         return False
     
-    roman_numeral_pattern = re.compile(r'^(?=[MDCLXVI])M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$')
+    roman_numeral_pattern = re.compile(r"^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})?$")
     numeric_pattern = re.compile(r'^\d+(\.\d+)?$')  # Numbers
     symbol_pattern = re.compile(r'^[=\-:]+$')      # Section symbols
 
